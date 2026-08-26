@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FS — Install &amp; storage check</title>
+<!-- Wys na die REGTE manifest sodat hierdie bladsy dit werklik toets.
+     start_url bly index.html, so 'n install vanaf hier installeer die app. -->
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root { --blue:#0b4f9e; --ok:#0e7a4a; --bad:#b3261e; --warn:#9a6400; --line:#d6dde5; --mute:#5b6775; }
+* { box-sizing: border-box; }
+body { margin:0; font:16px/1.5 "Segoe UI",Roboto,Arial,sans-serif; color:#1b2530; background:#eef1f5; }
+header { background:var(--blue); color:#fff; padding:16px; }
+header h1 { margin:0; font-size:18px; font-weight:600; }
+header p { margin:4px 0 0; font-size:13px; color:#cfe0f4; }
+main { max-width:640px; margin:0 auto; padding:12px 12px 40px; }
+.card { background:#fff; border-radius:8px; margin-bottom:10px; overflow:hidden;
+        box-shadow:0 1px 3px rgba(27,37,48,.1); }
+.item { display:flex; gap:12px; padding:13px 14px; border-bottom:1px solid #eef1f5; align-items:flex-start; }
+.item:last-child { border-bottom:0; }
+.badge { flex:0 0 auto; width:26px; height:26px; border-radius:50%; color:#fff;
+         font-size:15px; line-height:26px; text-align:center; font-weight:700; }
+.badge.ok{background:var(--ok)} .badge.bad{background:var(--bad)}
+.badge.warn{background:var(--warn)} .badge.wait{background:#8b98a6}
+.txt { min-width:0; }
+.txt b { display:block; font-size:15px; }
+.txt span { display:block; font-size:13.5px; color:var(--mute); word-break:break-word; }
+h2 { font-size:12px; text-transform:uppercase; letter-spacing:.6px; color:var(--mute);
+     margin:20px 0 7px; padding:0 2px; }
+button { border:0; border-radius:7px; padding:13px 16px; font:inherit; font-weight:500;
+         background:var(--blue); color:#fff; min-height:48px; width:100%; cursor:pointer;
+         margin-bottom:8px; }
+button.ghost { background:#fff; color:var(--blue); border:1px solid var(--line); }
+button:disabled { background:#c9d3dd; color:#fff; }
+pre { background:#1b2530; color:#e8eef5; padding:12px; border-radius:7px; font-size:11.5px;
+      overflow-x:auto; white-space:pre-wrap; word-break:break-word; }
+.verdict { padding:14px; border-radius:8px; margin-bottom:12px; font-size:15px; }
+.verdict.ok { background:#e3f3ea; border-left:4px solid var(--ok); }
+.verdict.bad { background:#fdeae8; border-left:4px solid var(--bad); }
+.verdict.wait { background:#f3f6fa; border-left:4px solid #8b98a6; }
+*:focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Install &amp; storage check</h1>
+  <p>Flagship Solar — open this on the phone that has the problem</p>
+</header>
+
+<main>
+  <div class="verdict wait" id="verdict">Running checks…</div>
+
+  <h2>Can this phone install the app?</h2>
+  <div class="card" id="install"></div>
+
+  <h2>Is the saved data safe?</h2>
+  <div class="card" id="storage"></div>
+
+  <h2>This phone</h2>
+  <div class="card" id="device"></div>
+
+  <button id="btn-persist">Ask Android to protect the saved data</button>
+  <button class="ghost" id="btn-copy">Copy report — send it to Michael</button>
+  <pre id="report">…</pre>
+</main>
+
+<script>
+"use strict";
+const R = { install:[], storage:[], device:[] };
+let promptEvent = null;
+
+/* Catch the install prompt if Chrome offers it */
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); promptEvent = e; });
+
+const row = (list, ok, title, detail) => {
+  R[list].push({ ok, title, detail });
+  const c = { true:"ok", false:"bad", warn:"warn", null:"wait" }[String(ok)] || "wait";
+  const mark = { ok:"\u2713", bad:"\u2715", warn:"!", wait:"?" }[c];
+  document.getElementById(list).insertAdjacentHTML("beforeend",
+    '<div class="item"><div class="badge ' + c + '">' + mark + '</div>' +
+    '<div class="txt"><b>' + esc(title) + '</b><span>' + esc(detail) + '</span></div></div>');
+};
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+async function run() {
+  const ua = navigator.userAgent;
+
+  /* ── DEVICE ─────────────────────────────────────── */
+  const chrome = (ua.match(/Chrome\/(\d+)/) || [])[1];
+  row("device", chrome ? (+chrome >= 100 ? true : "warn") : "warn",
+      chrome ? "Chrome " + chrome : "Not Chrome",
+      chrome ? (+chrome >= 100 ? "Recent enough to install web apps."
+                               : "Old. Update Chrome from the Play Store first.")
+             : "Install only works reliably in Chrome. Not the Honor/Huawei browser, "
+               + "not Samsung Internet's older versions.");
+
+  const webview = /\bwv\b|FBAN|FBAV|Instagram|Line\/|MicroMessenger|GSA\//.test(ua);
+  row("install", !webview, webview ? "Opened inside another app" : "Opened in a real browser",
+      webview ? "This page is running in an in-app browser (WhatsApp, Facebook, Gmail link). "
+                + "There is never an install option here. Tap the three dots and choose "
+                + "\u201cOpen in Chrome\u201d, then try again."
+              : "Good \u2014 not an in-app browser.");
+
+  const standalone = matchMedia("(display-mode: standalone)").matches
+                  || matchMedia("(display-mode: fullscreen)").matches
+                  || navigator.standalone === true;
+  row("install", standalone ? true : null,
+      standalone ? "Already installed" : "Running in the browser",
+      standalone ? "This is the installed app. Nothing to fix."
+                 : "Not yet installed \u2014 that is what we are checking.");
+
+  row("install", location.protocol === "https:" || location.hostname === "localhost",
+      "Secure connection", location.protocol + "//" + location.host
+      + (location.protocol === "https:" ? "" : " \u2014 install needs https."));
+
+  /* ── MANIFEST ───────────────────────────────────── */
+  const link = document.querySelector('link[rel="manifest"]');
+  if (!link) {
+    row("install", "warn", "No manifest on this page",
+        "Expected \u2014 this check page has none. Run it from index.html instead, "
+        + "or trust the other results.");
+  } else {
+    try {
+      const res = await fetch(link.href);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const m = await res.json();
+      row("install", true, "Manifest found", link.href);
+
+      const disp = m.display || m.display_override && m.display_override[0];
+      row("install", ["standalone","fullscreen","minimal-ui"].includes(disp),
+          "display: " + (disp || "missing"),
+          ["standalone","fullscreen","minimal-ui"].includes(disp)
+            ? "Valid." : "Must be standalone, fullscreen or minimal-ui. \u201cbrowser\u201d blocks install.");
+
+      row("install", !!(m.name || m.short_name), "App name",
+          (m.name || "") + (m.short_name ? " / " + m.short_name : "") || "Missing name and short_name.");
+
+      const icons = m.icons || [];
+      const sizeOf = i => (i.sizes || "").split(" ").map(s => parseInt(s) || 0);
+      const has192 = icons.some(i => sizeOf(i).some(n => n >= 192));
+      const has512 = icons.some(i => sizeOf(i).some(n => n >= 512));
+      row("install", has192 && has512, "Icons",
+          has192 && has512 ? icons.length + " icons, 192 and 512 present."
+            : "Needs a 192\u00d7192 and a 512\u00d7512 PNG. Found: "
+              + (icons.map(i => i.sizes).join(", ") || "none"));
+
+      const start = new URL(m.start_url || ".", link.href).href;
+      const scope = new URL(m.scope || ".", link.href).href;
+      row("install", start.startsWith(scope), "start_url inside scope",
+          "start_url " + start + "  \u2022  scope " + scope
+          + (start.startsWith(scope) ? "" : "  \u2014 start_url must sit inside scope."));
+
+      row("install", location.href.startsWith(scope) ? true : "warn",
+          "This page is inside the scope",
+          location.href.startsWith(scope) ? "Yes."
+            : "No \u2014 on GitHub Pages the scope must be the repo folder, not \u201c/\u201d.");
+
+      /* icon actually reachable? */
+      const ic = icons.find(i => sizeOf(i).some(n => n >= 192));
+      if (ic) {
+        const url = new URL(ic.src, link.href).href;
+        const ok = await new Promise(r => {
+          const im = new Image(); im.onload = () => r(true); im.onerror = () => r(false); im.src = url;
+        });
+        row("install", ok, "Icon file loads", ok ? url : url + " \u2014 404 or wrong path.");
+      }
+    } catch (e) {
+      row("install", false, "Manifest could not be read", String(e.message || e));
+    }
+  }
+
+  /* ── SERVICE WORKER ─────────────────────────────── */
+  if (!("serviceWorker" in navigator)) {
+    row("install", false, "No service worker support", "This browser cannot install web apps.");
+  } else {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    row("install", regs.length > 0 ? true : "warn",
+        regs.length + " service worker" + (regs.length === 1 ? "" : "s") + " registered",
+        regs.length ? regs.map(r => r.scope).join("  ") + (regs[0].active ? " (active)" : " (not active yet)")
+          : "Install needs a registered service worker with a fetch handler. "
+            + "If you are on the check page only, run this from index.html.");
+  }
+
+  /* ── STORAGE ────────────────────────────────────── */
+  let persisted = null;
+  if (navigator.storage && navigator.storage.persisted) {
+    persisted = await navigator.storage.persisted();
+    row("storage", persisted, persisted ? "Data is protected" : "Data can be deleted by Android",
+        persisted ? "Android will not clear this on its own."
+          : "This is why times go missing after a restart or a cleaner app runs. "
+            + "Tap the blue button below \u2014 it usually only works once installed.");
+  } else {
+    row("storage", "warn", "Cannot check protection", "Browser too old to report storage persistence.");
+  }
+
+  if (navigator.storage && navigator.storage.estimate) {
+    try {
+      const q = await navigator.storage.estimate();
+      const mb = n => (n / 1048576).toFixed(1) + " MB";
+      const free = q.quota - q.usage;
+      row("storage", free > 50 * 1048576 ? true : "warn", "Space available",
+          mb(q.usage) + " used of " + mb(q.quota) + " \u2014 " + mb(free) + " free"
+          + (free > 50 * 1048576 ? "" : ". Low space is the usual cause of eviction."));
+    } catch (_) {}
+  }
+
+  /* real write/read test */
+  try {
+    const ok = await new Promise((res, rej) => {
+      const rq = indexedDB.open("fs-check", 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore("t");
+      rq.onerror = () => rej(new Error("blocked"));
+      rq.onsuccess = () => {
+        const db = rq.result, stamp = Date.now();
+        const tx = db.transaction("t", "readwrite");
+        tx.objectStore("t").put(stamp, "k");
+        tx.oncomplete = () => {
+          const g = db.transaction("t", "readonly").objectStore("t").get("k");
+          g.onsuccess = () => res(g.result === stamp);
+          g.onerror = () => rej(new Error("read failed"));
+        };
+        tx.onerror = () => rej(new Error("write failed"));
+      };
+    });
+    row("storage", ok, "Write and read back", ok ? "IndexedDB works on this phone."
+      : "Wrote but read back the wrong value.");
+  } catch (e) {
+    row("storage", false, "IndexedDB blocked",
+        String(e.message) + " \u2014 private/incognito mode, or site data blocked in Chrome settings.");
+  }
+
+  const prev = localStorage.getItem("fs-check-first");
+  if (prev) {
+    row("storage", true, "Survived from a previous visit",
+        "First checked " + new Date(+prev).toLocaleString() + ". Data is sticking.");
+  } else {
+    try { localStorage.setItem("fs-check-first", Date.now()); } catch (_) {}
+    row("storage", null, "First run",
+        "Come back to this page tomorrow. If this line says the data survived, storage is holding.");
+  }
+
+  row("device", null, "Screen / UA", innerWidth + "\u00d7" + innerHeight + "  \u2022  " + ua);
+
+  /* ── VERDICT ────────────────────────────────────── */
+  await new Promise(r => setTimeout(r, 700)); // give beforeinstallprompt a moment
+  const v = document.getElementById("verdict");
+  if (standalone) {
+    v.className = "verdict ok";
+    v.textContent = "Already installed on this phone.";
+  } else if (promptEvent) {
+    v.className = "verdict ok";
+    v.innerHTML = "Chrome <b>is</b> willing to install this. "
+      + "The option is under the three-dot menu \u2192 \u201cAdd to Home screen\u201d or \u201cInstall app\u201d.";
+    const b = document.createElement("button");
+    b.textContent = "Install now";
+    b.onclick = () => promptEvent.prompt();
+    v.appendChild(b);
+  } else {
+    const fails = R.install.filter(r => r.ok === false);
+    v.className = "verdict bad";
+    v.innerHTML = fails.length
+      ? "Install is blocked. Fix this first: <b>" + esc(fails[0].title) + "</b>"
+      : "Chrome did not offer to install. Everything below passed, so it is most likely "
+        + "already installed, or Chrome wants you to use the site once more first.";
+  }
+
+  document.getElementById("report").textContent = text();
+}
+
+function text() {
+  let s = "FS install & storage check — " + new Date().toLocaleString() + "\n" + location.href + "\n";
+  for (const k of ["install","storage","device"]) {
+    s += "\n[" + k.toUpperCase() + "]\n";
+    for (const r of R[k])
+      s += ({true:"OK  ",false:"FAIL",warn:"WARN",null:"--  "}[String(r.ok)] || "--  ")
+           + " " + r.title + " — " + r.detail + "\n";
+  }
+  return s;
+}
+
+document.getElementById("btn-persist").onclick = async function () {
+  if (!(navigator.storage && navigator.storage.persist)) {
+    this.textContent = "This browser cannot protect storage"; this.disabled = true; return;
+  }
+  const ok = await navigator.storage.persist();
+  this.textContent = ok ? "\u2713 Protected \u2014 Android will not clear it"
+                        : "Refused \u2014 install the app first, then tap again";
+  this.disabled = ok;
+};
+
+document.getElementById("btn-copy").onclick = async function () {
+  try { await navigator.clipboard.writeText(text()); this.textContent = "\u2713 Copied \u2014 paste it in WhatsApp"; }
+  catch (_) { this.textContent = "Copy failed \u2014 select the text below by hand"; }
+};
+
+run();
+</script>
+</body>
+</html>
