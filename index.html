@@ -295,6 +295,11 @@ h3.ed{flex:none;display:block;width:100%;border-bottom:1px solid var(--rule)}
   font-size:13.5px;line-height:1.6}
 .vpout b{font-variant-numeric:tabular-nums}
 .vpout .none{color:var(--muted);font-style:italic}
+/* A textarea prints as a fixed-height box sized for the screen font,
+   which leaves ragged white gaps in the PDF. Mirror the text into a
+   plain div and print that instead. */
+.tprint{display:none;white-space:pre-wrap;font-size:15px;line-height:1.45}
+#screenProp .field .tprint{flex:1 1 200px;min-width:0}
 
 .pline{display:flex;align-items:flex-start;gap:9px;padding:10px 0;border-bottom:1px solid #E4E8EC}
 .pline .d{flex:1;min-width:0}
@@ -401,6 +406,9 @@ table.page{border-collapse:collapse}
 
 @page{size:A4;margin:10mm 13mm 8mm}
 @media print{
+  /* Chrome drops background colours from a PDF unless told otherwise.
+     Without this the tinted savings box and the section rules vanish. */
+  html,body{-webkit-print-color-adjust:exact; print-color-adjust:exact}
   body{background:#fff;padding:0;font-size:10pt}
   .appbar,.actionbar,.notice,.tools,.add,.addrow,.hint,.findbtn,.scrim,
   .sev button[aria-pressed="false"],#screenAuth,#screenHome,#screenTime,#screenSettings,#screenAdmin,#screenPrices,#screenJobs{display:none!important}
@@ -452,6 +460,14 @@ table.page{border-collapse:collapse}
   .vpc input{font-size:12pt;border:0}
   .vpout{background:#EEF4FA;padding:5pt 7pt;font-size:9pt}
   .sigline{height:34pt}
+  #screenProp textarea[data-p]{display:none!important}
+  .tprint{display:block;font-size:9.5pt}
+  /* Nothing here may be cut in half by a page break. A total split
+     across two pages, or half a signature line, looks like an error
+     to the client even when the figures are right. */
+  .ptot,.sigrow,.vpc,.vpout,.pline,#screenProp .field{
+    break-inside:avoid;page-break-inside:avoid}
+  #screenProp .sheet-head{break-after:avoid;page-break-after:avoid}
   .block{border:0;padding:0;background:none;min-height:0;font-size:10pt}
   .block:empty{display:none}
   .sev{margin:0 0 6pt}
@@ -1895,6 +1911,7 @@ function openProp(id){
       el.value = VP[el.getAttribute('data-p')]!==undefined ? VP[el.getAttribute('data-p')] : '';
       if(el.tagName==='TEXTAREA') vpGrow(el);
     });
+    vpMirrorAll();
     useHead('vpHead');
     backTo='screenProps';
     document.getElementById('savedTag').textContent='proposal';
@@ -1906,6 +1923,20 @@ function openProp(id){
 
 function vpGrow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; }
 
+/* Keep a plain-text copy of every textarea alongside it, for printing. */
+function vpMirror(t){
+  var m=t.nextElementSibling;
+  if(!m || m.className!=='tprint'){
+    m=document.createElement('div'); m.className='tprint';
+    t.parentNode.insertBefore(m, t.nextSibling);
+  }
+  m.textContent=t.value;
+}
+function vpMirrorAll(){
+  Array.prototype.forEach.call(
+    document.querySelectorAll('#screenProp textarea[data-p]'), vpMirror);
+}
+
 /* One letterhead image in the file; move it to whichever document prints. */
 function useHead(id){
   var head=document.querySelector('.printhead'), target=document.getElementById(id);
@@ -1915,7 +1946,7 @@ function useHead(id){
 document.querySelectorAll('#screenProp [data-p]').forEach(function(el){
   el.addEventListener('input',function(){
     VP[el.getAttribute('data-p')]=el.value;
-    if(el.tagName==='TEXTAREA') vpGrow(el);
+    if(el.tagName==='TEXTAREA'){ vpGrow(el); vpMirror(el); }
     if(el.hasAttribute('data-calc')) vpCalc();
     vpSave();
   });
@@ -2072,6 +2103,7 @@ document.getElementById('vpAdd').addEventListener('click',openPick);
 document.getElementById('vpAdd2').addEventListener('click',openPick);
 
 document.getElementById('vpPrint').addEventListener('click',function(){
+  vpMirrorAll();
   var no=(VP.no||'').trim(), addr=(VP.address||'').split(',')[0].trim();
   var was=document.title;
   document.title=('FS-'+(no||'VP')+' Value Proposal'+(addr?' - '+addr:''))
