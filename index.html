@@ -276,58 +276,113 @@ h3.ed{flex:none;display:block;width:100%;border-bottom:1px solid var(--rule)}
 .findbtn:active{background:#EAF1F8}
 
 /* ---- value proposal ---- */
-#screenProp .field input,#screenProp .field textarea{flex:1 1 200px;min-width:0;border:0;
-  border-bottom:1px solid var(--rule);background:none;font:inherit;font-size:15px;padding:2px 0;outline:none}
-#screenProp .field textarea{resize:none;overflow:hidden;line-height:1.45}
-#screenProp .field input:focus,#screenProp .field textarea:focus{border-bottom-color:var(--navy)}
-#screenProp > table > tbody > tr > td > section textarea[data-p]{width:100%;border:1px solid var(--rule);
-  border-radius:8px;padding:10px 12px;font:inherit;font-size:15px;background:#fff;resize:none;overflow:hidden}
+/* The proposal prints on its own page geometry: no margins, so the brand
+   bands bleed to the paper edge. Named pages are Chrome 85+; where they
+   are not supported the bands simply sit inside the normal margin. */
+@page vp { size: A4; margin: 0; }
 
-.vpg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.vpc{border:1px solid var(--rule);border-radius:9px;padding:9px 11px;background:#fff}
-.vpc .l{display:block;font-size:11px;font-weight:700;color:var(--muted);
-  text-transform:uppercase;letter-spacing:.05em}
-.vpc input{width:100%;border:0;border-bottom:1px solid var(--rule);background:none;font:inherit;
-  font-size:19px;font-weight:700;color:var(--navy);padding:2px 0;outline:none;text-align:left}
-.vpc input:focus{border-bottom-color:var(--navy)}
-.vpc .u{font-size:11px;color:var(--muted)}
-.vpout{margin-top:11px;padding:11px 13px;border-radius:9px;background:#EEF4FA;color:var(--navy);
-  font-size:13.5px;line-height:1.6}
-.vpout b{font-variant-numeric:tabular-nums}
-.vpout .none{color:var(--muted);font-style:italic}
-/* A textarea prints as a fixed-height box sized for the screen font,
-   which leaves ragged white gaps in the PDF. Mirror the text into a
-   plain div and print that instead. */
+#screenProp input,#screenProp textarea{font:inherit;color:var(--ink);outline:none}
+#screenProp .field input,#screenProp .field textarea{flex:1 1 200px;min-width:0;border:0;
+  border-bottom:1px solid var(--rule);background:none;font-size:15px;padding:2px 0}
+#screenProp .field input:focus,#screenProp .field textarea:focus{border-bottom-color:var(--navy)}
+#screenProp textarea[data-p]{width:100%;border:1px solid var(--rule);border-radius:8px;
+  padding:10px 12px;font-size:15px;background:#fff;resize:none;overflow:hidden}
 .tprint{display:none;white-space:pre-wrap;font-size:15px;line-height:1.45}
 #screenProp .field .tprint{flex:1 1 200px;min-width:0}
 
+/* brand bands */
+.bandtop,.bandbot{display:none}
+.bandtop img,.bandbot img{width:100%;display:block}
+
+/* cover */
+.vpcover{display:none;position:relative;color:#fff;text-align:center}
+.vpcover .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.vpcover .in{position:relative;z-index:1;padding:96mm 18mm 0}
+.vpcover h1{font-size:30pt;line-height:1.1;margin:0;color:#fff;
+  text-shadow:0 2px 14px rgba(0,0,0,.55)}
+.vpcover .cl{font-size:14pt;font-weight:700;margin:6mm 0 2mm;
+  text-shadow:0 2px 10px rgba(0,0,0,.6)}
+.vpcover .sb{font-size:10pt;opacity:.92;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+.vpcover .rule{width:26mm;height:2.5pt;background:#F08A24;margin:0 auto 7mm}
+
+/* stat cards */
+.vpg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.vpc{border:1px solid var(--rule);border-top:3px solid #F08A24;border-radius:9px;
+  padding:10px 12px;background:#F7F9FC;text-align:center}
+.vpc .v{font-size:21px;font-weight:800;color:var(--navy);line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.vpc .u{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.3}
+
+/* the sizing inputs */
+.vpin{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0 4px}
+.vpin label{display:block;font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.vpin input{width:100%;border:1px solid var(--rule);border-radius:8px;padding:10px 9px;
+  font-size:17px;font-weight:700;color:var(--navy);text-align:center;background:#fff}
+.vpin input:focus{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.vpin .wide{grid-column:1 / -1}
+
+/* callout */
+.vpnote{border-left:3px solid var(--navy);background:#EEF4FA;border-radius:0 8px 8px 0;
+  padding:11px 13px;margin:12px 0;font-size:14px;line-height:1.55}
+.vpnote.warn{border-left-color:#F08A24;background:#FDF3E8}
+.vpnote b{color:var(--navy)}
+.vpnote .none{color:var(--muted);font-style:italic}
+
+/* spec table */
+.vpspec{width:100%;border-collapse:collapse;font-size:14.5px;margin:10px 0}
+.vpspec td{padding:9px 0;border-bottom:1px solid #E4E8EC}
+.vpspec td:last-child{text-align:right;font-weight:600;color:var(--navy);
+  font-variant-numeric:tabular-nums}
+.vpspec tr:last-child td{border-bottom:0}
+
+/* scope lines */
 .pline{display:flex;align-items:flex-start;gap:9px;padding:10px 0;border-bottom:1px solid #E4E8EC}
 .pline .d{flex:1;min-width:0}
 .pline .d b{display:block;font-size:14.5px;font-weight:600;line-height:1.3}
 .pline .d span{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .pline .q{flex:0 0 54px}
 .pline .q input{width:100%;border:1px solid var(--rule);border-radius:7px;padding:7px 4px;
-  font:inherit;font-size:15px;text-align:center;outline:none;background:#fff}
+  font-size:15px;text-align:center;background:#fff}
 .pline .amt{flex:0 0 76px;text-align:right;font-size:13px;color:var(--navy);
   font-variant-numeric:tabular-nums;padding-top:8px}
-.pline .x{flex:0 0 auto;border:0;background:none;color:var(--red);font:inherit;font-size:19px;
-  cursor:pointer;padding:2px 4px;line-height:1}
+.pline .x{flex:0 0 auto;border:0;background:none;color:var(--red);font:inherit;
+  font-size:19px;cursor:pointer;padding:2px 4px;line-height:1}
 .ptot{margin-top:14px;margin-left:auto;max-width:280px;font-size:15px}
 .ptot div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #E4E8EC}
 .ptot div.g{border:0;border-top:2px solid var(--navy);margin-top:4px;padding-top:9px;
   font-size:18px;font-weight:700;color:var(--navy)}
 .ptot span:last-child{font-variant-numeric:tabular-nums}
 
-.sigrow{display:flex;gap:26px;margin-top:14px}
-.sigrow > div{flex:1}
-.sigline{border-bottom:1px solid var(--ink);height:44px}
-.siglab{font-size:11.5px;color:var(--muted);margin-top:5px}
+/* tick / cross */
+ul.tick{margin:6px 0 0;padding:0;list-style:none;font-size:14.5px}
+ul.tick li{padding:5px 0 5px 22px;position:relative}
+ul.tick li::before{position:absolute;left:0;font-weight:800}
+ul.inc li::before{content:"\2713";color:var(--ok)}
+ul.exc li::before{content:"\2715";color:var(--red)}
 
-.pkline{border:1px solid #E4E8EC;border-radius:10px;padding:11px 12px;margin:8px 0;cursor:pointer;background:#fff}
+/* numbered steps */
+.vpsteps{margin:8px 0 0;padding:0;list-style:none;counter-reset:vs}
+.vpsteps li{position:relative;padding:7px 0 7px 34px;font-size:14.5px;counter-increment:vs}
+.vpsteps li::before{content:counter(vs);position:absolute;left:0;top:6px;width:22px;height:22px;
+  border-radius:50%;background:var(--navy);color:#fff;font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+
+/* sign-off strip */
+.vpsign{display:flex;gap:18px;margin-top:16px;padding-top:12px;border-top:2px solid #F08A24}
+.vpsign > div{flex:1;min-width:0}
+.vpsign .k{font-size:10.5px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.vpsign .val{font-size:13.5px;font-weight:700;color:var(--navy)}
+
+.pkline{border:1px solid #E4E8EC;border-radius:10px;padding:11px 12px;margin:8px 0;
+  cursor:pointer;background:#fff}
 .pkline:active{background:#F4F8FC}
 .pkline b{display:block;font-size:14.5px}
 .pkline span{font-size:12px;color:var(--muted)}
 .pkline .s{float:right;color:var(--navy);font-weight:700;font-variant-numeric:tabular-nums}
+
+@media (max-width:520px){ .vpg,.vpin{grid-template-columns:1fr} }
 
 /* a block that does not belong in the export being printed */
 .offdisc{display:none!important}
@@ -442,32 +497,61 @@ table.page{border-collapse:collapse}
   .ed:empty::before{content:"—";color:#999}
   .dsfx{display:inline;flex:0 0 auto;font-size:9.5pt;color:var(--red);font-weight:700}
 
-  /* The client sees WHAT they get, and one price at the bottom. Per-line
-     amounts are for you, on screen, only. */
+  /* ---- the proposal ---- */
   #screenProps{display:none!important}
-  .pline .amt,.pline .x,#vpAdd,.addrow{display:none!important}
-  .pline{padding:3pt 0;border-bottom:.5pt solid #B9C0C7}
+  #screenProp{page:vp}                       /* margin-free page, bands bleed */
+  #screenProp .vpin,#screenProp .addrow,#screenProp #vpAdd,
+  .pline .x,.vpsrc{display:none!important}
+
+  .bandtop,.bandbot{display:block}
+  .bandtop{margin:0 0 8mm}
+  .bandbot{margin:8mm 0 0}
+  #screenProp table.page>tbody>tr>td{padding:0 14mm}
+
+  /* cover: its own page, before the banded flow starts */
+  .vpcover{display:block;height:297mm;width:210mm;overflow:hidden;
+    break-after:page;page-break-after:always}
+
+  #screenProp .sheet{box-shadow:none;border-radius:0;margin:0 0 6mm;padding:0;
+    break-inside:auto}
+  #screenProp .sheet-head{border-bottom:0;margin-bottom:3mm;
+    break-after:avoid;page-break-after:avoid}
+  #screenProp .sheet-head h2{font-size:19pt}
+  #screenProp .sheet-head .tag{display:none}
+  #screenProp .hint{display:none}
+
+  .vpg{grid-template-columns:repeat(4,1fr);gap:4mm}
+  .vpc{padding:3mm;border:.6pt solid #C9D3DD;border-top:2pt solid #F08A24}
+  .vpc .v{font-size:15pt}
+  .vpc .u{font-size:7.5pt}
+  .vpnote{font-size:9.5pt;padding:3mm 4mm}
+  .vpspec{font-size:10pt}
+  .vpspec td{padding:2mm 0;border-bottom:.5pt solid #B9C0C7}
+  ul.tick{font-size:10pt}
+  .vpsteps li{font-size:10pt}
+  .vpsign .val{font-size:9.5pt}
+
+  /* Line prices only print when you choose to show them. */
+  body:not(.vpshow) .pline .amt,
+  body:not(.vpshow) .ptot{display:none!important}
+  .pline{padding:2.4mm 0;border-bottom:.5pt solid #B9C0C7}
   .pline .d b{font-size:10pt}
   .pline .d span{font-size:8.5pt}
   .pline .q{flex:0 0 30pt}
   .pline .q input{border:0;background:none;font-size:10pt;padding:0;text-align:right}
   .ptot{max-width:200pt;font-size:10pt}
   .ptot div.g{font-size:13pt}
+
   #screenProp .field input,#screenProp .field textarea,
-  #screenProp textarea[data-p]{border:0!important;background:none!important;padding:0!important;font-size:9.5pt}
-  .vpg{grid-template-columns:repeat(3,1fr);gap:6pt}
-  .vpc{border:.6pt solid #B9C0C7;padding:4pt 6pt}
-  .vpc input{font-size:12pt;border:0}
-  .vpout{background:#EEF4FA;padding:5pt 7pt;font-size:9pt}
-  .sigline{height:34pt}
+  #screenProp textarea[data-p]{border:0!important;background:none!important;
+    padding:0!important;font-size:9.5pt}
   #screenProp textarea[data-p]{display:none!important}
   .tprint{display:block;font-size:9.5pt}
-  /* Nothing here may be cut in half by a page break. A total split
-     across two pages, or half a signature line, looks like an error
-     to the client even when the figures are right. */
-  .ptot,.sigrow,.vpc,.vpout,.pline,#screenProp .field{
+
+  /* Nothing here may be cut in half by a page break. */
+  .ptot,.vpsign,.vpc,.vpnote,.pline,.vpspec tr,#screenProp .field{
     break-inside:avoid;page-break-inside:avoid}
-  #screenProp .sheet-head{break-after:avoid;page-break-after:avoid}
+
   .block{border:0;padding:0;background:none;min-height:0;font-size:10pt}
   .block:empty{display:none}
   .sev{margin:0 0 6pt}
@@ -566,8 +650,8 @@ table.page{border-collapse:collapse}
 <!-- ================= PROPOSAL LIST ================= -->
 <div class="wrap hidden" id="screenProps">
   <div class="notice">
-    <b>Proposals are saved on this phone.</b> Prices come from the sheet and are
-    cached, so a proposal can be built on site with no signal.
+    <b>Built on site.</b> Type what the meter reading says and how many panels fit on the
+    roof — the sizing works itself out. Prices come from the sheet and are cached.
   </div>
   <button class="btn" id="vpNew" style="width:100%;padding:16px">+ Start a new proposal</button>
   <div class="joblist" id="vplist"></div>
@@ -575,125 +659,112 @@ table.page{border-collapse:collapse}
 
 <!-- ================= PROPOSAL ================= -->
 <div class="wrap hidden" id="screenProp">
+
+<div class="vpcover">
+  <img class="bg" src="assets/cover.jpg" alt="">
+  <div class="in">
+    <h1 id="cvTitle">Sonkrag vir julle plek</h1>
+    <div class="rule"></div>
+    <div class="cl" id="cvClient"></div>
+    <div class="sb" id="cvSub"></div>
+  </div>
+</div>
+
 <table class="page">
-  <thead><tr><th id="vpHead"></th></tr></thead>
-  <tfoot><tr><td><div class="runfoot">Flagship Solar | 267 Main Road, Strand, Western Cape | +27 71 527 3924 | info@flagshipsolar.co.za | www.flagshipsolar.co.za</div></td></tr></tfoot>
+  <thead><tr><th>
+    <div class="bandtop"><img src="assets/band-top.jpg" alt="Flagship Solar"></div>
+  </th></tr></thead>
+  <tfoot><tr><td>
+    <div class="bandbot"><img src="assets/band-bottom.jpg" alt="071 527 3924 · www.flagshipsolar.co.za"></div>
+  </td></tr></tfoot>
   <tbody><tr><td>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Value Proposal</h2><span class="tag">Cover</span></div>
-    <div class="field"><label>Client</label><input data-p="client" placeholder="Full name"></div>
-    <div class="field"><label>Property address</label><input data-p="address" id="vpAddr" placeholder="Street, suburb, town"></div>
-    <div class="field"><label>Proposal number</label><input data-p="no" id="vpNo" placeholder="e.g. VP-0001"></div>
-    <div class="field"><label>Date</label><input data-p="date" type="date"></div>
-    <div class="field"><label>Valid until</label><input data-p="valid" type="date"></div>
-    <div class="field"><label>Prepared by</label><input data-p="by" placeholder="Name · Flagship Solar"></div>
-    <div class="field"><label>Summary</label><textarea data-p="summary" rows="2" placeholder="One or two lines on what this proposal solves."></textarea></div>
-  </section>
-
-  <section class="sheet">
-    <div class="sheet-head"><h2>What the system delivers</h2><span class="tag">Estimates</span></div>
-    <div class="vpg">
-      <div class="vpc"><span class="l">PV array</span><input class="num" data-p="kwp" data-calc placeholder="0"><span class="u">kWp</span></div>
-      <div class="vpc"><span class="l">Storage</span><input class="num" data-p="kwh" data-calc placeholder="0"><span class="u">kWh usable</span></div>
-      <div class="vpc"><span class="l">Yield factor</span><input class="num" data-p="yieldF" data-calc placeholder="1650"><span class="u">kWh/kWp/yr</span></div>
-      <div class="vpc"><span class="l">Self-consumption</span><input class="num" data-p="selfUse" data-calc placeholder="85"><span class="u">%</span></div>
-      <div class="vpc"><span class="l">Tariff</span><input class="num" data-p="tariff" data-calc placeholder="3.20"><span class="u">R per kWh</span></div>
-      <div class="vpc"><span class="l">Annual increase</span><input class="num" data-p="esc" data-calc placeholder="11"><span class="u">%</span></div>
+    <div class="sheet-head"><h2>Waar julle nou staan</h2><span class="tag">Van die rekening af</span></div>
+    <div class="vpin">
+      <div><label for="ipBill">Eskom per maand (R)</label>
+        <input id="ipBill" data-p="bill" data-calc type="number" inputmode="decimal" placeholder="2500"></div>
+      <div><label for="ipTar">Tarief (R per kWh)</label>
+        <input id="ipTar" data-p="tariff" data-calc type="number" step="0.01" inputmode="decimal" placeholder="3.02"></div>
     </div>
-    <div class="vpout" id="vpOut"></div>
-    <p class="hint">Estimates built on the figures above. Actual savings depend on
-      consumption, weather and future tariff decisions — not a guarantee.</p>
+    <div class="vpg">
+      <div class="vpc"><div class="v" id="oBill">—</div><div class="u">Eskom per maand</div></div>
+      <div class="vpc"><div class="v" id="oKwhM">—</div><div class="u">kWh per maand</div></div>
+      <div class="vpc"><div class="v" id="oKwhD">—</div><div class="u">kWh per dag</div></div>
+      <div class="vpc"><div class="v" id="oTar">—</div><div class="u">per kWh betaal</div></div>
+    </div>
+    <textarea data-p="now" rows="3" placeholder="Wat julle nou betaal en hoekom dit die enigste koste is waaroor julle nie beheer het nie."></textarea>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Scope of works</h2><span class="tag" id="vpCount"></span></div>
+    <div class="sheet-head"><h2>Wat ons voorstel</h2><span class="tag">Wat op die dak pas</span></div>
+    <div class="vpin">
+      <div><label for="ipPan">Panele wat pas</label>
+        <input id="ipPan" data-p="panels" data-calc type="number" inputmode="numeric" placeholder="9"></div>
+      <div><label for="ipW">Watt elk</label>
+        <input id="ipW" data-p="watt" data-calc type="number" inputmode="numeric" placeholder="620"></div>
+      <div><label for="ipBat">Battery (kWh)</label>
+        <input id="ipBat" data-p="battery" data-calc type="number" step="0.1" inputmode="decimal" placeholder="16"></div>
+      <div><label for="ipSun">Sonure per dag</label>
+        <input id="ipSun" data-p="sun" data-calc type="number" step="0.1" inputmode="decimal" placeholder="4.0"></div>
+    </div>
+    <div class="vpg">
+      <div class="vpc"><div class="v" id="oKwp">—</div><div class="u">kWp op die dak</div></div>
+      <div class="vpc"><div class="v" id="oPeak">—</div><div class="u">kW op sy beste</div></div>
+      <div class="vpc"><div class="v" id="oGen">—</div><div class="u">kWh per dag opgewek</div></div>
+      <div class="vpc"><div class="v" id="oCov">—</div><div class="u">van die dagverbruik</div></div>
+    </div>
+    <table class="vpspec">
+      <tr><td>Panele</td><td id="sPan">—</td></tr>
+      <tr><td>Skikking</td><td id="sKwp">—</td></tr>
+      <tr><td>Battery</td><td id="sBat">—</td></tr>
+      <tr><td>Omsetter</td><td><input data-p="inv" placeholder="bv. 8 kW hibried, enkelfase" style="text-align:right;font-weight:600;color:var(--navy)"></td></tr>
+    </table>
+    <div class="vpnote" id="oStory"></div>
+    <textarea data-p="prop" rows="3" placeholder="Enigiets anders oor hierdie voorstel — dakrigting, skaduwee, waar die bord kom."></textarea>
+  </section>
+
+  <section class="sheet">
+    <div class="sheet-head"><h2>Wat ingesluit is</h2><span class="tag" id="vpCount"></span></div>
     <div id="vpLines"></div>
     <div class="addrow"><button class="add" type="button" id="vpAdd">+ Add from price list</button></div>
     <div class="ptot" id="vpTot"></div>
+    <label class="check vpsrc" style="margin-top:12px">
+      <input type="checkbox" id="vpShow"> Wys pryse op die PDF
+    </label>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Included and excluded</h2><span class="tag">Edit to suit</span></div>
-    <h3>Included in this price</h3>
-    <textarea data-p="incl" rows="6"></textarea>
-    <h3>Not included</h3>
-    <textarea data-p="excl" rows="5"></textarea>
+    <div class="sheet-head"><h2>Ingesluit en nie ingesluit</h2><span class="tag">Verander soos nodig</span></div>
+    <h3>Ingesluit</h3><textarea data-p="incl" rows="6"></textarea>
+    <h3>Nie ingesluit nie</h3><textarea data-p="excl" rows="4"></textarea>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Warranties and terms</h2><span class="tag">Edit to suit</span></div>
-    <textarea data-p="terms" rows="8"></textarea>
-    <div class="field"><label>Notes for this site</label><textarea data-p="notes" rows="2"></textarea></div>
-  </section>
-
-  <section class="sheet">
-    <div class="sheet-head"><h2>Acceptance</h2><span class="tag">Sign off</span></div>
-    <p style="font-size:14.5px;margin:0 0 12px">Signing below accepts the scope, the
-      price and the terms set out in this proposal.</p>
-    <div class="sigrow">
-      <div><div class="sigline"></div><div class="siglab">Client signature &amp; date</div></div>
-      <div><div class="sigline"></div><div class="siglab">For Flagship Solar &amp; date</div></div>
+    <div class="sheet-head"><h2>Volgende stappe</h2><span class="tag">Sign off</span></div>
+    <textarea data-p="steps" rows="4"></textarea>
+    <h3>Terme</h3><textarea data-p="terms" rows="5"></textarea>
+    <div class="vpsign">
+      <div><div class="k">Voorberei deur</div><div class="val" id="sgBy">Flagship Solar (Pty) Ltd</div></div>
+      <div><div class="k">Kontak</div><div class="val">071 527 3924<br>info@flagshipsolar.co.za</div></div>
+      <div><div class="k">Geldigheid</div><div class="val" id="sgVal">Pryse geldig vir 14 dae</div></div>
     </div>
+  </section>
+
+  <section class="sheet">
+    <div class="sheet-head"><h2>Besonderhede</h2><span class="tag">Nie gedruk nie</span></div>
+    <p class="hint">Dit vul die dekblad en die onderteken-strook in.</p>
+    <div class="field"><label>Kliënt</label><input data-p="client" placeholder="Naam"></div>
+    <div class="field"><label>Plek</label><input data-p="address" id="vpAddr" placeholder="Plaas / adres"></div>
+    <div class="field"><label>Voorstelnommer</label><input data-p="no" id="vpNo" placeholder="VP-0001"></div>
+    <div class="field"><label>Datum</label><input data-p="date" type="date"></div>
+    <div class="field"><label>Titel op die dekblad</label><input data-p="title" placeholder="Sonkrag vir julle plek"></div>
+    <div class="field"><label>Voorberei deur</label><input data-p="by" placeholder="Flagship Solar (Pty) Ltd"></div>
+    <div class="field"><label>Geldigheid</label><input data-p="valid" placeholder="Pryse geldig vir 14 dae"></div>
   </section>
 
   </td></tr></tbody>
 </table>
-</div>
-
-<!-- ================= ADMIN ================= -->
-<div class="wrap hidden" id="screenAdmin">
-  <section class="sheet">
-    <div class="sheet-head"><h2>Users</h2><span class="tag">Admin</span></div>
-    <p class="hint">New accounts arrive as Pending. Give them a role and set them Active before they can sign in.</p>
-    <div id="usrList"></div>
-    <button class="btn ghost" id="usrRefresh" type="button" style="width:100%;margin-top:10px">Refresh</button>
-  </section>
-</div>
-
-<!-- ================= TIMESHEETS ================= -->
-<div class="wrap hidden" id="screenTime">
-  <div id="tsWarn"></div>
-  <section class="sheet">
-    <div class="sheet-head"><h2>Timesheet</h2><span class="tag" id="tsCycleTag"></span></div>
-    <div class="cyc">
-      <button class="cycbtn" id="cycPrev" type="button">‹</button>
-      <div class="cyclab" id="cycLab"></div>
-      <button class="cycbtn" id="cycNext" type="button">›</button>
-    </div>
-    <p class="hint">Pay cycle runs 25th to 24th. Tap a name to open their days, tap again to close.</p>
-    <div id="tsPeople"></div>
-    <div class="pick" style="margin-top:14px">
-      <button type="button" class="new" id="tsAddWorker">+ New worker</button>
-      <button type="button" class="new" id="tsClearAll" style="color:var(--red);border-color:#EBC7C2">Clear everything</button>
-    </div>
-  </section>
-  <div id="tsQueue"></div>
-  <button class="btn" id="tsSend" type="button" style="width:100%;padding:16px">Send to sheet</button>
-</div>
-
-<!-- ================= SETTINGS ================= -->
-<div class="wrap hidden" id="screenSettings">
-  <section class="sheet">
-    <div class="sheet-head"><h2>Settings</h2><span class="tag">This phone</span></div>
-    <div class="setrow">
-      <label for="setUrl">Sheet web app URL</label>
-      <input id="setUrl" placeholder="https://script.google.com/macros/s/.../exec">
-      <div class="sub">From Apps Script: Deploy &rarr; New deployment &rarr; Web app.</div>
-    </div>
-    <button class="btn" id="setTest" type="button" style="width:100%;margin-top:6px">Save and test</button>
-    <div id="setResult" style="margin-top:12px"></div>
-    <div id="setShare"></div>
-  </section>
-</div>
-
-<!-- ================= JOBS ================= -->
-<div class="wrap hidden" id="screenJobs">
-  <div class="notice">
-    <b>Everything is saved on this phone as you type.</b> Photos and text stay put if you close the app or it goes flat. Nothing is sent anywhere.
-  </div>
-  <button class="btn" id="btnNew" style="width:100%;padding:16px">+ Start a new inspection</button>
-  <div class="joblist" id="joblist"></div>
 </div>
 
 <!-- ================= REPORT ================= -->
@@ -1825,35 +1896,40 @@ function renderForm(){
 }
 
 /* ============ value proposals ============
-   The client sees the scope line by line but only one price at the bottom.
-   Per-line amounts stay on this screen — they are not printed. Sell prices
-   come from the Prices sheet; cost and markup never leave the script. */
+   Built standing on site. You type what the bill says and how many panels
+   actually fit; everything else is derived. The kWp figure is what the
+   panels add up to, not a number you have to work out on a roof. */
 var VP=null, VPID=null, VPTIMER=null, PCACHE=[];
 
-var VP_INCL='Supply and delivery of all listed equipment\n'+
-  'Full installation by our own team\n'+
-  'Mounting structure and weatherproofing\n'+
-  'DC and AC reticulation, earthing and bonding\n'+
+var VP_INCL='Volledige installasie\n'+
+  'Omsetter- en batterykommissionering\n'+
+  'Dakstruktuur en waterdigting\n'+
+  'DC- en AC-beskerming\n'+
   'Certificate of Compliance (SANS 10142-1)\n'+
-  'Utility application for embedded generation\n'+
-  'Commissioning, monitoring setup and handover';
-var VP_EXCL='Roof or structure strengthening, if found necessary\n'+
-  'Upgrading a non-compliant existing main DB\n'+
-  'Utility application and meter-change fees\n'+
-  'Trenching or civil work beyond 20 m\n'+
-  'Supply-capacity or transformer upgrade';
-var VP_TERMS='PV modules — 12-year product, 25-year performance (manufacturer)\n'+
-  'Inverter — 5-year manufacturer warranty, extendable\n'+
-  'Battery — 10-year manufacturer warranty\n'+
-  'Workmanship — 24 months\n\n'+
-  'Payment — 60% deposit on acceptance, 40% on commissioning\n'+
-  'Lead time — 10 to 15 working days from deposit, subject to stock\n'+
-  'Validity — this proposal is valid for 14 days from the date above';
+  'Munisipale SSEG-aansoek\n'+
+  'Inbedryfstelling en oorhandiging';
+var VP_EXCL='Dakherstel of versterking, indien nodig\n'+
+  'Opgradering van \'n nie-voldoenende hoofbord\n'+
+  'Munisipale aansoek- en meterfooie\n'+
+  'Grafwerk of siviele werk verder as 20 m';
+var VP_STEPS='Julle bevestig die voorstel.\n'+
+  'Ons finaliseer die kwotasie en die installasiedatum.\n'+
+  'Installasie en inbedryfstelling.\n'+
+  'CoC uitgereik en die stelsel oorhandig.';
+var VP_TERMS='Betaling — 60% deposito met aanvaarding, 40% met inbedryfstelling\n'+
+  'Leweringstyd — 10 tot 15 werksdae vanaf deposito, afhangend van voorraad\n'+
+  'Panele — 12 jaar produk, 25 jaar werkverrigting (vervaardiger)\n'+
+  'Omsetter — 5 jaar vervaardigerswaarborg\n'+
+  'Battery — 10 jaar vervaardigerswaarborg\n'+
+  'Vakmanskap — 24 maande';
 
 function vpBlank(){
-  return {client:'',address:'',no:'',date:new Date().toISOString().slice(0,10),valid:'',by:'',
-          summary:'',kwp:'',kwh:'',yieldF:'1650',selfUse:'85',tariff:'',esc:'11',
-          items:[],incl:VP_INCL,excl:VP_EXCL,terms:VP_TERMS,notes:''};
+  return {client:'',address:'',no:'',date:new Date().toISOString().slice(0,10),
+          title:'Sonkrag vir julle plek', by:'Flagship Solar (Pty) Ltd',
+          valid:'Pryse geldig vir 14 dae',
+          bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',inv:'',
+          now:'',prop:'',items:[],showPrices:false,
+          incl:VP_INCL,excl:VP_EXCL,steps:VP_STEPS,terms:VP_TERMS};
 }
 
 function showProps(){
@@ -1884,9 +1960,9 @@ function renderProps(){
     list.forEach(function(p){
       var row=document.createElement('div');
       row.className='job';
-      var n=(p.data.items||[]).length;
-      row.innerHTML='<div class="t"><b>'+esc(p.title)+'</b><span>'+n+
-        (n===1?' line · ':' lines · ')+new Date(p.updated).toLocaleDateString()+'</span></div>'+
+      var d=p.data||{}, n=Number(d.panels)||0;
+      row.innerHTML='<div class="t"><b>'+esc(p.title)+'</b><span>'+
+        (n?n+' panele · ':'')+new Date(p.updated).toLocaleDateString()+'</span></div>'+
         '<button class="open">Open</button><button class="kill">Delete</button>';
       row.querySelector('.open').addEventListener('click',function(){ openProp(p.id) });
       row.querySelector('.kill').addEventListener('click',function(){
@@ -1908,11 +1984,12 @@ function openProp(id){
     VPID=id; VP=(p&&p.data)||vpBlank();
     if(!VP.items) VP.items=[];
     document.querySelectorAll('#screenProp [data-p]').forEach(function(el){
-      el.value = VP[el.getAttribute('data-p')]!==undefined ? VP[el.getAttribute('data-p')] : '';
+      var k=el.getAttribute('data-p');
+      el.value = VP[k]!==undefined ? VP[k] : '';
       if(el.tagName==='TEXTAREA') vpGrow(el);
     });
+    document.getElementById('vpShow').checked = !!VP.showPrices;
     vpMirrorAll();
-    useHead('vpHead');
     backTo='screenProps';
     document.getElementById('savedTag').textContent='proposal';
     show('screenProp');
@@ -1923,7 +2000,8 @@ function openProp(id){
 
 function vpGrow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; }
 
-/* Keep a plain-text copy of every textarea alongside it, for printing. */
+/* A textarea prints as a fixed-height box sized for the screen font, which
+   leaves ragged gaps in the PDF. Mirror the text into a plain div instead. */
 function vpMirror(t){
   var m=t.nextElementSibling;
   if(!m || m.className!=='tprint'){
@@ -1937,19 +2015,18 @@ function vpMirrorAll(){
     document.querySelectorAll('#screenProp textarea[data-p]'), vpMirror);
 }
 
-/* One letterhead image in the file; move it to whichever document prints. */
-function useHead(id){
-  var head=document.querySelector('.printhead'), target=document.getElementById(id);
-  if(head&&target&&head.parentNode!==target) target.appendChild(head);
-}
-
 document.querySelectorAll('#screenProp [data-p]').forEach(function(el){
   el.addEventListener('input',function(){
     VP[el.getAttribute('data-p')]=el.value;
     if(el.tagName==='TEXTAREA'){ vpGrow(el); vpMirror(el); }
     if(el.hasAttribute('data-calc')) vpCalc();
+    vpCover();
     vpSave();
   });
+});
+
+document.getElementById('vpShow').addEventListener('change',function(){
+  VP.showPrices=this.checked; vpSave();
 });
 
 function vpSave(){
@@ -1965,6 +2042,80 @@ function vpSave(){
   },600);
 }
 
+function vpNum(k){
+  var v=parseFloat(String(VP[k]||'').replace(/[^\d.\-]/g,''));
+  return isFinite(v)?v:0;
+}
+function kwh(n){ return Math.round(n).toLocaleString('en-ZA').replace(/,/g,' '); }
+
+function vpCover(){
+  var t=(VP.title||'').trim()||'Sonkrag vir julle plek';
+  document.getElementById('cvTitle').textContent=t;
+  document.getElementById('cvClient').textContent=(VP.client||'').trim();
+  var bits=[];
+  if((VP.address||'').trim()) bits.push(VP.address.trim());
+  if(VP.date) bits.push(new Date(VP.date+'T00:00:00').toLocaleDateString('en-ZA',
+    {day:'numeric',month:'long',year:'numeric'}));
+  document.getElementById('cvSub').textContent=bits.join('  ·  ');
+  document.getElementById('sgBy').textContent=(VP.by||'').trim()||'Flagship Solar (Pty) Ltd';
+  document.getElementById('sgVal').textContent=(VP.valid||'').trim()||'Pryse geldig vir 14 dae';
+}
+
+/* ---- the sizing itself ---- */
+function vpCalc(){
+  var bill=vpNum('bill'), tar=vpNum('tariff')||3.02;
+  var pan=vpNum('panels'), w=vpNum('watt')||620;
+  var bat=vpNum('battery'), sun=vpNum('sun')||4.0;
+
+  /* what they use, worked back from the bill */
+  var kwhM = tar>0 ? bill/tar : 0;
+  var kwhD = kwhM/30.4;
+
+  /* what the roof will make */
+  var kwp  = pan*w/1000;
+  var peak = kwp;                    /* best-case output, near enough to kWp */
+  var gen  = kwp*sun;
+  var cov  = kwhD>0 ? Math.min(999, gen/kwhD*100) : 0;
+
+  var set=function(id,txt){ var e=document.getElementById(id); if(e) e.textContent=txt; };
+
+  set('oBill', bill?money(bill):'—');
+  set('oKwhM', kwhM?kwh(kwhM):'—');
+  set('oKwhD', kwhD?kwh(kwhD):'—');
+  set('oTar',  tar?money(tar):'—');
+
+  set('oKwp',  kwp?kwp.toFixed(2):'—');
+  set('oPeak', peak?peak.toFixed(1)+' kW':'—');
+  set('oGen',  gen?kwh(gen):'—');
+  set('oCov',  (kwhD&&gen)?Math.round(cov)+'%':'—');
+
+  set('sPan',  pan?(pan+' \u00d7 '+w+' W'):'—');
+  set('sKwp',  kwp?(kwp.toFixed(2)+' kWp'):'—');
+  set('sBat',  bat?(bat+' kWh'):'—');
+
+  /* the sentence you would say out loud on site */
+  var box=document.getElementById('oStory');
+  if(!pan || !kwhD){
+    box.innerHTML='<span class="none">Vul die rekening en die aantal panele in, '+
+      'dan skryf hierdie stukkie homself.</span>';
+    return;
+  }
+  var txt='<b>'+pan+' panele van '+w+' W</b> is '+kwp.toFixed(2)+' kWp. Op sy beste lewer '+
+    'dit sowat <b>'+peak.toFixed(1)+' kW</b>, en oor \'n dag ongeveer <b>'+kwh(gen)+' kWh</b>. '+
+    'Julle gebruik omtrent <b>'+kwh(kwhD)+' kWh per dag</b>, so dit dek ongeveer <b>'+
+    Math.round(cov)+'%</b>.';
+  if(bat>0){
+    var hrs=gen>0 ? bat/(gen/12) : 0;    /* against average daytime output */
+    txt+='<br>Die <b>'+bat+' kWh battery</b> hou '+
+      (kwhD>0 ? 'ongeveer <b>'+Math.round(bat/kwhD*100)+'%</b> van \'n dag se verbruik' :
+                'die aandverbruik')+
+      ' — genoeg om deur die aand en die nag te kom sonder Eskom.';
+  }
+  if(cov>115) txt+='<br><b>Let op:</b> die panele maak meer as wat julle gebruik. '+
+    'Kyk of \'n kleiner skikking of \'n groter battery beter sin maak.';
+  box.innerHTML=txt;
+}
+
 function vpLines(){
   var box=document.getElementById('vpLines');
   box.innerHTML='';
@@ -1977,53 +2128,34 @@ function vpLines(){
     row.innerHTML='<div class="d"><b>'+esc(it.desc)+'</b>'+
       (it.spec?'<span>'+esc(it.spec)+'</span>':'')+'</div>'+
       '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty||1)+'"></div>'+
-      '<div class="amt"></div><button type="button" class="x" aria-label="Remove">×</button>';
+      '<div class="amt"></div><button type="button" class="x" aria-label="Remove">\u00d7</button>';
     var q=row.querySelector('input');
     q.addEventListener('input',function(){
-      it.qty=Number(q.value)||0; row.querySelector('.amt').textContent=money(it.qty*it.sell);
-      vpCalc(); vpSave();
+      it.qty=Number(q.value)||0;
+      row.querySelector('.amt').textContent=money(it.qty*it.sell);
+      vpTotals(); vpSave();
     });
     row.querySelector('.x').addEventListener('click',function(){
       if(!confirm('Remove "'+it.desc+'"?')) return;
-      VP.items.splice(i,1); vpLines(); vpCalc(); vpSave();
+      VP.items.splice(i,1); vpLines(); vpTotals(); vpSave();
     });
-    row.querySelector('.amt').textContent=money((it.qty||1)*it.sell);
+    row.querySelector('.amt').textContent=money((it.qty===undefined?1:it.qty)*it.sell);
     box.appendChild(row);
   });
   document.getElementById('vpCount').textContent=VP.items.length+
     (VP.items.length===1?' line':' lines');
+  vpTotals();
 }
 
-function vpNum(k){ var v=parseFloat(String(VP[k]||'').replace(/[^\d.\-]/g,'')); return isFinite(v)?v:0; }
-
-function vpCalc(){
+function vpTotals(){
   var sub=0;
   VP.items.forEach(function(it){ sub+=(it.qty===undefined?1:it.qty)*it.sell });
   var vat=sub*0.15, tot=sub+vat;
   document.getElementById('vpTot').innerHTML=
-    '<div><span>Subtotal</span><span>'+money(sub)+'</span></div>'+
-    '<div><span>VAT @ 15%</span><span>'+money(vat)+'</span></div>'+
-    '<div class="g"><span>Total investment</span><span>'+money(tot)+'</span></div>';
+    '<div><span>Subtotaal</span><span>'+money(sub)+'</span></div>'+
+    '<div><span>BTW @ 15%</span><span>'+money(vat)+'</span></div>'+
+    '<div class="g"><span>Totaal</span><span>'+money(tot)+'</span></div>';
   document.getElementById('pbarTot').textContent=money(tot);
-
-  var kwp=vpNum('kwp'), yf=vpNum('yieldF')||1650, su=(vpNum('selfUse')||85)/100,
-      tar=vpNum('tariff'), e=vpNum('esc')/100;
-  var out=document.getElementById('vpOut');
-  if(!kwp||!tar){
-    out.innerHTML='<span class="none">Fill in the array size and the tariff to estimate generation and savings.</span>';
-    return;
-  }
-  var gen=kwp*yf, saveYr=gen*su*tar;
-  var txt='About <b>'+Math.round(gen).toLocaleString('en-ZA').replace(/,/g,' ')+' kWh</b> a year, '+
-    'saving roughly <b>'+money(saveYr/12)+'</b> a month in year one.';
-  if(tot>0&&saveYr>0){
-    var cum=0, pay=0;
-    for(var y=1;y<=20;y++){ cum+=saveYr*Math.pow(1+e,y-1); if(!pay&&cum>=tot) pay=y; }
-    txt+=pay ? '<br>Pays for itself in about <b>'+(tot/saveYr).toFixed(1)+' years</b>, and is <b>'+
-               money(cum-tot)+'</b> ahead by year 20.'
-             : '<br>Does not pay back within 20 years at these figures — check the tariff and array size.';
-  }
-  out.innerHTML=txt;
 }
 
 /* ---- picking from the price list ---- */
@@ -2035,14 +2167,14 @@ function openPick(){
   pscrim.className='scrim';
   pscrim.innerHTML=
     '<div class="modal" role="dialog" aria-label="Add from price list">'+
-      '<header><h2>Add to scope</h2><button type="button" id="pkClose">Close</button></header>'+
+      '<header><h2>Voeg by</h2><button type="button" id="pkClose">Close</button></header>'+
       '<div class="body">'+
-        '<input class="search" id="pkq" placeholder="Type a make, size or category" autocomplete="off">'+
+        '<input class="search" id="pkq" placeholder="Tik \'n maak, grootte of kategorie" autocomplete="off">'+
         '<div id="pkres"></div>'+
-        '<div class="addform"><h3 style="margin:0">Add a line by hand</h3>'+
-        '<label for="pkD">Description</label><input id="pkD" placeholder="What the client is getting">'+
-        '<label for="pkS">Price (excl VAT)</label><input id="pkS" type="number" step="0.01" inputmode="decimal">'+
-        '<button class="btn" type="button" id="pkAdd">Add line</button></div>'+
+        '<div class="addform"><h3 style="margin:0">Voeg \'n reël met die hand by</h3>'+
+        '<label for="pkD">Beskrywing</label><input id="pkD" placeholder="Wat die klient kry">'+
+        '<label for="pkS">Prys (excl BTW)</label><input id="pkS" type="number" step="0.01" inputmode="decimal">'+
+        '<button class="btn" type="button" id="pkAdd">Voeg by</button></div>'+
       '</div>'+
     '</div>';
   document.body.appendChild(pscrim);
@@ -2052,7 +2184,7 @@ function openPick(){
   q.addEventListener('input',function(){ pickResults(q.value) });
   pscrim.querySelector('#pkAdd').addEventListener('click',function(){
     var d=pscrim.querySelector('#pkD').value.trim(), v=Number(pscrim.querySelector('#pkS').value)||0;
-    if(!d){ alert('Give the line a description.'); return; }
+    if(!d){ alert('Gee die reël \'n beskrywing.'); return; }
     vpAddItem({description:d,sell:v,unit:'',spec:''});
     closePick();
   });
@@ -2063,7 +2195,7 @@ function openPick(){
 function pickResults(q){
   var box=pscrim.querySelector('#pkres');
   if(!PCACHE.length){
-    box.innerHTML='<div class="no-res">No price list on this phone yet. Open Prices once with signal.</div>';
+    box.innerHTML='<div class="no-res">Geen pryslys op hierdie foon nie. Maak Prices een keer met sein oop.</div>';
     return;
   }
   var t=q.trim().toLowerCase(), list=PCACHE.filter(function(p){ return p.active!==false });
@@ -2076,12 +2208,13 @@ function pickResults(q){
     });
   }
   list=list.slice(0,25);
-  if(!list.length){ box.innerHTML='<div class="no-res">Nothing matched.</div>'; return; }
+  if(!list.length){ box.innerHTML='<div class="no-res">Niks gepas nie.</div>'; return; }
   box.innerHTML='';
   list.forEach(function(p){
+    var unit=(Number(p.sell)||0)+(Number(p.install)||0);
     var d=document.createElement('div');
     d.className='pkline';
-    d.innerHTML='<span class="s">'+money((Number(p.sell)||0)+(Number(p.install)||0))+'</span><b>'+esc(p.description)+'</b>'+
+    d.innerHTML='<span class="s">'+money(unit)+'</span><b>'+esc(p.description)+'</b>'+
       '<span>'+esc(p.category||'')+(p.unit?' · per '+esc(String(p.unit).replace(/^per /,'')):'')+
       (p.install?' · incl R'+Math.round(p.install)+' install':'')+'</span>';
     d.addEventListener('click',function(){ vpAddItem(p); closePick(); });
@@ -2091,24 +2224,22 @@ function pickResults(q){
 
 function vpAddItem(p){
   /* install cost comes back from the script as a separate figure and never
-     carries markup. It belongs in the line, not left behind — a heat pump
-     would be R15 000 short without it. */
+     carries markup. It belongs in the line, not left behind. */
   var unit=(Number(p.sell)||0)+(Number(p.install)||0);
-  VP.items.push({desc:p.description, unit:p.unit||'', sell:unit,
-                 spec:p.spec||'', qty:1});
-  vpLines(); vpCalc(); vpSave();
+  VP.items.push({desc:p.description, unit:p.unit||'', sell:unit, spec:p.spec||'', qty:1});
+  vpLines(); vpSave();
 }
 
 document.getElementById('vpAdd').addEventListener('click',openPick);
 document.getElementById('vpAdd2').addEventListener('click',openPick);
 
 document.getElementById('vpPrint').addEventListener('click',function(){
-  vpMirrorAll();
+  vpMirrorAll(); vpCover(); vpCalc();
+  document.body.classList[VP.showPrices?'add':'remove']('vpshow');
   var no=(VP.no||'').trim(), addr=(VP.address||'').split(',')[0].trim();
   var was=document.title;
-  document.title=('FS-'+(no||'VP')+' Value Proposal'+(addr?' - '+addr:''))
+  document.title=('FS-'+(no||'VP')+' Voorstel'+(addr?' - '+addr:''))
     .replace(/[\\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
-  useHead('vpHead');
   window.print();
   setTimeout(function(){ document.title=was },1500);
 });

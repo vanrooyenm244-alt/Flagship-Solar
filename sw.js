@@ -1,12 +1,15 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-v17';
+const CACHE = 'flagship-v18';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './assets/band-top.jpg',
+  './assets/band-bottom.jpg',
+  './assets/cover.jpg'
 ];
 
 self.addEventListener('install', (e) => {
