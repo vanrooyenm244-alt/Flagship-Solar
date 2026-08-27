@@ -636,6 +636,60 @@ table.page{border-collapse:collapse}
   <button class="btn ghost" id="btnSignOut" type="button" style="width:100%;margin-top:8px">Sign out</button>
 </div>
 
+<!-- ================= INSPECTION LIST ================= -->
+<div class="wrap hidden" id="screenJobs">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Inspections</h2><span class="tag">Saved on this phone</span></div>
+    <p class="hint">Start an inspection here. It saves as you work; export the finished report to PDF.</p>
+    <button class="btn" type="button" id="btnNew" style="width:100%;padding:15px">+ Start a new inspection</button>
+    <div class="joblist" id="joblist"></div>
+  </section>
+</div>
+
+<!-- ================= SETTINGS ================= -->
+<div class="wrap hidden" id="screenSettings">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Connection settings</h2><span class="tag">Google Sheet</span></div>
+    <p class="hint">Paste the Google Apps Script web-app address ending in <code>/exec</code>.</p>
+    <div class="setrow">
+      <label for="setUrl">Web app URL</label>
+      <input id="setUrl" type="url" inputmode="url" autocapitalize="none" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <button class="btn" type="button" id="setTest" style="width:100%">Save and test connection</button>
+    <div id="setResult" aria-live="polite" style="margin-top:10px"></div>
+    <div id="setShare"></div>
+  </section>
+</div>
+
+<!-- ================= USERS ================= -->
+<div class="wrap hidden" id="screenAdmin">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Users</h2><button class="btn ghost" type="button" id="usrRefresh" style="margin-left:auto">Refresh</button></div>
+    <p class="hint">Approve accounts, assign roles, or reset a password.</p>
+    <div id="usrList"></div>
+  </section>
+</div>
+
+<!-- ================= TIMESHEETS ================= -->
+<div class="wrap hidden" id="screenTime">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Timesheets</h2><span class="tag" id="cycCycleTag">Pay cycle</span></div>
+    <div id="tsWarn"></div>
+    <div class="wk" style="margin:4px 0 10px">
+      <button type="button" id="cycPrev">‹ Previous</button>
+      <b id="cycLab" style="flex:1;text-align:center;font-size:13px;color:var(--navy)"></b>
+      <button type="button" id="cycNext">Next ›</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
+      <button class="btn ghost" type="button" id="tsAddWorker">+ Add worker</button>
+      <button class="btn ghost" type="button" id="tsClearAll">Clear this cycle</button>
+      <button class="btn" type="button" id="tsSend" style="margin-left:auto">Send to sheet</button>
+    </div>
+    <div id="tsQueue"></div>
+    <div id="tsPeople"></div>
+  </section>
+</div>
+
 <!-- ================= PRICES ================= -->
 <div class="wrap hidden" id="screenPrices">
   <section class="sheet">
