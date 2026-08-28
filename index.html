@@ -1250,7 +1250,7 @@ function renderJobs(){
     el.innerHTML='';
     list.forEach(function(j){
       var shots=0;
-      (j.data.grids||[]).forEach(function(g){ g.forEach(function(s){ if(s.img) shots++ }) });
+      ((j.data&&j.data.grids)||[]).forEach(function(g){ g.forEach(function(s){ if(s.img) shots++ }) });
       var row=document.createElement('div');
       row.className='job';
       row.innerHTML='<div class="t"><b>'+esc(j.title)+'</b><span>'+shots+' photos · '+new Date(j.updated).toLocaleDateString()+'</span></div>'+
@@ -1272,8 +1272,7 @@ function openJob(id){
       var d=new Date(), M=['January','February','March','April','May','June','July','August','September','October','November','December'];
       document.getElementById('fDate').textContent=d.getDate()+' '+M[d.getMonth()]+' '+d.getFullYear();
     }
-    useHead('repHead');
-    backTo='screenJobs';
+        backTo='screenJobs';
     document.getElementById('savedTag').textContent='inspection';
     show('screenReport');
   });
