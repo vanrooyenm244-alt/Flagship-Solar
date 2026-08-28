@@ -401,6 +401,14 @@ ul.exc li::before{content:"\2715";color:var(--red)}
   text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
 .vpsign .val{font-size:13.5px;font-weight:700;color:var(--navy)}
 
+.vpacc{margin-top:16px;border:1px solid var(--rule);border-radius:9px;padding:12px 14px}
+.vpacc .t{font-size:12px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em}
+.vpacc p{margin:5px 0 12px;font-size:13.5px;line-height:1.5}
+.vpacc .rows>div{display:flex;align-items:flex-end;gap:10px;margin-bottom:14px}
+.vpacc .rows .k{flex:0 0 92px;font-size:12px;font-weight:700;color:var(--navy)}
+.vpacc .rows .ln{flex:1;border-bottom:1px solid var(--ink);height:17px}
+
 .pkline{border:1px solid #E4E8EC;border-radius:10px;padding:11px 12px;margin:8px 0;
   cursor:pointer;background:#fff}
 .pkline:active{background:#F4F8FC}
@@ -558,6 +566,9 @@ table.page{border-collapse:collapse}
   ul.tick{font-size:10pt}
   .vpsteps li{font-size:10pt}
   .vpsign .val{font-size:9.5pt}
+  .vpacc{break-inside:avoid;page-break-inside:avoid;margin-top:8mm;padding:4mm 5mm}
+  .vpacc p{font-size:9.5pt}
+  .vpacc .rows>div{margin-bottom:9mm}
 
   /* Line prices only print when you choose to show them. */
   body:not(.vpshow) .pline .amt,
@@ -791,6 +802,8 @@ table.page{border-collapse:collapse}
         <input id="ipKw" data-p="invkw" data-calc type="number" step="0.1" inputmode="decimal" placeholder="8"></div>
       <div><label for="ipSun">Sonure per dag</label>
         <input id="ipSun" data-p="sun" data-calc type="number" step="0.1" inputmode="decimal" placeholder="4.0"></div>
+      <div><label for="ipStr">DC strings (los leeg = self)</label>
+        <input id="ipStr" data-p="strings" data-calc type="number" min="0" step="1" inputmode="numeric" placeholder="self"></div>
     </div>
 
     <div class="vppick" id="vpPick">
@@ -812,6 +825,7 @@ table.page{border-collapse:collapse}
       <tr><td>Battery</td><td id="sBat">—</td></tr>
       <tr><td>Omsetter</td><td id="sInv">—</td></tr>
       <tr><td>Skakelbord</td><td id="sSw">—</td></tr>
+      <tr><td>DC strings</td><td id="sStr">—</td></tr>
     </table>
     <div class="vpnote" id="oStory"></div>
     <textarea data-p="prop" rows="3" placeholder="Enigiets anders oor hierdie voorstel — dakrigting, skaduwee, waar die bord kom."></textarea>
@@ -836,6 +850,11 @@ table.page{border-collapse:collapse}
   </section>
 
   <section class="sheet">
+    <div class="sheet-head"><h2>Omvang van werk</h2><span class="tag">Waar ons begin en ophou</span></div>
+    <textarea data-p="scope" rows="9"></textarea>
+  </section>
+
+  <section class="sheet">
     <div class="sheet-head"><h2>Volgende stappe</h2><span class="tag">Sign off</span></div>
     <textarea data-p="steps" rows="4"></textarea>
     <h3>Terme</h3><textarea data-p="terms" rows="5"></textarea>
@@ -843,6 +862,16 @@ table.page{border-collapse:collapse}
       <div><div class="k">Voorberei deur</div><div class="val" id="sgBy">Flagship Solar (Pty) Ltd</div></div>
       <div><div class="k">Kontak</div><div class="val">071 527 3924<br>info@flagshipsolar.co.za</div></div>
       <div><div class="k">Geldigheid</div><div class="val" id="sgVal">Pryse geldig vir 14 dae</div></div>
+    </div>
+
+    <div class="vpacc">
+      <div class="t">Aanvaarding deur die kliënt</div>
+      <p>Ek aanvaar hierdie voorstel, die omvang van werk en die Terme &amp; Voorwaardes hierbo.</p>
+      <div class="rows">
+        <div><span class="k">Naam</span><span class="ln"></span></div>
+        <div><span class="k">Handtekening</span><span class="ln"></span></div>
+        <div><span class="k">Datum</span><span class="ln"></span></div>
+      </div>
     </div>
   </section>
 
@@ -1810,6 +1839,8 @@ function loadPrices(){
   box.innerHTML='<div class="queued">Loading…</div>';
   apiGet({action:'prices'}).then(function(j){
     PRICES=j.prices||[];
+    PCACHE=PRICES;                       /* one list, not two */
+    put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
     PCATS=j.categories||[];
     PTYPES=j.types||PTYPES;
     PDEF=j.defaultMarkup||20;
@@ -2008,31 +2039,32 @@ var VP_STEPS='Julle bevestig die voorstel.\n'+
   'Ons finaliseer die kwotasie en die installasiedatum.\n'+
   'Installasie en inbedryfstelling.\n'+
   'CoC uitgereik en die stelsel oorhandig.';
-var VP_TERMS='Betaling — 80% deposito met aanvaarding, 20% met inbedryfstelling\n'+
-  'Leweringstyd — 10 tot 15 werksdae vanaf deposito, afhangend van voorraad\n'+
-  '80% deposito is betaalbaar om die installasiedatum te verseker en toerustingkoste te dek. Die balans is betaalbaar met voltooiing.\n'+
+var VP_TERMS='80% deposito is betaalbaar om die installasiedatum te verseker en toerustingkoste te dek. Die balans is betaalbaar met voltooiing.\n'+
   'Installasiedatums word op ’n eerste-kom-eerste-bedien-basis bevestig sodra die deposito ontvang is.\n'+
   'Die kwotasie sluit slegs die toerusting en werk in wat spesifiek vermeld word. Enige addisionele werk of materiaal word afsonderlik gekwoteer en vereis bestuur se goedkeuring.\n'+
   'Kliënte mag nie Flagship Solar-werknemers opdrag gee om werk buite die goedgekeurde omvang uit te voer nie.\n'+
-  'Installasie is onderhewig aan veilige toegang en geskikte terrein-/installasievoorwaardes.\n'+
-  'Bestaande of onvoorsiene elektriese, strukturele of dakprobleme kan addisionele koste meebring.\n'+
+  'Installasie is onderhewig aan veilige toegang en geskikte terrein-/installasievoorwaardes. Bestaande of onvoorsiene elektriese, strukturele of dakprobleme kan addisionele koste meebring.\n'+
   'Toerusting word deur die vervaardiger se waarborg gedek. Waarborg-oproepe en arbeid kan afsonderlik gehef word.\n'+
   'Sonkragproduksie en elektrisiteitsbesparing is ramings en word nie gewaarborg nie, aangesien dit afhanklik is van onder andere weer, skaduwee, verbruik en ander eksterne faktore.\n'+
   'Vertragings weens weer, verskaffers, munisipale vereistes, kragonderbrekings of omstandighede buite ons beheer kan die installasiedatum beïnvloed.\n'+
-  'Deur hierdie voorstel te aanvaar en die deposito te betaal, bevestig die kliënt dat hulle hierdie Terme & Voorwaardes aanvaar.\n'+
-  'Panele — 12 jaar produk, 25 jaar werkverrigting (vervaardiger)\n'+
-  'Omsetter — 5 jaar vervaardigerswaarborg\n'+
-  'Battery — 10 jaar vervaardigerswaarborg\n'+
-  'Vakmanskap — 24 maande';
+  'Deur hierdie voorstel te aanvaar en die deposito te betaal, bevestig die kliënt dat hulle hierdie Terme & Voorwaardes aanvaar.';
+
+var VP_SCOPE='Ons werk begin by die verdeelbord (DB) wat deur die omsetter gevoed word.\n'+
+  'Installasie van die omsetter, battery en panele, met die dakstruktuur en waterdigting daarvoor.\n'+
+  'Alle DC- en AC-bedrading tussen die panele, omsetter, battery en die verdeelbord, met die nodige beskerming en isolasie.\n'+
+  'Inbedryfstelling van die stelsel en oorhandiging — ons stel dit op en wys hoe dit werk.\n'+
+  'Die Sertifikaat van Voldoening (CoC) wat ons uitreik dek slegs die sonkraginstallasie. Dit is nie ’n CoC vir die bestaande elektriese installasie van die eiendom nie.\n'+
+  'Bestaande bedrading, kringe en toerusting agter die verdeelbord val buite hierdie omvang en word nie getoets of gesertifiseer nie.\n'+
+  'Enige werk buite bogenoemde word afsonderlik gekwoteer en eers na goedkeuring gedoen.';
 
 function vpBlank(){
   return {client:'',address:'',no:'',date:new Date().toISOString().slice(0,10),
           title:'Sonkrag vir julle plek', by:'Flagship Solar (Pty) Ltd',
           valid:'Pryse geldig vir 14 dae',
           bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',
-          invkw:'',pick:{},
+          invkw:'',strings:'',pick:{},
           now:'',prop:'',items:[],showPrices:false,
-          incl:VP_INCL,excl:VP_EXCL,steps:VP_STEPS,terms:VP_TERMS};
+          incl:VP_INCL,excl:VP_EXCL,steps:VP_STEPS,terms:VP_TERMS,scope:VP_SCOPE};
 }
 
 function showProps(){
@@ -2119,6 +2151,47 @@ function switchDesc(sw){
   return 'Skakelbord \u2014 '+sw.co+' oorskakelaar, '+sw.br+' breakers, '+sw.wire+' bedrading';
 }
 
+/* Nine panels to a string is the ceiling, so 14 panels is two strings of
+   seven — not one of nine and one of five. The count is what matters here. */
+var STRING_MAX=9;
+var LABOUR_FALLBACK={5:8400, 8:12500, 12:16400};
+
+function catItem(cat){
+  for(var i=0;i<PCACHE.length;i++){
+    var p=PCACHE[i];
+    if(p.active!==false && p.category===cat) return p;
+  }
+  return null;
+}
+
+function dcItem(){
+  return catItem('Dc String') ||
+    {description:'DC string', sell:5900, install:0, spec:'', unit:''};
+}
+
+/* Uses the same bands as the board. Takes the price from the sheet when a
+   Labour line names that size, otherwise falls back to the agreed figure —
+   and the line stays editable either way. */
+function labourFor(kw){
+  var sw=switchFor(kw);
+  if(!sw) return null;
+  var band=sw.kw, re=new RegExp('(^|[^0-9])'+band+'\\s*k(w|W)');
+  for(var i=0;i<PCACHE.length;i++){
+    var p=PCACHE[i];
+    if(p.active===false || p.category!=='Labour') continue;
+    if(re.test(p.description||'')) return p;
+  }
+  return {description:'Installasie-arbeid \u2014 '+band+' kW stelsel',
+          sell:LABOUR_FALLBACK[band], install:0, spec:'', unit:''};
+}
+
+function stringCount(){
+  var override=String(VP.strings==null?'':VP.strings).trim();
+  if(override!=='') return Math.max(0,Math.round(Number(override))||0);
+  var n=vpNum('panels');
+  return n>0 ? Math.ceil(n/STRING_MAX) : 0;
+}
+
 var PICKCAT={panel:'Panel', battery:'Battery', inverter:'Inverter', switch:'Changeover'};
 var PICKLBL={panel:'paneel', battery:'battery', inverter:'omsetter', switch:'skakelbord'};
 
@@ -2154,6 +2227,19 @@ function vpSync(){
   var kw=vpNum('invkw'), sw=switchFor(kw);
   syncLine('switch', pk.switch, (pk.switch&&sw)?1:0, sw?switchDesc(sw):'');
 
+  /* One row per string rather than a quantity, so the second one can be
+     dropped to its own price without touching the first. */
+  var ns=stringCount(), dc=dcItem();
+  for(var i=1;i<=6;i++){
+    var role='dc'+i;
+    if(i<=ns) syncLine(role, dc, 1,
+      dc.description+(ns>1?' \u2014 string '+i:''));
+    else { var old=findRole(role); if(old) VP.items.splice(VP.items.indexOf(old),1); }
+  }
+
+  var lab=labourFor(kw);
+  syncLine('labour', lab, lab?1:0, lab?lab.description:'');
+
   var w=document.getElementById('vpPickWarn');
   if(w){
     if(kw>12) w.innerHTML='<div class="warn2">'+kw+' kW is groter as wat by \u2019n huis '+
@@ -2185,6 +2271,9 @@ function renderPicks(){
   set('sInv', pk.inverter?pk.inverter.description:'\u2014');
   var swx=switchFor(vpNum('invkw'));
   set('sSw', swx?switchDesc(swx):'\u2014');
+  var ns=stringCount(), np=vpNum('panels');
+  set('sStr', ns? (ns+(ns===1?' string':' strings')+
+    (np?' \u00b7 '+Math.ceil(np/ns)+' panele elk':'')) : '\u2014');
   if(pk.battery) set('sBat', pk.battery.description);
 }
 
@@ -2460,8 +2549,11 @@ function vpAddItem(p){
   vpLines(); vpSave();
 }
 
-document.getElementById('vpAdd').addEventListener('click',openPick);
-document.getElementById('vpAdd2').addEventListener('click',openPick);
+/* Passing openPick straight to addEventListener handed it the click Event
+   as its category, so the list filtered against an object and came back
+   empty. Wrap it. */
+document.getElementById('vpAdd').addEventListener('click',function(){ openPick(); });
+document.getElementById('vpAdd2').addEventListener('click',function(){ openPick(); });
 
 document.getElementById('vpPrint').addEventListener('click',function(){
   vpMirrorAll(); vpCover(); vpCalc();
