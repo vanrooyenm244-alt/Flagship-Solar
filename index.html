@@ -773,7 +773,7 @@ table.page{border-collapse:collapse}
   <tbody><tr><td>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Waar julle nou staan</h2><span class="tag">Van die rekening af</span></div>
+    <div class="sheet-head"><h2 data-t="h_now">Waar julle nou staan</h2><span class="tag" data-t="t_now">Van die rekening af</span></div>
     <div class="vpin">
       <div><label for="ipBill">Eskom per maand (R)</label>
         <input id="ipBill" data-p="bill" data-calc type="number" inputmode="decimal" placeholder="2500"></div>
@@ -781,16 +781,16 @@ table.page{border-collapse:collapse}
         <input id="ipTar" data-p="tariff" data-calc type="number" step="0.01" inputmode="decimal" placeholder="3.02"></div>
     </div>
     <div class="vpg">
-      <div class="vpc"><div class="v" id="oBill">—</div><div class="u">Eskom per maand</div></div>
-      <div class="vpc"><div class="v" id="oKwhM">—</div><div class="u">kWh per maand</div></div>
-      <div class="vpc"><div class="v" id="oKwhD">—</div><div class="u">kWh per dag</div></div>
-      <div class="vpc"><div class="v" id="oTar">—</div><div class="u">per kWh betaal</div></div>
+      <div class="vpc"><div class="v" id="oBill">—</div><div class="u" data-t="u_bill">Eskom per maand</div></div>
+      <div class="vpc"><div class="v" id="oKwhM">—</div><div class="u" data-t="u_kwhm">kWh per maand</div></div>
+      <div class="vpc"><div class="v" id="oKwhD">—</div><div class="u" data-t="u_kwhd">kWh per dag</div></div>
+      <div class="vpc"><div class="v" id="oTar">—</div><div class="u" data-t="u_tar">per kWh betaal</div></div>
     </div>
     <textarea data-p="now" rows="3" placeholder="Wat julle nou betaal en hoekom dit die enigste koste is waaroor julle nie beheer het nie."></textarea>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Wat ons voorstel</h2><span class="tag">Wat op die dak pas</span></div>
+    <div class="sheet-head"><h2 data-t="h_prop">Wat ons voorstel</h2><span class="tag" data-t="t_prop">Wat op die dak pas</span></div>
     <div class="vpin">
       <div><label for="ipPan">Panele wat pas</label>
         <input id="ipPan" data-p="panels" data-calc type="number" inputmode="numeric" placeholder="9"></div>
@@ -814,25 +814,25 @@ table.page{border-collapse:collapse}
       <div id="vpPickWarn"></div>
     </div>
     <div class="vpg">
-      <div class="vpc"><div class="v" id="oKwp">—</div><div class="u">kWp op die dak</div></div>
-      <div class="vpc"><div class="v" id="oPeak">—</div><div class="u">kW op sy beste</div></div>
-      <div class="vpc"><div class="v" id="oGen">—</div><div class="u">kWh per dag opgewek</div></div>
-      <div class="vpc"><div class="v" id="oCov">—</div><div class="u">van die dagverbruik</div></div>
+      <div class="vpc"><div class="v" id="oKwp">—</div><div class="u" data-t="u_kwp">kWp op die dak</div></div>
+      <div class="vpc"><div class="v" id="oPeak">—</div><div class="u" data-t="u_peak">kW op sy beste</div></div>
+      <div class="vpc"><div class="v" id="oGen">—</div><div class="u" data-t="u_gen">kWh per dag opgewek</div></div>
+      <div class="vpc"><div class="v" id="oCov">—</div><div class="u" data-t="u_cov">van die dagverbruik</div></div>
     </div>
     <table class="vpspec">
-      <tr><td>Panele</td><td id="sPan">—</td></tr>
-      <tr><td>Skikking</td><td id="sKwp">—</td></tr>
-      <tr><td>Battery</td><td id="sBat">—</td></tr>
-      <tr><td>Omsetter</td><td id="sInv">—</td></tr>
-      <tr><td>Skakelbord</td><td id="sSw">—</td></tr>
-      <tr><td>DC strings</td><td id="sStr">—</td></tr>
+      <tr><td data-t="s_pan">Panele</td><td id="sPan">—</td></tr>
+      <tr><td data-t="s_arr">Skikking</td><td id="sKwp">—</td></tr>
+      <tr><td data-t="s_bat">Battery</td><td id="sBat">—</td></tr>
+      <tr><td data-t="s_inv">Omsetter</td><td id="sInv">—</td></tr>
+      <tr><td data-t="s_sw">Skakelbord</td><td id="sSw">—</td></tr>
+      <tr><td data-t="s_str">DC strings</td><td id="sStr">—</td></tr>
     </table>
     <div class="vpnote" id="oStory"></div>
     <textarea data-p="prop" rows="3" placeholder="Enigiets anders oor hierdie voorstel — dakrigting, skaduwee, waar die bord kom."></textarea>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Wat ingesluit is</h2><span class="tag" id="vpCount"></span></div>
+    <div class="sheet-head"><h2 data-t="h_lines">Wat ingesluit is</h2><span class="tag" id="vpCount"></span></div>
     <div id="vpLines"></div>
     <div class="addrow"><button class="add" type="button" id="vpAdd">+ Add from price list</button></div>
     <div class="ptot" id="vpTot"></div>
@@ -842,35 +842,35 @@ table.page{border-collapse:collapse}
   </section>
 
   <section class="sheet" id="vpInEx">
-    <div class="sheet-head"><h2>Ingesluit en nie ingesluit</h2><span class="tag">Verander soos nodig</span></div>
+    <div class="sheet-head"><h2 data-t="h_ie">Ingesluit en nie ingesluit</h2><span class="tag" data-t="t_ie">Verander soos nodig</span></div>
     <div class="ie">
-      <div><h3>Ingesluit</h3><textarea data-p="incl" rows="6"></textarea></div>
-      <div><h3>Nie ingesluit nie</h3><textarea data-p="excl" rows="4"></textarea></div>
+      <div><h3 data-t="h_incl">Ingesluit</h3><textarea data-p="incl" rows="6"></textarea></div>
+      <div><h3 data-t="h_excl">Nie ingesluit nie</h3><textarea data-p="excl" rows="4"></textarea></div>
     </div>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Omvang van werk</h2><span class="tag">Waar ons begin en ophou</span></div>
+    <div class="sheet-head"><h2 data-t="h_scope">Omvang van werk</h2><span class="tag" data-t="t_scope">Waar ons begin en ophou</span></div>
     <textarea data-p="scope" rows="9"></textarea>
   </section>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>Volgende stappe</h2><span class="tag">Sign off</span></div>
+    <div class="sheet-head"><h2 data-t="h_steps">Volgende stappe</h2><span class="tag">Sign off</span></div>
     <textarea data-p="steps" rows="4"></textarea>
-    <h3>Terme</h3><textarea data-p="terms" rows="5"></textarea>
+    <h3 data-t="h_terms">Terme</h3><textarea data-p="terms" rows="5"></textarea>
     <div class="vpsign">
-      <div><div class="k">Voorberei deur</div><div class="val" id="sgBy">Flagship Solar (Pty) Ltd</div></div>
-      <div><div class="k">Kontak</div><div class="val">071 527 3924<br>info@flagshipsolar.co.za</div></div>
-      <div><div class="k">Geldigheid</div><div class="val" id="sgVal">Pryse geldig vir 14 dae</div></div>
+      <div><div class="k" data-t="k_by">Voorberei deur</div><div class="val" id="sgBy">Flagship Solar (Pty) Ltd</div></div>
+      <div><div class="k" data-t="k_con">Kontak</div><div class="val">071 527 3924<br>info@flagshipsolar.co.za</div></div>
+      <div><div class="k" data-t="k_val">Geldigheid</div><div class="val" id="sgVal">Pryse geldig vir 14 dae</div></div>
     </div>
 
     <div class="vpacc">
-      <div class="t">Aanvaarding deur die kliënt</div>
-      <p>Ek aanvaar hierdie voorstel, die omvang van werk en die Terme &amp; Voorwaardes hierbo.</p>
+      <div class="t" data-t="a_head">Aanvaarding deur die kliënt</div>
+      <p data-t="a_body">Ek aanvaar hierdie voorstel, die omvang van werk en die Terme &amp; Voorwaardes hierbo.</p>
       <div class="rows">
-        <div><span class="k">Naam</span><span class="ln"></span></div>
-        <div><span class="k">Handtekening</span><span class="ln"></span></div>
-        <div><span class="k">Datum</span><span class="ln"></span></div>
+        <div><span class="k" data-t="a_name">Naam</span><span class="ln"></span></div>
+        <div><span class="k" data-t="a_sig">Handtekening</span><span class="ln"></span></div>
+        <div><span class="k" data-t="a_date">Datum</span><span class="ln"></span></div>
       </div>
     </div>
   </section>
@@ -2058,14 +2058,110 @@ var VP_SCOPE='Ons werk begin by die verdeelbord (DB) wat deur die omsetter gevoe
   'Die Sertifikaat van Voldoening (CoC) wat ons uitreik dek slegs die sonkraginstallasie. Dit is nie ’n CoC vir die eiendom se bestaande elektriese installasie nie.\n'+
   'Enige werk buite bogenoemde word afsonderlik gekwoteer en eers na skriftelike goedkeuring gedoen.';
 
-function vpBlank(){
-  return {client:'',address:'',no:'',date:new Date().toISOString().slice(0,10),
-          title:'Sonkrag vir julle plek', by:'Flagship Solar (Pty) Ltd',
-          valid:'Pryse geldig vir 14 dae',
+
+/* ---- English wording. One language per proposal, chosen when it is
+   created — so an edit you type is never half-translated later. ---- */
+var EN_LABELS={
+  h_now:'Where you stand today',
+  t_now:'From the bill',
+  u_bill:'Eskom per month',
+  u_kwhm:'kWh per month',
+  u_kwhd:'kWh per day',
+  u_tar:'paid per kWh',
+  h_prop:'What we propose',
+  t_prop:'What fits on the roof',
+  u_kwp:'kWp on the roof',
+  u_peak:'kW at its best',
+  u_gen:'kWh generated per day',
+  u_cov:'of daytime use',
+  s_pan:'Panels',
+  s_arr:'Array',
+  s_bat:'Battery',
+  s_inv:'Inverter',
+  s_sw:'Changeover board',
+  s_str:'DC strings',
+  h_lines:'What is included',
+  h_ie:'Included and not included',
+  t_ie:'Change as needed',
+  h_incl:'Included',
+  h_excl:'Not included',
+  h_scope:'Scope of work',
+  t_scope:'Where we start and stop',
+  h_steps:'Next steps',
+  h_terms:'Terms',
+  k_by:'Prepared by',
+  k_con:'Contact',
+  k_val:'Validity',
+  a_head:'Client acceptance',
+  a_body:'I accept this proposal, the scope of work and the Terms &amp; Conditions above.',
+  a_name:'Name',
+  a_sig:'Signature',
+  a_date:'Date'
+};
+var EN_INCL='Full installation\n'+
+    'Inverter and battery commissioning\n'+
+    'Roof structure and waterproofing\n'+
+    'DC and AC protection\n'+
+    'Certificate of Compliance (SANS 10142-1)\n'+
+    'Municipal SSEG application\n'+
+    'Commissioning and handover';
+var EN_EXCL='Roof repair or strengthening, if required\n'+
+    'Upgrading a non-compliant main board\n'+
+    'Trenching or civil work beyond 20 m';
+var EN_STEPS='You confirm the proposal.\n'+
+    'We finalise the quotation and the installation date.\n'+
+    'Installation and commissioning.\n'+
+    'CoC issued and the system handed over.';
+var EN_TERMS='A 80% deposit is payable to secure the installation date and cover equipment costs. The balance is payable on completion.\n'+
+    'Installation dates are confirmed on a first-come, first-served basis once the deposit is received.\n'+
+    'This quotation covers only the equipment and work specifically listed. Any additional work or material is quoted separately and requires management approval.\n'+
+    'Clients may not instruct Flagship Solar employees to carry out work outside the approved scope.\n'+
+    'Installation is subject to safe access and suitable site and installation conditions. Existing or unforeseen electrical, structural or roof problems may add cost.\n'+
+    'Equipment is covered by the manufacturer\'s warranty. Warranty call-outs and labour may be charged separately.\n'+
+    'Solar production and electricity savings are estimates and are not guaranteed, as they depend on weather, shading, consumption and other external factors.\n'+
+    'Delays caused by weather, suppliers, municipal requirements, power outages or circumstances beyond our control may affect the installation date.\n'+
+    'By accepting this proposal and paying the deposit, the client confirms acceptance of these Terms & Conditions.';
+var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter. Existing wiring, circuits and equipment behind that board fall outside this scope and are not tested or certified.\n'+
+    'Installation of the inverter, battery and panels, including the roof structure and waterproofing at the points where we penetrate.\n'+
+    'All DC and AC wiring between the panels, inverter, battery and distribution board, with the required protection and isolation. Each DC string includes up to 30 metres of cable. The changeover board allows for approximately 5 metres from the inverter to the board, and 5 metres from the board to the main DB. Longer routes are quoted as installation material.\n'+
+    'This quotation is for single-storey roofs at normal pitch. Double-storey, steep or difficult-access roofs requiring fall protection are quoted separately.\n'+
+    'Removal or disposal of existing equipment is not included. We remove our own packaging and installation waste.\n'+
+    'Commissioning and handover — we set up the system and the monitoring app, and demonstrate once to the person on site how it works.\n'+
+    'The Certificate of Compliance (CoC) we issue covers the solar installation only. It is not a CoC for the property\'s existing electrical installation.\n'+
+    'Any work outside the above is quoted separately and carried out only after written approval.';
+
+var AF_LABELS=null;   /* filled from the markup the first time we swap */
+
+function applyLang(lang){
+  var els=document.querySelectorAll('#screenProp [data-t]');
+  if(!AF_LABELS){
+    AF_LABELS={};
+    els.forEach(function(e){ AF_LABELS[e.getAttribute('data-t')]=e.innerHTML; });
+  }
+  var src=(lang==='en')?EN_LABELS:AF_LABELS;
+  els.forEach(function(e){
+    var k=e.getAttribute('data-t');
+    if(src[k]!==undefined) e.innerHTML=src[k];
+  });
+  var t=document.querySelector('#screenProp .vpsrc');
+  if(t) t.lastChild.textContent=(lang==='en')?' Show prices on the PDF':' Wys pryse op die PDF';
+  var add=document.getElementById('vpAdd');
+  if(add) add.textContent=(lang==='en')?'+ Add from price list':'+ Add from price list';
+}
+
+function vpBlank(lang){
+  var en=(lang==='en');
+  return {lang:en?'en':'af',
+          client:'',address:'',no:'',date:new Date().toISOString().slice(0,10),
+          title:en?'Solar for your place':'Sonkrag vir julle plek',
+          by:'Flagship Solar (Pty) Ltd',
+          valid:en?'Prices valid for 14 days':'Pryse geldig vir 14 dae',
           bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',
           invkw:'',strings:'',pick:{},
           now:'',prop:'',items:[],showPrices:false,
-          incl:VP_INCL,excl:VP_EXCL,steps:VP_STEPS,terms:VP_TERMS,scope:VP_SCOPE};
+          incl:en?EN_INCL:VP_INCL, excl:en?EN_EXCL:VP_EXCL,
+          steps:en?EN_STEPS:VP_STEPS, terms:en?EN_TERMS:VP_TERMS,
+          scope:en?EN_SCOPE:VP_SCOPE};
 }
 
 function showProps(){
@@ -2110,14 +2206,39 @@ function renderProps(){
 }
 
 document.getElementById('vpNew').addEventListener('click',function(){
-  var id='vp-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-  put('props',{id:id,title:'Untitled proposal',updated:Date.now(),data:vpBlank()})
-    .then(function(){ openProp(id) });
+  askLang(function(lang){
+    var id='vp-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+    put('props',{id:id,title:'Untitled proposal',updated:Date.now(),data:vpBlank(lang)})
+      .then(function(){ openProp(id) });
+  });
 });
+
+/* Asked once, at the start. The wording is fixed for that proposal, so
+   anything you type on site stays in the language you typed it in. */
+function askLang(done){
+  var sc=document.createElement('div');
+  sc.className='scrim';
+  sc.innerHTML='<div class="modal" role="dialog" aria-label="Taal">'+
+    '<header><h2>Watter taal?</h2><button type="button" data-x>Close</button></header>'+
+    '<div class="body"><div class="exportpick">'+
+      '<button type="button" data-l="af">Afrikaans<span class="c">Vir die kli\u00ebnt</span></button>'+
+      '<button type="button" data-l="en" class="alt">English<span class="c">For the client</span></button>'+
+    '</div><div class="disc">Die keuse geld vir hierdie voorstel. Jou eie skerm bly Afrikaans.</div>'+
+    '</div></div>';
+  document.body.appendChild(sc);
+  var close=function(){ sc.remove(); };
+  sc.addEventListener('click',function(e){ if(e.target===sc) close(); });
+  sc.querySelector('[data-x]').addEventListener('click',close);
+  sc.querySelectorAll('[data-l]').forEach(function(b){
+    b.addEventListener('click',function(){ var l=b.getAttribute('data-l'); close(); done(l); });
+  });
+}
 
 function openProp(id){
   get1('props',id).then(function(p){
-    VPID=id; VP=(p&&p.data)||vpBlank();
+    VPID=id; VP=(p&&p.data)||vpBlank('af');
+    if(!VP.lang) VP.lang='af';        /* proposals made before the choice existed */
+    applyLang(VP.lang);
     if(!VP.items) VP.items=[];
     document.querySelectorAll('#screenProp [data-p]').forEach(function(el){
       var k=el.getAttribute('data-p');
@@ -2394,25 +2515,57 @@ function vpCalc(){
   set('sBat',  bat?(bat+' kWh'):'—');
 
   /* the sentence you would say out loud on site */
-  var box=document.getElementById('oStory');
+  var box=document.getElementById('oStory'), en=(VP&&VP.lang==='en');
   if(!pan || !kwhD){
-    box.innerHTML='<span class="none">Vul die rekening en die aantal panele in, '+
-      'dan skryf hierdie stukkie homself.</span>';
+    box.innerHTML='<span class="none">'+(en
+      ? 'Fill in the bill and the number of panels, and this paragraph writes itself.'
+      : 'Vul die rekening en die aantal panele in, dan skryf hierdie stukkie homself.')+'</span>';
     return;
   }
-  var txt='<b>'+pan+' panele van '+w+' W</b> is '+kwp.toFixed(2)+' kWp. Op sy beste lewer '+
-    'dit sowat <b>'+peak.toFixed(1)+' kW</b>, en oor \'n dag ongeveer <b>'+kwh(gen)+' kWh</b>. '+
-    'Julle gebruik omtrent <b>'+kwh(kwhD)+' kWh per dag</b>, so dit dek ongeveer <b>'+
-    Math.round(cov)+'%</b>.';
-  if(bat>0){
-    var hrs=gen>0 ? bat/(gen/12) : 0;    /* against average daytime output */
-    txt+='<br>Die <b>'+bat+' kWh battery</b> hou '+
-      (kwhD>0 ? 'ongeveer <b>'+Math.round(bat/kwhD*100)+'%</b> van \'n dag se verbruik' :
-                'die aandverbruik')+
-      ' — genoeg om deur die aand en die nag te kom sonder Eskom.';
+  var txt;
+  if(en){
+    txt='<b>'+pan+' panels of '+w+' W</b> is '+kwp.toFixed(2)+' kWp. At its best that '+
+      'delivers about <b>'+peak.toFixed(1)+' kW</b>, and over a day roughly <b>'+kwh(gen)+' kWh</b>. '+
+      'You use around <b>'+kwh(kwhD)+' kWh a day</b>, so it covers about <b>'+
+      Math.round(cov)+'%</b>.';
+  } else {
+    txt='<b>'+pan+' panele van '+w+' W</b> is '+kwp.toFixed(2)+' kWp. Op sy beste lewer '+
+      'dit sowat <b>'+peak.toFixed(1)+' kW</b>, en oor \'n dag ongeveer <b>'+kwh(gen)+' kWh</b>. '+
+      'Julle gebruik omtrent <b>'+kwh(kwhD)+' kWh per dag</b>, so dit dek ongeveer <b>'+
+      Math.round(cov)+'%</b>.';
   }
-  if(cov>115) txt+='<br><b>Let op:</b> die panele maak meer as wat julle gebruik. '+
-    'Kyk of \'n kleiner skikking of \'n groter battery beter sin maak.';
+  if(bat>0){
+    txt+= en
+      ? '<br>The <b>'+bat+' kWh battery</b> holds '+
+        (kwhD>0 ? 'about <b>'+Math.round(bat/kwhD*100)+'%</b> of a day\'s use'
+                : 'the evening load')+
+        ' — enough to get through the evening and the night without Eskom.'
+      : '<br>Die <b>'+bat+' kWh battery</b> hou '+
+        (kwhD>0 ? 'ongeveer <b>'+Math.round(bat/kwhD*100)+'%</b> van \'n dag se verbruik'
+                : 'die aandverbruik')+
+        ' — genoeg om deur die aand en die nag te kom sonder Eskom.';
+
+    /* Generation has to cover the day's use and still refill the battery.
+       Where it does not, say so here rather than let the client find out
+       in June. The sun-hour figure is an assumption, so name it. */
+    var need=kwhD+bat, sunh=vpNum('sun')||4.0;
+    if(gen>0 && gen<need){
+      txt+= en
+        ? '<br><b>Please note:</b> at '+sunh.toFixed(1)+' sun hours the panels make about '+
+          kwh(gen)+' kWh a day, against '+kwh(kwhD)+' kWh of use plus '+bat+' kWh to refill '+
+          'the battery. There will be days — short winter days and overcast weather — '+
+          'when the battery does not charge fully.'
+        : '<br><b>Let wel:</b> teen '+sunh.toFixed(1)+' sonure maak die panele sowat '+
+          kwh(gen)+' kWh per dag, teenoor '+kwh(kwhD)+' kWh verbruik plus '+bat+' kWh om die '+
+          'battery vol te laai. Daar sal dae wees — kort winterdae en bewolkte weer — '+
+          'wat die battery nie vol laai nie.';
+    }
+  }
+  if(cov>115) txt+= en
+    ? '<br><b>Please note:</b> the panels make more than you use. Consider whether a '+
+      'smaller array or a bigger battery makes better sense.'
+    : '<br><b>Let op:</b> die panele maak meer as wat julle gebruik. '+
+      'Kyk of \'n kleiner skikking of \'n groter battery beter sin maak.';
   box.innerHTML=txt;
 }
 
