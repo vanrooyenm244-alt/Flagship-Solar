@@ -121,6 +121,11 @@ body{background:var(--slate);color:var(--ink);
 .dy .sum .clr{border:0;background:none;color:var(--red);font:inherit;font-size:12px;font-weight:600;
   cursor:pointer;padding:0;margin-left:8px}
 .dy .sum.bad{color:var(--red)}
+.dy .sum .st{font-weight:700;margin-left:8px;white-space:nowrap}
+.dy .sum .st.ok{color:var(--ok)}
+.dy .sum .st.wait{color:#8A6D1F}
+.dy.sent{background:#F2F9F5}
+.dy.sent.we{background:#F6F8F1}
 
 .tot{margin-top:12px;padding:11px 13px;border-radius:9px;background:#EEF4FA;color:var(--navy);font-size:13.5px;line-height:1.6}
 .tot b{font-variant-numeric:tabular-nums}
@@ -1973,6 +1978,16 @@ var VP_STEPS='Julle bevestig die voorstel.\n'+
   'CoC uitgereik en die stelsel oorhandig.';
 var VP_TERMS='Betaling — 80% deposito met aanvaarding, 20% met inbedryfstelling\n'+
   'Leweringstyd — 10 tot 15 werksdae vanaf deposito, afhangend van voorraad\n'+
+  '80% deposito is betaalbaar om die installasiedatum te verseker en toerustingkoste te dek. Die balans is betaalbaar met voltooiing.\n'+
+  'Installasiedatums word op ’n eerste-kom-eerste-bedien-basis bevestig sodra die deposito ontvang is.\n'+
+  'Die kwotasie sluit slegs die toerusting en werk in wat spesifiek vermeld word. Enige addisionele werk of materiaal word afsonderlik gekwoteer en vereis bestuur se goedkeuring.\n'+
+  'Kliënte mag nie Flagship Solar-werknemers opdrag gee om werk buite die goedgekeurde omvang uit te voer nie.\n'+
+  'Installasie is onderhewig aan veilige toegang en geskikte terrein-/installasievoorwaardes.\n'+
+  'Bestaande of onvoorsiene elektriese, strukturele of dakprobleme kan addisionele koste meebring.\n'+
+  'Toerusting word deur die vervaardiger se waarborg gedek. Waarborg-oproepe en arbeid kan afsonderlik gehef word.\n'+
+  'Sonkragproduksie en elektrisiteitsbesparing is ramings en word nie gewaarborg nie, aangesien dit afhanklik is van onder andere weer, skaduwee, verbruik en ander eksterne faktore.\n'+
+  'Vertragings weens weer, verskaffers, munisipale vereistes, kragonderbrekings of omstandighede buite ons beheer kan die installasiedatum beïnvloed.\n'+
+  'Deur hierdie voorstel te aanvaar en die deposito te betaal, bevestig die kliënt dat hulle hierdie Terme & Voorwaardes aanvaar.\n'+
   'Panele — 12 jaar produk, 25 jaar werkverrigting (vervaardiger)\n'+
   'Omsetter — 5 jaar vervaardigerswaarborg\n'+
   'Battery — 10 jaar vervaardigerswaarborg\n'+
@@ -2528,15 +2543,17 @@ document.getElementById('cycNext').addEventListener('click',function(){
 });
 
 function workerTotals(name){
-  var e=ENTRIES[name]||{}, n=0, ot=0, days=0;
+  var e=ENTRIES[name]||{}, n=0, ot=0, days=0, unsent=0;
   Object.keys(e).forEach(function(dk){
     var r=e[dk];
     if(!r||!r.on) return;
     var c=calcShift(dk,r.ti,r.to,r.lu);
     if(!c) return;
     n+=c.normal; ot+=c.overtime; days++;
+    if(!r.sent) unsent++;
   });
-  return {normal:Math.round(n*100)/100, ot:Math.round(ot*100)/100, days:days};
+  return {normal:Math.round(n*100)/100, ot:Math.round(ot*100)/100,
+          days:days, unsent:unsent};
 }
 
 function renderPeople(){
@@ -2553,7 +2570,8 @@ function renderPeople(){
     per.innerHTML=
       '<button class="hd" type="button">'+
         '<span class="nm">'+esc(name)+'</span>'+
-        '<span class="sm">'+(t.days? t.days+'d · '+hm(t.normal)+(t.ot?' +'+hm(t.ot):'') : '—')+'</span>'+
+        '<span class="sm">'+(t.days? t.days+'d · '+hm(t.normal)+(t.ot?' +'+hm(t.ot):'')+
+          (t.unsent?' · '+t.unsent+' to send':' · all sent') : '—')+'</span>'+
         '<span class="cv">›</span>'+
       '</button><div class="bd"></div>';
     per.querySelector('.hd').addEventListener('click',function(){
@@ -2597,9 +2615,9 @@ function fillDays(bd,name){
 
   days.forEach(function(d){
     var k=iso(d), g=d.getDay(), we=(g===0||g===6);
-    var row=document.createElement('div');
-    row.className='dy'+(we?' we':'');
     var r=ENTRIES[name][k];
+    var row=document.createElement('div');
+    row.className='dy'+(we?' we':'')+((r&&r.on&&r.sent)?' sent':'');
 
     var left='<div class="dt"><div class="dn">'+d.getDate()+'</div>'+
       '<div class="dw">'+DAYNAMES[g].slice(0,3)+'</div></div>';
@@ -2633,6 +2651,9 @@ function fillDays(bd,name){
         r.lu=row.querySelector('.lu').value;
         r.job=row.querySelector('.jn').value;
         r.note=row.querySelector('.nt2').value;
+        /* Changed after it went through, so it must go again. The script
+           updates the existing row rather than adding a duplicate. */
+        r.sent=false;
         paint();
         saveEntries();
       };
@@ -2644,8 +2665,13 @@ function fillDays(bd,name){
         var txt='normal <b>'+hm(c.normal)+'</b>';
         if(c.overtime>0) txt+=' · overtime <b class="ot">'+hm(c.overtime)+'</b>';
         if(c.dayType!=='Weekday') txt=c.dayType+' — overtime <b class="ot">'+hm(c.overtime)+'</b>';
-        s.innerHTML=txt+'<button class="clr" type="button">Remove</button>';
+        s.innerHTML=txt+(r.sent?'<span class="st ok">sent</span>'
+                               :'<span class="st wait">not sent</span>')+
+          '<button class="clr" type="button">Remove</button>';
+        row.classList[r.sent?'add':'remove']('sent');
         s.querySelector('.clr').addEventListener('click',function(){
+          if(r.sent && !confirm('That day has already gone to the sheet. '+
+             'Removing it here takes it off this phone only — the row stays in the sheet.')) return;
           delete ENTRIES[name][k]; saveEntries(); renderPeople();
         });
       };
@@ -2690,13 +2716,14 @@ document.getElementById('tsClearAll').addEventListener('click',function(){
 });
 
 /* ---- sending ---- */
-function collectAll(){
+function collectAll(onlyUnsent){
   var rows=[];
   Object.keys(ENTRIES).forEach(function(name){
     var e=ENTRIES[name]||{};
     Object.keys(e).sort().forEach(function(k){
       var r=e[k];
       if(!r||!r.on) return;
+      if(onlyUnsent && r.sent) return;
       if(!calcShift(k,r.ti,r.to,r.lu)) return;
       rows.push({date:k,worker:name,job:r.job||'',timeIn:r.ti,timeOut:r.to,
                  lunch:r.lu,note:r.note||''});
@@ -2705,30 +2732,48 @@ function collectAll(){
   return rows;
 }
 
+function collectUnsent(){ return collectAll(true); }
+
+/* Days stay on the screen after they go through — the flag is what stops
+   them being sent twice, not wiping them. */
+function markSent(rows){
+  rows.forEach(function(r){
+    var e=ENTRIES[r.worker];
+    if(e && e[r.date]) e[r.date].sent=true;
+  });
+  saveEntries();
+}
+
 document.getElementById('tsSend').addEventListener('click',function(){
-  var rows=collectAll();
-  if(!rows.length){ alert('Nothing filled in yet for this cycle.'); return; }
-  if(!confirm('Send '+rows.length+' entries for '+cycleLabel(CYCLE)+'?\n\nSending twice will create duplicate rows in the sheet.')) return;
+  var rows=collectUnsent();
+  if(!rows.length){
+    alert(collectAll().length
+      ? 'Everything filled in has already been sent.'
+      : 'Nothing filled in yet for this cycle.');
+    return;
+  }
+  if(!confirm('Send '+rows.length+(rows.length===1?' day':' days')+' for '+cycleLabel(CYCLE)+'?'+
+    '\n\nWhat you have already sent stays on the screen and does not go again.')) return;
 
   var btn=document.getElementById('tsSend');
   btn.disabled=true; btn.textContent='Sending…';
 
   post({action:'timesheets',rows:rows}).then(function(j){
     btn.disabled=false; btn.textContent='Send to sheet';
+    markSent(rows);
     var msg=[];
     if(j.written) msg.push(j.written+' added');
     if(j.updated) msg.push(j.updated+' updated');
     if(j.closed)  msg.push(j.closed+' skipped — closed cycle');
     if(j.blocked) msg.push(j.blocked+' refused — not yours to file');
     alert(msg.length?msg.join(', ')+'.':'Nothing changed — those entries were already in the sheet.');
-    ENTRIES={}; put('cfg',{id:entKey(),data:{}});
-    OPEN=null; renderPeople(); flushQueue();
+    renderPeople(); flushQueue();
   }).catch(function(){
     queue(rows).then(function(){
       btn.disabled=false; btn.textContent='Send to sheet';
-      alert('No connection — '+rows.length+' entries saved on this phone. Open this again with signal and they will go through.');
-      ENTRIES={}; put('cfg',{id:entKey(),data:{}});
-      OPEN=null; renderPeople(); renderQueue();
+      markSent(rows);
+      alert('No connection — '+rows.length+' days saved on this phone. Open this again with signal and they will go through.');
+      renderPeople(); renderQueue();
     });
   });
 });
