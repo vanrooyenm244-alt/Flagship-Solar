@@ -2475,10 +2475,14 @@ function showTime(){
   if(!CYCLE) CYCLE=cycleFor(new Date());
   show('screenTime');
 
+  var isWorker = ME && ME.role==='Worker';
   var aw=document.getElementById('tsAddWorker');
-  if(aw) aw.parentNode.style.display = (ME && ME.role==='Worker') ? 'none' : '';
+  if(aw) aw.style.display = isWorker ? 'none' : '';
+  var ca=document.getElementById('tsClearAll');
+  if(ca) ca.style.display = isWorker ? 'none' : '';
   document.getElementById('tsWarn').innerHTML = CFG.url ? '' :
     '<div class="queued"><b>No sheet connected yet.</b> Open Settings and paste the web app URL, otherwise hours can only be queued, not sent.</div>';
+    
 
   loadEntries().then(function(){
     return get1('cfg','workers');
