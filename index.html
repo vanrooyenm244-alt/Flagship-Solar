@@ -327,6 +327,27 @@ h3.ed{flex:none;display:block;width:100%;border-bottom:1px solid var(--rule)}
 .vpin input:focus{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
 .vpin .wide{grid-column:1 / -1}
 
+/* the four things the sizing picks out of the price list */
+.vppick{margin:12px 0 4px}
+.vppick .pk1{display:flex;align-items:center;gap:10px;border:1px solid var(--rule);
+  border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fff;
+  cursor:pointer;font:inherit;width:100%;text-align:left}
+.vppick .pk1:active{background:#F4F8FC}
+.vppick .pk1 .k{flex:0 0 74px;font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em}
+.vppick .pk1 .v{flex:1;min-width:0;font-size:14.5px;font-weight:600;color:var(--navy)}
+.vppick .pk1 .v.none{color:#A8B0B8;font-weight:400;font-style:italic}
+.vppick .pk1 .v small{display:block;font-weight:400;font-size:12px;
+  color:var(--muted);font-style:normal;margin-top:2px}
+.vppick .pk1 .go{color:#8A929B;font-size:18px}
+.vppick .warn2{background:#FDF3E8;border:1px solid #F0C994;color:#7A4E10;
+  border-radius:9px;padding:9px 11px;font-size:13px;margin:2px 0 8px}
+.pline .d b{outline:none}
+.pline .d b:focus{background:#FFF8E1;border-radius:3px}
+.pline.auto .d b::after{content:'auto';font-size:9.5px;font-weight:700;color:var(--ok);
+  letter-spacing:.06em;margin-left:7px;vertical-align:2px}
+.pline.auto.edited .d b::after{content:'edited';color:#8A6D1F}
+
 /* callout */
 .vpnote{border-left:3px solid var(--navy);background:#EEF4FA;border-radius:0 8px 8px 0;
   padding:11px 13px;margin:12px 0;font-size:14px;line-height:1.55}
@@ -766,8 +787,18 @@ table.page{border-collapse:collapse}
         <input id="ipW" data-p="watt" data-calc type="number" inputmode="numeric" placeholder="620"></div>
       <div><label for="ipBat">Battery (kWh)</label>
         <input id="ipBat" data-p="battery" data-calc type="number" step="0.1" inputmode="decimal" placeholder="16"></div>
+      <div><label for="ipKw">Omsetter (kW)</label>
+        <input id="ipKw" data-p="invkw" data-calc type="number" step="0.1" inputmode="decimal" placeholder="8"></div>
       <div><label for="ipSun">Sonure per dag</label>
         <input id="ipSun" data-p="sun" data-calc type="number" step="0.1" inputmode="decimal" placeholder="4.0"></div>
+    </div>
+
+    <div class="vppick" id="vpPick">
+      <button class="pk1" type="button" data-pick="panel"><span class="k">Paneel</span><span class="v"></span><span class="go">›</span></button>
+      <button class="pk1" type="button" data-pick="battery"><span class="k">Battery</span><span class="v"></span><span class="go">›</span></button>
+      <button class="pk1" type="button" data-pick="inverter"><span class="k">Omsetter</span><span class="v"></span><span class="go">›</span></button>
+      <button class="pk1" type="button" data-pick="switch"><span class="k">Skakelbord</span><span class="v"></span><span class="go">›</span></button>
+      <div id="vpPickWarn"></div>
     </div>
     <div class="vpg">
       <div class="vpc"><div class="v" id="oKwp">—</div><div class="u">kWp op die dak</div></div>
@@ -779,7 +810,8 @@ table.page{border-collapse:collapse}
       <tr><td>Panele</td><td id="sPan">—</td></tr>
       <tr><td>Skikking</td><td id="sKwp">—</td></tr>
       <tr><td>Battery</td><td id="sBat">—</td></tr>
-      <tr><td>Omsetter</td><td><input data-p="inv" placeholder="bv. 8 kW hibried, enkelfase" style="text-align:right;font-weight:600;color:var(--navy)"></td></tr>
+      <tr><td>Omsetter</td><td id="sInv">—</td></tr>
+      <tr><td>Skakelbord</td><td id="sSw">—</td></tr>
     </table>
     <div class="vpnote" id="oStory"></div>
     <textarea data-p="prop" rows="3" placeholder="Enigiets anders oor hierdie voorstel — dakrigting, skaduwee, waar die bord kom."></textarea>
@@ -1997,7 +2029,8 @@ function vpBlank(){
   return {client:'',address:'',no:'',date:new Date().toISOString().slice(0,10),
           title:'Sonkrag vir julle plek', by:'Flagship Solar (Pty) Ltd',
           valid:'Pryse geldig vir 14 dae',
-          bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',inv:'',
+          bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',
+          invkw:'',pick:{},
           now:'',prop:'',items:[],showPrices:false,
           incl:VP_INCL,excl:VP_EXCL,steps:VP_STEPS,terms:VP_TERMS};
 }
@@ -2064,10 +2097,111 @@ function openProp(id){
     document.getElementById('savedTag').textContent='proposal';
     show('screenProp');
     vpGrowAll();
-    vpLines(); vpCalc();
+    vpSync(); vpLines(); vpCalc();
     if(!PCACHE.length) vpLoadPrices();
   });
 }
+
+/* What the board actually gets, by inverter size. Sizes in between round up
+   to the next row — a 6 kW is built as an 8 kW. Above 12 kW is not a house
+   install, so the app says so instead of guessing. */
+var SWITCH_SPEC=[
+  {kw:5,  br:'32A', co:'40A', wire:'6mm'},
+  {kw:8,  br:'40A', co:'40A', wire:'10mm'},
+  {kw:12, br:'63A', co:'63A', wire:'16mm'}
+];
+function switchFor(kw){
+  if(!kw||kw<=0) return null;
+  for(var i=0;i<SWITCH_SPEC.length;i++) if(kw<=SWITCH_SPEC[i].kw) return SWITCH_SPEC[i];
+  return null;
+}
+function switchDesc(sw){
+  return 'Skakelbord \u2014 '+sw.co+' oorskakelaar, '+sw.br+' breakers, '+sw.wire+' bedrading';
+}
+
+var PICKCAT={panel:'Panel', battery:'Battery', inverter:'Inverter', switch:'Changeover'};
+var PICKLBL={panel:'paneel', battery:'battery', inverter:'omsetter', switch:'skakelbord'};
+
+function findRole(role){
+  for(var i=0;i<VP.items.length;i++) if(VP.items[i].role===role) return VP.items[i];
+  return null;
+}
+
+/* One managed line per role. Drop it when there is nothing to price. A
+   description you typed over is left alone — that is how the same board
+   reads 40A on one job and 63A on the next. */
+function syncLine(role,p,qty,autoDesc){
+  var it=findRole(role);
+  if(!p || !qty || qty<=0){
+    if(it) VP.items.splice(VP.items.indexOf(it),1);
+    return;
+  }
+  if(!it){ it={role:role,desc:'',unit:'',sell:0,spec:'',qty:1,custom:false}; VP.items.push(it); }
+  it.sell=(Number(p.sell)||0)+(Number(p.install)||0);
+  it.unit=p.unit||'';
+  it.spec=p.spec||'';
+  it.qty=qty;
+  if(!it.custom) it.desc=autoDesc||p.description||'';
+}
+
+function vpSync(){
+  if(!VP.pick) VP.pick={};
+  var pk=VP.pick;
+  syncLine('panel',    pk.panel,    vpNum('panels'));
+  syncLine('battery',  pk.battery,  pk.battery?1:0);
+  syncLine('inverter', pk.inverter, pk.inverter?1:0);
+
+  var kw=vpNum('invkw'), sw=switchFor(kw);
+  syncLine('switch', pk.switch, (pk.switch&&sw)?1:0, sw?switchDesc(sw):'');
+
+  var w=document.getElementById('vpPickWarn');
+  if(w){
+    if(kw>12) w.innerHTML='<div class="warn2">'+kw+' kW is groter as wat by \u2019n huis '+
+      'ingesit word. Kies die skakelbord self en tik die spesifikasie in.</div>';
+    else if(pk.switch && !sw) w.innerHTML='<div class="warn2">Tik die omsetter se kW in, '+
+      'anders kan die skakelbord se spesifikasie nie uitgewerk word nie.</div>';
+    else w.innerHTML='';
+  }
+  renderPicks();
+}
+
+function renderPicks(){
+  if(!VP.pick) VP.pick={};
+  var pk=VP.pick;
+  document.querySelectorAll('#vpPick [data-pick]').forEach(function(b){
+    var role=b.getAttribute('data-pick'), p=pk[role], v=b.querySelector('.v');
+    if(!p){ v.className='v none'; v.textContent='Kies \u2019n '+PICKLBL[role]; return; }
+    v.className='v';
+    var unit=(Number(p.sell)||0)+(Number(p.install)||0);
+    var extra=money(unit)+(role==='panel'?' elk':'');
+    if(role==='switch'){
+      var sw=switchFor(vpNum('invkw'));
+      if(sw) extra=switchDesc(sw)+' \u00b7 '+money(unit);
+    }
+    v.innerHTML=esc(p.description)+'<small>'+esc(extra)+'</small>';
+  });
+  var pan=pk.panel, n=vpNum('panels');
+  var set=function(id,t){ var e=document.getElementById(id); if(e) e.textContent=t; };
+  set('sInv', pk.inverter?pk.inverter.description:'\u2014');
+  var swx=switchFor(vpNum('invkw'));
+  set('sSw', swx?switchDesc(swx):'\u2014');
+  if(pk.battery) set('sBat', pk.battery.description);
+}
+
+document.querySelectorAll('#vpPick [data-pick]').forEach(function(b){
+  b.addEventListener('click',function(){
+    var role=b.getAttribute('data-pick');
+    openPick(PICKCAT[role], function(item){
+      VP.pick[role]=item;
+      if(role==='panel'){
+        /* the watt is on the item, not typed twice */
+        var m=String(item.description||'').match(/(\d{3,4})\s*W/i);
+        if(m){ VP.watt=m[1]; var w=document.getElementById('ipW'); if(w) w.value=m[1]; }
+      }
+      vpSync(); vpLines(); vpCalc(); vpSave();
+    });
+  });
+});
 
 function vpGrow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; }
 
@@ -2095,7 +2229,7 @@ document.querySelectorAll('#screenProp [data-p]').forEach(function(el){
   el.addEventListener('input',function(){
     VP[el.getAttribute('data-p')]=el.value;
     if(el.tagName==='TEXTAREA'){ vpGrow(el); vpMirror(el); }
-    if(el.hasAttribute('data-calc')) vpCalc();
+    if(el.hasAttribute('data-calc')){ vpCalc(); vpSync(); vpLines(); }
     vpCover();
     vpSave();
   });
@@ -2200,20 +2334,29 @@ function vpLines(){
   }
   VP.items.forEach(function(it,i){
     var row=document.createElement('div');
-    row.className='pline';
-    row.innerHTML='<div class="d"><b>'+esc(it.desc)+'</b>'+
+    row.className='pline'+(it.role?' auto':'')+(it.custom?' edited':'');
+    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(it.desc)+'</b>'+
       (it.spec?'<span>'+esc(it.spec)+'</span>':'')+'</div>'+
       '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty||1)+'"></div>'+
       '<div class="amt"></div><button type="button" class="x" aria-label="Remove">\u00d7</button>';
+    var nm=row.querySelector('.d b');
+    nm.addEventListener('input',function(){
+      it.desc=nm.textContent.replace(/\s+/g,' ').trim();
+      if(it.role){ it.custom=true; row.classList.add('edited'); }
+      vpSave();
+    });
     var q=row.querySelector('input');
     q.addEventListener('input',function(){
       it.qty=Number(q.value)||0;
       row.querySelector('.amt').textContent=money(it.qty*it.sell);
+      if(it.role==='panel'){ VP.panels=String(it.qty);
+        var e=document.getElementById('ipPan'); if(e) e.value=it.qty; vpCalc(); }
       vpTotals(); vpSave();
     });
     row.querySelector('.x').addEventListener('click',function(){
       if(!confirm('Remove "'+it.desc+'"?')) return;
-      VP.items.splice(i,1); vpLines(); vpTotals(); vpSave();
+      if(it.role && VP.pick) delete VP.pick[it.role];
+      VP.items.splice(i,1); vpSync(); vpLines(); vpTotals(); vpSave();
     });
     row.querySelector('.amt').textContent=money((it.qty===undefined?1:it.qty)*it.sell);
     box.appendChild(row);
@@ -2235,15 +2378,16 @@ function vpTotals(){
 }
 
 /* ---- picking from the price list ---- */
-var pscrim=null;
-function closePick(){ if(pscrim){ pscrim.remove(); pscrim=null; } }
+var pscrim=null, PICKING={cat:'',cb:null};
+function closePick(){ if(pscrim){ pscrim.remove(); pscrim=null; } PICKING={cat:'',cb:null}; }
 
-function openPick(){
+function openPick(cat,onPick){
+  PICKING={cat:cat||'', cb:onPick||null};
   pscrim=document.createElement('div');
   pscrim.className='scrim';
   pscrim.innerHTML=
     '<div class="modal" role="dialog" aria-label="Add from price list">'+
-      '<header><h2>Voeg by</h2><button type="button" id="pkClose">Close</button></header>'+
+      '<header><h2>'+(cat?esc(cat):'Voeg by')+'</h2><button type="button" id="pkClose">Close</button></header>'+
       '<div class="body">'+
         '<input class="search" id="pkq" placeholder="Tik \'n maak, grootte of kategorie" autocomplete="off">'+
         '<div id="pkres"></div>'+
@@ -2261,8 +2405,9 @@ function openPick(){
   pscrim.querySelector('#pkAdd').addEventListener('click',function(){
     var d=pscrim.querySelector('#pkD').value.trim(), v=Number(pscrim.querySelector('#pkS').value)||0;
     if(!d){ alert('Gee die reël \'n beskrywing.'); return; }
-    vpAddItem({description:d,sell:v,unit:'',spec:''});
-    closePick();
+    var manual={description:d,sell:v,unit:'',spec:''};
+    if(PICKING.cb){ var cb=PICKING.cb; closePick(); cb(manual); }
+    else { vpAddItem(manual); closePick(); }
   });
   pickResults('');
   setTimeout(function(){ q.focus() },80);
@@ -2274,7 +2419,13 @@ function pickResults(q){
     box.innerHTML='<div class="no-res">Geen pryslys op hierdie foon nie. Maak Prices een keer met sein oop.</div>';
     return;
   }
+  if(PICKING.cat && !PCACHE.some(function(p){ return p.category===PICKING.cat && p.active!==false; })){
+    box.innerHTML='<div class="no-res">Niks onder \u201c'+esc(PICKING.cat)+'\u201d in die pryslys nie. '+
+      'Voeg dit in Prices by, of tik die reël hier onder met die hand in.</div>';
+    return;
+  }
   var t=q.trim().toLowerCase(), list=PCACHE.filter(function(p){ return p.active!==false });
+  if(PICKING.cat) list=list.filter(function(p){ return p.category===PICKING.cat; });
   if(t){
     var w=t.split(/\s+/);
     list=list.filter(function(p){
@@ -2293,7 +2444,10 @@ function pickResults(q){
     d.innerHTML='<span class="s">'+money(unit)+'</span><b>'+esc(p.description)+'</b>'+
       '<span>'+esc(p.category||'')+(p.unit?' · per '+esc(String(p.unit).replace(/^per /,'')):'')+
       (p.install?' · incl R'+Math.round(p.install)+' install':'')+'</span>';
-    d.addEventListener('click',function(){ vpAddItem(p); closePick(); });
+    d.addEventListener('click',function(){
+      if(PICKING.cb){ var cb=PICKING.cb; closePick(); cb(p); }
+      else { vpAddItem(p); closePick(); }
+    });
     box.appendChild(d);
   });
 }
