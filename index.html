@@ -2062,7 +2062,7 @@ function vpGrowAll(){
   Array.prototype.forEach.call(
     document.querySelectorAll('#screenProp textarea[data-p]'), vpGrow);
 }
-}
+
 /* A textarea prints as a fixed-height box sized for the screen font, which
    leaves ragged gaps in the PDF. Mirror the text into a plain div instead. */
 function vpMirror(t){
