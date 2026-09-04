@@ -197,6 +197,21 @@ body{background:var(--slate);color:var(--ink);
   color:var(--navy);font-size:13.5px}
 .pform .calc2 b{font-variant-numeric:tabular-nums}
 
+.price-update-box{margin:0 0 12px;padding:12px;border:1px solid var(--rule);border-radius:11px;background:#F7F9FB}
+.price-update-box>.add{width:100%;margin:0}
+.price-update-box .pu-summary{margin-top:10px;padding:10px 11px;border-radius:8px;background:#fff;border:1px solid var(--rule);font-size:13px;line-height:1.55}
+.price-update-box .pu-summary b{color:var(--navy)}
+.price-update-box .pu-list{margin-top:8px;max-height:260px;overflow:auto;border-top:1px solid #EDF1F4}
+.price-update-box .pu-row{display:grid;grid-template-columns:1fr auto;gap:8px;padding:7px 2px;border-bottom:1px solid #EDF1F4;font-size:12px}
+.price-update-box .pu-row .code{font-weight:700;color:var(--navy)}
+.price-update-box .pu-row .chg{white-space:nowrap;font-variant-numeric:tabular-nums}
+.price-update-box .pu-row .old{color:var(--muted)}
+.price-update-box .pu-row .new{font-weight:700;color:var(--ok)}
+.price-update-box .pu-warn{margin-top:8px;padding:8px 10px;border-radius:7px;background:#FDF6E3;color:#6B5417;font-size:12px}
+.price-update-box .pu-actions{display:flex;gap:8px;margin-top:10px}
+.price-update-box .pu-actions button{flex:1}
+.price-update-box .pu-progress{margin-top:8px;color:var(--muted);font-size:12px}
+
 .setrow{margin:11px 0}
 .setrow label{display:block;font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:4px}
 .setrow input{width:100%;border:1px solid var(--rule);border-radius:8px;padding:11px;
@@ -769,6 +784,11 @@ table.page{border-collapse:collapse}
 <div class="wrap hidden" id="screenPrices">
   <section class="sheet">
     <div class="sheet-head"><h2>Prices</h2><span class="tag" id="prTag"></span></div>
+    <div class="price-update-box" id="prUpdateBox">
+      <button class="add" type="button" id="prUpdateBtn">↻ Update Price List</button>
+      <input id="prUpdateFile" type="file" accept=".pdf,.csv,.tsv,.xlsx,.xls" class="hidden">
+      <div id="prUpdateStatus"></div>
+    </div>
     <div class="cats" id="prCats"></div>
     <div id="prForm"></div>
     <button class="add" type="button" id="prNew" style="margin-bottom:12px">+ New item</button>
@@ -1875,10 +1895,257 @@ function showPrices(){
   document.getElementById('savedTag').textContent='prices';
   document.getElementById('prTag').textContent = (ME&&ME.role==='Admin')?'Admin':'View only';
   document.getElementById('prNew').style.display = (ME&&ME.role==='Admin')?'':'none';
+  document.getElementById('prUpdateBtn').style.display = (ME&&ME.role==='Admin')?'':'none';
   PEDIT=null;
+  PU_PREVIEW=null; PU_ROWS=[]; PU_SOURCE=''; renderPriceUpdate_();
   show('screenPrices');
   loadPrices();
 }
+
+/* ============ supplier price-list updater ============ */
+var PU_ROWS=[];
+var PU_SOURCE='';
+var PU_PREVIEW=null;
+
+function loadExternalScript_(src, ready){
+  var existing=document.querySelector('script[data-pu-src="'+src+'"]');
+  if(existing){
+    if(existing.dataset.ready==='1') return ready();
+    existing.addEventListener('load',ready,{once:true});
+    existing.addEventListener('error',function(){ ready(new Error('Could not load '+src)); },{once:true});
+    return;
+  }
+  var sc=document.createElement('script');
+  sc.src=src; sc.async=true; sc.dataset.puSrc=src;
+  sc.onload=function(){sc.dataset.ready='1'; ready();};
+  sc.onerror=function(){ready(new Error('Could not load '+src));};
+  document.head.appendChild(sc);
+}
+
+function puNum_(v){
+  var s=String(v==null?'':v).replace(/[^0-9.,-]/g,'').trim();
+  if(!s) return NaN;
+  /* Supplier lists use spaces as thousands separators and a dot for cents. */
+  s=s.replace(/\s+/g,'');
+  if(s.indexOf(',')>=0 && s.indexOf('.')>=0) s=s.replace(/,/g,'');
+  else if(s.indexOf(',')>=0 && s.indexOf('.')<0) s=s.replace(/,/g,'.');
+  else s=s.replace(/,/g,'');
+  var n=Number(s);
+  return isFinite(n)?n:NaN;
+}
+
+function puHeaderIndex_(headers, names){
+  var hs=headers.map(function(x){return String(x||'').trim().toLowerCase();});
+  for(var i=0;i<names.length;i++){
+    var n=names[i].toLowerCase();
+    var at=hs.indexOf(n);
+    if(at>=0) return at;
+  }
+  for(var j=0;j<hs.length;j++){
+    for(var k=0;k<names.length;k++) if(hs[j].indexOf(names[k].toLowerCase())>=0) return j;
+  }
+  return -1;
+}
+
+function puRowsFromTable_(table){
+  if(!table || table.length<2) throw new Error('No price rows found in the file.');
+  var headers=table[0]||[];
+  var codeAt=puHeaderIndex_(headers,['INV ID','INV ID / SKU','SKU','Code','Product Code','Item Code','ID']);
+  var priceAt=puHeaderIndex_(headers,['PRICE (EX VAT)','PRICE EX VAT','PRICE','Cost','Cost Price','Trade Price','Dealer Price']);
+  if(codeAt<0 || priceAt<0) throw new Error('Could not find the product code and price columns.');
+  var out=[];
+  for(var i=1;i<table.length;i++){
+    var r=table[i]||[];
+    var code=String(r[codeAt]||'').trim();
+    var price=puNum_(r[priceAt]);
+    if(!code || !isFinite(price)) continue;
+    out.push({code:code,price:price,description:String(r[puHeaderIndex_(headers,['DESCRIPTION','Description','Product Description'])]||'').trim()});
+  }
+  if(!out.length) throw new Error('No usable product prices were found.');
+  return out;
+}
+
+function parseCsv_(text){
+  text=String(text||'').replace(/^\uFEFF/,'');
+  var rows=[], row=[], cell='', quoted=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i], n=text[i+1];
+    if(quoted){
+      if(c==='"' && n==='"'){cell+='"';i++;}
+      else if(c==='"') quoted=false;
+      else cell+=c;
+    }else{
+      if(c==='"') quoted=true;
+      else if(c===','){row.push(cell);cell='';}
+      else if(c==='\t'){row.push(cell);cell='';}
+      else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+      else if(c!=='\r') cell+=c;
+    }
+  }
+  row.push(cell); if(row.length>1 || row[0]!=='' ) rows.push(row);
+  return rows;
+}
+
+function parseXlsx_(buf, done){
+  loadExternalScript_('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',function(err){
+    if(err) return done(err);
+    try{
+      var wb=XLSX.read(buf,{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      done(null,puRowsFromTable_(XLSX.utils.sheet_to_json(ws,{header:1,defval:''})));
+    }catch(e){done(e);}
+  });
+}
+
+function parsePdf_(buf, done){
+  loadExternalScript_('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',function(err){
+    if(err) return done(err);
+    try{
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjsLib.getDocument({data:buf}).promise.then(function(pdf){
+        var pages=[];
+        var chain=Promise.resolve();
+        for(let pn=1;pn<=pdf.numPages;pn++){
+          chain=chain.then(function(){return pdf.getPage(pn).then(function(page){
+            return page.getTextContent().then(function(tc){
+              pages.push(tc.items.map(function(it){
+                return {text:String(it.str||'').replace(/\u00a0/g,' ').trim(),x:it.transform[4],y:it.transform[5]};
+              }).filter(function(it){return it.text;}));
+            });
+          });});
+        }
+        chain.then(function(){
+          var out=[];
+          var codeRe=/^[A-Z0-9][A-Z0-9._\/-]{3,}$/;
+          pages.forEach(function(items){
+            var codes=items.filter(function(w){
+              return w.x<120 && codeRe.test(w.text) && w.text.indexOf('-')>=0 &&
+                     ['DAD5-1135','GRID-TIE','DC-DC'].indexOf(w.text)<0;
+            }).sort(function(a,b){return b.y-a.y;});
+            codes.forEach(function(c,ci){
+              var nextY=(ci+1<codes.length)?codes[ci+1].y:-Infinity;
+              var block=items.filter(function(w){return w.y<=c.y+2 && w.y>nextY+1;});
+              var candidates=[];
+              for(var i=0;i<block.length;i++){
+                var t=block[i].text.replace(/\u0000/g,'').trim();
+                if(block[i].x>400 && block[i].x<540 && /^(?:R\s*)?\d[\d ,]*\.\d{2}$/.test(t)) candidates.push(t);
+                if(t==='R' && i+1<block.length){
+                  var w2=block[i+1], t2=w2.text.replace(/\u0000/g,'').trim();
+                  if(w2.x>400 && w2.x<540 && /^\d[\d ,]*\.\d{2}$/.test(t2)) candidates.push('R '+t2);
+                }
+              }
+              if(!candidates.length) return;
+              var price=puNum_(candidates[0]);
+              if(isFinite(price)) out.push({code:c.text,price:price});
+            });
+          });
+          if(!out.length) return done(new Error('Could not read any INV ID + price rows from this PDF.'));
+          done(null,out);
+        }).catch(done);
+      }).catch(done);
+    }catch(e){done(e);}
+  });
+}
+
+function readPriceFile_(file, done){
+  var name=file.name.toLowerCase();
+  var reader=new FileReader();
+  reader.onerror=function(){done(new Error('Could not read the file.'));};
+  reader.onload=function(){
+    var buf=reader.result;
+    if(name.endsWith('.pdf')) return parsePdf_(buf,done);
+    if(name.endsWith('.xlsx') || name.endsWith('.xls')) return parseXlsx_(buf,done);
+    try{ done(null,puRowsFromTable_(parseCsv_(new TextDecoder('utf-8').decode(buf)))); }
+    catch(e){done(e);}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showPriceUpdater_(){
+  if(!(ME&&ME.role==='Admin')) return;
+  var input=document.getElementById('prUpdateFile');
+  input.value='';
+  input.click();
+}
+
+function renderPriceUpdate_(){
+  var box=document.getElementById('prUpdateStatus');
+  if(!box) return;
+  if(!PU_PREVIEW){box.innerHTML='';return;}
+  var p=PU_PREVIEW;
+  var html='<div class="pu-summary">'+
+    '<b>'+p.sourceCount+'</b> products read from '+esc(PU_SOURCE)+'.<br>'+
+    '<b>'+p.changes.length+'</b> prices will change · '+
+    '<b>'+p.notFound.length+'</b> not found · '+
+    '<b>'+p.unchanged.length+'</b> unchanged'+
+    (p.sellSkipped.length?' · <b>'+p.sellSkipped.length+'</b> Sell items skipped':'')+
+    '</div>';
+  if(p.changes.length){
+    html+='<div class="pu-list">';
+    p.changes.slice(0,150).forEach(function(x){
+      html+='<div class="pu-row"><div><span class="code">'+esc(x.code)+'</span><br>'+esc(x.description||x.currentDescription||'')+'</div>'+
+        '<div class="chg"><span class="old">'+money(x.oldCost)+'</span> → <span class="new">'+money(x.newCost)+'</span></div></div>';
+    });
+    if(p.changes.length>150) html+='<div class="pu-progress">Showing first 150 changes.</div>';
+    html+='</div>';
+  }
+  if(p.notFound.length) html+='<div class="pu-warn"><b>Not found:</b> '+esc(p.notFound.slice(0,40).join(', '))+(p.notFound.length>40?' …':'')+'</div>';
+  if(p.sellSkipped.length) html+='<div class="pu-warn"><b>Sell items skipped:</b> '+esc(p.sellSkipped.slice(0,40).join(', '))+(p.sellSkipped.length>40?' …':'')+'</div>';
+  html+='<div class="pu-actions">'+
+    '<button class="btn ghost" type="button" id="puCancel">Cancel</button>'+
+    '<button class="btn" type="button" id="puApply" '+(p.changes.length?'':'disabled')+'>Update Prices</button>'+
+    '</div>';
+  box.innerHTML=html;
+  document.getElementById('puCancel').addEventListener('click',function(){PU_ROWS=[];PU_PREVIEW=null;PU_SOURCE='';renderPriceUpdate_();});
+  document.getElementById('puApply').addEventListener('click',applyPriceUpdate_);
+}
+
+function buildPricePreview_(rows){
+  var byCode={};
+  PRICES.forEach(function(p){if(p.code) byCode[String(p.code).trim().toUpperCase()]=p;});
+  var seen={};
+  var changes=[],notFound=[],unchanged=[],sellSkipped=[];
+  rows.forEach(function(r){
+    var code=String(r.code||'').trim();
+    var key=code.toUpperCase();
+    if(!key || seen[key]) return;
+    seen[key]=1;
+    var p=byCode[key];
+    if(!p){notFound.push(code);return;}
+    if(p.type==='Sell'){sellSkipped.push(code);return;}
+    var oldCost=Number(p.cost)||0, newCost=Number(r.price);
+    if(Math.abs(oldCost-newCost)<0.005) unchanged.push(code);
+    else changes.push({id:p.id,code:code,description:r.description||p.description,currentDescription:p.description,oldCost:oldCost,newCost:newCost});
+  });
+  PU_PREVIEW={sourceCount:rows.length,changes:changes,notFound:notFound,unchanged:unchanged,sellSkipped:sellSkipped};
+  renderPriceUpdate_();
+}
+
+function applyPriceUpdate_(){
+  if(!PU_PREVIEW || !PU_PREVIEW.changes.length) return;
+  var b=document.getElementById('puApply');
+  b.disabled=true;b.textContent='Updating…';
+  api({action:'updatePriceList',updates:PU_PREVIEW.changes.map(function(x){return {code:x.code,cost:x.newCost};})})
+    .then(function(j){
+      alert('Price list updated. '+(j.updated||0)+' prices changed.');
+      PU_ROWS=[];PU_PREVIEW=null;PU_SOURCE='';renderPriceUpdate_();loadPrices();
+    }).catch(function(e){
+      b.disabled=false;b.textContent='Update Prices';
+      alert(e.message||e);
+    });
+}
+
+document.getElementById('prUpdateBtn').addEventListener('click',showPriceUpdater_);
+document.getElementById('prUpdateFile').addEventListener('change',function(){
+  var file=this.files&&this.files[0]; if(!file) return;
+  PU_SOURCE=file.name;
+  var box=document.getElementById('prUpdateStatus');
+  box.innerHTML='<div class="pu-progress">Reading '+esc(file.name)+'…</div>';
+  readPriceFile_(file,function(err,rows){
+    if(err){PU_ROWS=[];PU_PREVIEW=null;box.innerHTML='<div class="calc bad">'+esc(String(err.message||err))+'</div>';return;}
+    PU_ROWS=rows; buildPricePreview_(rows);
+  });
+});
 
 function loadPrices(){
   var box=document.getElementById('prList');
