@@ -2000,38 +2000,105 @@ async function readSupplierFile_(file){
   if(ext==='pdf' || file.type==='application/pdf'){
     var pdfjs=await loadScript_('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','pdfjsLib');
     pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    var pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise, lines=[];
+    var pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;
+    var out=[], seen={}, sourceLines=0, rejected=0;
+    var codeRe=/^[A-Z0-9][A-Z0-9._\/\-]{2,}$/i;
+    var dateRe=/^\d{1,2}$/;
+    var monthRe=/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i;
+    var yearRe=/^20\d{2}$/;
+
+    /* Do NOT rebuild the PDF into giant text lines. Herholdt positions the
+       code, description, R, price and effective date as separate PDF text
+       objects, and their baselines differ slightly. Instead, locate each
+       SKU object and reconstruct only the row around that SKU. This also
+       handles prices split into R + 3 + 600.00. */
     for(var pg=1;pg<=pdf.numPages;pg++){
       var page=await pdf.getPage(pg), tc=await page.getTextContent(), items=tc.items||[];
-      items.sort(function(a,b){
-        var ay=(a.transform&&a.transform[5])||0, by=(b.transform&&b.transform[5])||0;
-        if(Math.abs(ay-by)>2) return by-ay;
-        return ((a.transform&&a.transform[4])||0)-((b.transform&&b.transform[4])||0);
-      });
-      var current='', lastY=null;
+      var toks=[];
       items.forEach(function(it){
-        var y=(it.transform&&it.transform[5])||0, t=String(it.str||'').trim();
+        var t=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
         if(!t) return;
-        if(lastY!==null && Math.abs(y-lastY)>3){ if(current.trim()) lines.push(current.trim()); current=''; }
-        current+=(current?' ':'')+t; lastY=y;
+        var tr=it.transform||[], x=Number(tr[4])||0, y=Number(tr[5])||0;
+        toks.push({t:t,x:x,y:y,w:Number(it.width)||0});
       });
-      if(current.trim()) lines.push(current.trim());
+      sourceLines += toks.length;
+
+      toks.forEach(function(codeTok){
+        var code=codeTok.t.trim().toUpperCase();
+        if(!codeRe.test(code) || seen[code]) return;
+
+        /* Product codes are in the first column. Only inspect text objects
+           close to that baseline and to the right of the code. */
+        var row=toks.filter(function(z){
+          return Math.abs(z.y-codeTok.y)<=2.5 && z.x>=codeTok.x;
+        }).sort(function(a,b){ return a.x-b.x; });
+        if(!row.length) return;
+
+        var ri=-1;
+        for(var i=0;i<row.length;i++){
+          if(/^R$/i.test(row[i].t) || /^R\s*$/i.test(row[i].t)){ ri=i; break; }
+        }
+        if(ri<0) return;
+
+        var desc=row.slice(0,ri).filter(function(z){ return z!==codeTok; })
+          .map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
+        if(!desc || /^(INV ID|DESCRIPTION|PRICE|EFFECTIVE)$/i.test(desc)) return;
+
+        var priceParts=[];
+        for(var j=ri+1;j<row.length;j++){
+          var tt=row[j].t.trim();
+          if(dateRe.test(tt) && j+2<row.length && monthRe.test(row[j+1].t.trim()) && yearRe.test(row[j+2].t.trim())) break;
+          if(priceParts.length<4 && /^[0-9][0-9,]*(?:\.[0-9]+)?$/.test(tt)) priceParts.push(tt);
+          else if(priceParts.length && /^[0-9]+(?:\.[0-9]+)?$/.test(tt)) priceParts.push(tt);
+        }
+        if(!priceParts.length) return;
+        var raw=priceParts.join(' ');
+        var price=numPrice_(raw);
+        if(!isFinite(price)) return;
+
+        seen[code]=true;
+        out.push({code:code,price:price,description:desc});
+      });
     }
-    var out=[], seen={}, rejected=0;
-    /* Herholdt PDF extraction is not perfectly consistent. Match the stable
-       parts of a row: SKU at the start and the R-price; the effective date
-       is optional because PDF text extraction can split it. */
-    var rowRe=/^([A-Z0-9][A-Z0-9._\/\-]{2,})\s+(.+?)\s+R\s*([0-9][0-9\s,]*(?:\.[0-9]+)?)(?:\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4})?$/i;
-    lines.forEach(function(line){
-      var m=line.match(rowRe);
-      if(!m){ rejected++; return; }
-      var code=m[1].trim().toUpperCase(), price=numPrice_(m[3]), desc=m[2].trim();
-      if(!code || !desc || !isFinite(price) || seen[code]) return;
-      if(/^(customer price list|description|price|effective)$/i.test(desc)) return;
-      seen[code]=true; out.push({code:code,price:price,description:desc});
-    });
-    out._diagnostics={sourceLines:lines.length,rejected:rejected,products:out.length};
+
+    /* Fallback for unusual pages where a PDF text object is not on the same
+       baseline as the SKU. Build loose rows and use the first SKU + R price. */
+    if(out.length<300){
+      var loose=[];
+      for(var pg2=1;pg2<=pdf.numPages;pg2++){
+        var page2=await pdf.getPage(pg2), tc2=await page2.getTextContent(), its=tc2.items||[];
+        var ls=[];
+        its.forEach(function(it){
+          var t=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
+          if(!t) return;
+          var tr=it.transform||[]; ls.push({t:t,x:Number(tr[4])||0,y:Number(tr[5])||0});
+        });
+        ls.sort(function(a,b){ return b.y-a.y || a.x-b.x; });
+        var groups=[];
+        ls.forEach(function(z){
+          var g=groups.length?groups[groups.length-1]:null;
+          if(!g || Math.abs(g.y-z.y)>3){ g={y:z.y,a:[]}; groups.push(g); }
+          g.a.push(z);
+        });
+        groups.forEach(function(g){
+          g.a.sort(function(a,b){return a.x-b.x;});
+          var line=g.a.map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
+          var cm=line.match(/^([A-Z0-9][A-Z0-9._\/\-]{2,})\s+(.+?)\s+R\s*(.*)$/i);
+          if(!cm) return;
+          var code=cm[1].toUpperCase();
+          if(seen[code]) return;
+          var tail=cm[3].replace(/\s+\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+20\d{2}\s*$/i,'').trim();
+          var pm=tail.match(/^([0-9][0-9\s,]*(?:\.[0-9]+)?)/);
+          if(!pm) return;
+          var price=numPrice_(pm[1]), desc=cm[2].trim();
+          if(!desc || !isFinite(price)) return;
+          seen[code]=true; out.push({code:code,price:price,description:desc});
+        });
+      }
+    }
+
     if(!out.length) throw new Error('I could read the PDF, but could not identify product rows. Try the supplier CSV/Excel export instead.');
+    out._diagnostics={sourceLines:sourceLines,products:out.length,rejected:rejected};
     return out;
   }
   throw new Error('Use CSV, Excel (.xlsx/.xls) or PDF.');
@@ -2068,7 +2135,7 @@ function renderPriceUpdater_(){
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
     '</div>';
   var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceLines+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
-  box.querySelector('.pubox').insertAdjacentHTML('beforeend',diag);
+  html+=diag;
   if(p.notFound.length) html+='<div class="puwarn"><b>'+p.notFound.length+' supplier codes were not found.</b> Nothing will be added automatically.</div>';
   if(p.changes.length){
     html+='<div class="pupreview"><table><thead><tr><th>Code</th><th>Description</th><th>Old</th><th>New</th></tr></thead><tbody>';
