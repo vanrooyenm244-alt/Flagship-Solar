@@ -1741,7 +1741,8 @@ function openFinder(targetEl){
   var q=scrim.querySelector('#fq');
   q.addEventListener('input',function(){ results(q.value) });
   scrim.querySelector('#aSave').addEventListener('click',addClause);
-  results('');
+  if(CLAUSES.length){ results(''); }
+  else { results(''); seedClauses().then(function(){ if(scrim) results(q.value); }).catch(function(){}); }
   setTimeout(function(){ q.focus() },80);
 }
 function closeFinder(){ if(scrim){scrim.remove(); scrim=null; finderTarget=null} }
@@ -1984,7 +1985,16 @@ function showPrices(){
   PCQ='';
   var pq=document.getElementById('prQ'); if(pq) pq.value='';
   show('screenPrices');
-  loadPrices();
+  if(PRICES.length){
+    renderCats();
+    renderPrices();
+    loadPrices();
+  } else {
+    get1('cfg','pricecache').then(function(c){
+      if(c&&c.list&&c.list.length){ PRICES=c.list; PCACHE=PRICES; renderCats(); renderPrices(); }
+      return loadPrices();
+    }).catch(function(){ loadPrices(); });
+  }
 }
 
 var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null;
@@ -3992,17 +4002,33 @@ window.addEventListener('online',flushQueue);
 function boot(){
   if(!CFG.url){ showAuth(); return; }
   if(!ME){ showAuth(); return; }
-  // confirm the account is still valid and the role hasn't changed
+
+  // Show the app immediately from the saved session. Do not make the user
+  // wait for Google Apps Script just to see the Home screen.
+  showHome();
+
+  // Validate the session in the background. If the server rejects it, then
+  // send the user back to login; otherwise leave the UI alone.
   apiGet({action:'me'}).then(function(j){
+    var changed = (ME.name!==j.user.name || ME.role!==j.user.role);
     ME.name=j.user.name; ME.role=j.user.role;
-    saveSession(); showHome(); xeroStatus_(); if(location.hash.indexOf('xero=connected')>=0){ history.replaceState(null,'',location.pathname); alert('Xero connected.'); }
+    if(changed) saveSession();
+    if(location.hash.indexOf('xero=connected')>=0){
+      history.replaceState(null,'',location.pathname);
+      alert('Xero connected.');
+    }
   }).catch(function(e){
-    if(navigator.onLine){ clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); }); }
-    else { showHome(); }   // offline: trust the stored session
+    if(navigator.onLine){
+      clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); });
+    }
   });
 }
 
-open().then(seedClauses).then(loadCfg).then(loadSession).then(boot).catch(function(err){
+open().then(function(){
+  // Clause library is not needed to open the app. Seed/load it in the background.
+  seedClauses().catch(function(){});
+  return Promise.all([loadCfg(),loadSession()]);
+}).then(boot).catch(function(err){
   console.error('storage unavailable', err);
   MEM = true;
   CLAUSES = SEED.map(function(s,i){ return {id:'seed-'+i, std:s[0], clause:s[1], title:s[2], terms:s[3], own:false}; });
