@@ -646,6 +646,26 @@ table.page{border-collapse:collapse}
 .puactions{display:flex;gap:8px;margin-top:10px}
 .puactions .btn{flex:1}
 
+
+  /* Quote builder */
+  .qbgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .qbcard{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;margin-top:10px}
+  .qbresult{display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;border-bottom:1px solid #e8edf2;padding:11px 0}
+  .qbresult:last-child{border-bottom:0}
+  .qbmeta{font-size:11px;color:var(--muted);margin-top:3px}
+  .qbadd{display:flex;gap:6px;align-items:center}
+  .qbadd input{width:68px;text-align:center;padding:9px}
+  .qbline{display:grid;grid-template-columns:1fr 72px 105px 34px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #e8edf2}
+  .qbline:last-child{border-bottom:0}
+  .qbline .amount{text-align:right;font-weight:700}
+  .qbline input{width:100%;padding:8px}
+  .qbtotal{margin-top:10px;border-top:2px solid var(--navy);padding-top:9px}
+  .qbtotal div{display:flex;justify-content:space-between;padding:3px 0}
+  .qbtotal .grand{font-size:18px;font-weight:800;color:var(--navy)}
+  .xeroresult{border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:6px;cursor:pointer}
+  .xeroresult:hover{background:#f5f8fb}
+  @media(max-width:650px){.qbgrid{grid-template-columns:1fr}.qbline{grid-template-columns:1fr 65px 90px 30px}}
+
 </style>
 </head>
 <body>
@@ -702,6 +722,10 @@ table.page{border-collapse:collapse}
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h16M4 12h16M4 16.5h10"/><circle cx="18.5" cy="16.5" r="2"/></svg></span>
       <span class="tx"><b>Prices</b><span>Supplier costs, markup and your own prices</span></span><span class="go">›</span>
     </button>
+    <button class="tile hidden" data-go="quote" data-role="Admin,Technician" type="button">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h9l3 3v14H6z"/><path d="M14 3.5v4h4M8.5 12h7M8.5 15.5h7M8.5 8.5h2"/></svg></span>
+      <span class="tx"><b>Quote Builder</b><span>Build any quote from the price list</span></span><span class="go">›</span>
+    </button>
     <button class="tile hidden" data-go="props" data-role="Admin,Technician" type="button">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.6h7.5L19 8v12a1.4 1.4 0 0 1-1.4 1.4H7A1.4 1.4 0 0 1 5.6 20V5A1.4 1.4 0 0 1 7 3.6z"/><path d="M14 3.8V8.4h4.6M8.6 13h6.8M8.6 16.4h4.4"/></svg></span>
       <span class="tx"><b>Value proposals</b><span>Build a quote from the price list</span></span><span class="go">›</span>
@@ -740,6 +764,16 @@ table.page{border-collapse:collapse}
     <button class="btn" type="button" id="setTest" style="width:100%">Save and test connection</button>
     <div id="setResult" aria-live="polite" style="margin-top:10px"></div>
     <div id="setShare"></div>
+    <div class="qbcard" style="margin-top:18px">
+      <div class="sheet-head" style="margin:0 0 8px"><h3 style="margin:0">Xero</h3><span class="tag" id="xeroTag">Not connected</span></div>
+      <p class="hint">Your Xero Client Secret is stored on the Apps Script server, not in this app.</p>
+      <div class="setrow"><label>Client ID</label><input id="xeroClientId" autocomplete="off"></div>
+      <div class="setrow"><label>Client Secret</label><input id="xeroClientSecret" type="password" autocomplete="new-password"></div>
+      <div class="setrow"><label>Xero sales account code <span class="hint">(optional if your Xero quote line defaults are set)</span></label><input id="xeroSalesAccount" placeholder="e.g. 200"></div>
+      <button class="btn ghost" type="button" id="xeroSave" style="width:100%">Save Xero settings</button>
+      <button class="btn" type="button" id="xeroConnect" style="width:100%;margin-top:8px">Connect Xero</button>
+      <div id="xeroSetupMsg" class="hint" style="margin-top:8px"></div>
+    </div>
   </section>
 </div>
 
@@ -802,6 +836,41 @@ table.page{border-collapse:collapse}
     <div id="prForm"></div>
     <button class="add" type="button" id="prNew" style="margin-bottom:12px">+ New item</button>
     <div id="prList"></div>
+  </section>
+</div>
+
+<!-- ================= QUOTE BUILDER ================= -->
+<div class="wrap hidden" id="screenQuote">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Quote Builder</h2><span class="tag" id="qbTag">0 lines</span></div>
+    <p class="hint">Search anything in the price list — solar, heat pumps, plumbing, electrical, labour or anything else.</p>
+    <div class="qbgrid">
+      <div class="field"><label>Customer</label><input id="qbClient" placeholder="Customer name"></div>
+      <div class="field"><label>Quote title</label><input id="qbTitle" placeholder="Heat pump installation"></div>
+      <div class="field"><label>Reference / our quote no.</label><input id="qbRef" placeholder="FS-Q-0001"></div>
+      <div class="field"><label>Expiry</label><input id="qbExpiry" type="date"></div>
+    </div>
+    <div class="qbcard">
+      <h3 style="margin:0 0 8px">Find customer in Xero</h3>
+      <div style="display:flex;gap:8px"><input class="search" id="qbXeroQ" placeholder="Type customer name or email" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="qbXeroFind" type="button">Find</button></div>
+      <div id="qbXeroResults"></div><div id="qbXeroPicked" class="hint" style="margin-top:7px"></div>
+    </div>
+    <div class="qbcard">
+      <h3 style="margin:0 0 8px">Add from price list</h3>
+      <input class="search" id="qbSearch" placeholder="Search e.g. 16kw inverter, 25mm pipe, pump..." autocomplete="off">
+      <div id="qbResults"></div>
+      <div class="addform" style="margin-top:10px"><h3 style="margin:0">Custom line</h3><div class="qbgrid"><div><label>Description</label><input id="qbCustomDesc" placeholder="Installation / labour / other"></div><div><label>Unit price excl VAT</label><input id="qbCustomPrice" type="number" step="0.01" inputmode="decimal"></div></div><button class="btn" id="qbCustomAdd" type="button" style="margin-top:8px">Add custom line</button></div>
+    </div>
+    <div class="qbcard">
+      <h3 style="margin:0 0 4px">Quote lines <span id="qbCount" class="hint"></span></h3>
+      <div id="qbLines"></div>
+      <div class="qbtotal" id="qbTotals"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn ghost" id="qbNew" type="button">Clear / New quote</button>
+      <button class="btn" id="qbXeroCreate" type="button" style="margin-left:auto">Create quote in Xero</button>
+    </div>
+    <div id="qbStatus" style="margin-top:10px"></div>
   </section>
 </div>
 
@@ -1137,7 +1206,7 @@ var PRESETS = {
 };
 
 /* ============ storage ============ */
-var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, DBNAME='flagship-inspections';
+var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], DBNAME='flagship-inspections';
 function open(){
   return new Promise(function(res,rej){
     var r = indexedDB.open(DBNAME,3);
@@ -1147,6 +1216,7 @@ function open(){
       if(!d.objectStoreNames.contains('clauses')) d.createObjectStore('clauses',{keyPath:'id'});
       if(!d.objectStoreNames.contains('cfg')) d.createObjectStore('cfg',{keyPath:'id'});
       if(!d.objectStoreNames.contains('props')) d.createObjectStore('props',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('quotes')) d.createObjectStore('quotes',{keyPath:'id'});
     };
     r.onsuccess=function(){DB=r.result;res(DB)};
     r.onerror=function(){rej(r.error)};
@@ -1158,14 +1228,15 @@ function put(store,val){
   if(MEM){
     if(store==='jobs'){ var e=memJob(val.id); if(e){ Object.assign(e,val); } else MEMJOBS.push(val); }
     else if(store==='cfg'){ MEMCFG[val.id]=val; }
+    else if(store==='quotes'){ var qe=MEMQUOTES.find(function(x){return x.id===val.id}); if(qe) Object.assign(qe,val); else MEMQUOTES.push(val); }
     return Promise.resolve();
   }
   return new Promise(function(res,rej){var q=tx(store,'readwrite').put(val);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
-function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='cfg'||store==='props'?[]:CLAUSES.slice()));
+function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():CLAUSES.slice())));
   return new Promise(function(res,rej){var q=tx(store,'readonly').getAll();q.onsuccess=function(){res(q.result||[])};q.onerror=function(){rej(q.error)}}); }
-function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='cfg'?(MEMCFG[id]||null):null));
+function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null)));
   return new Promise(function(res,rej){var q=tx(store,'readonly').get(id);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}}); }
-function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
+function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
   return new Promise(function(res,rej){var q=tx(store,'readwrite').delete(id);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
 
 /* ============ slots ============ */
@@ -1348,7 +1419,7 @@ function save(){
 document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')) save(); });
 
 /* ============ screens ============ */
-var SCREENS=['screenAuth','screenHome','screenJobs','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenProp','screenStock'];
+var SCREENS=['screenAuth','screenHome','screenJobs','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
 var backTo='screenHome';
 
 function show(id){
@@ -1359,6 +1430,7 @@ function show(id){
   document.getElementById('bar').classList[id==='screenReport'?'remove':'add']('hidden');
   document.getElementById('pbar').classList[id==='screenProp'?'remove':'add']('hidden');
   document.getElementById('stbar').classList[(id==='screenStock'&&ST.place)?'remove':'add']('hidden');
+  document.getElementById('qbbar')?.classList.add('hidden');
   document.getElementById('btnBack').classList[(id==='screenHome'||id==='screenAuth')?'add':'remove']('hidden');
   window.scrollTo(0,0);
 }
@@ -1439,6 +1511,7 @@ document.querySelectorAll('[data-go]').forEach(function(b){
     else if(t==='admin') showAdmin();
     else if(t==='prices') showPrices();
     else if(t==='props') showProps();
+    else if(t==='quote') showQuote();
     else if(t==='stock') showStock();
   });
 });
@@ -1447,6 +1520,7 @@ document.getElementById('btnSettings').addEventListener('click',function(){
   document.getElementById('setUrl').value=CFG.url||'';
   document.getElementById('setResult').innerHTML='';
   renderShare();
+  xeroStatus_();
   show('screenSettings');
 });
 
@@ -2001,104 +2075,151 @@ async function readSupplierFile_(file){
     var pdfjs=await loadScript_('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','pdfjsLib');
     pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     var pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;
-    var out=[], seen={}, sourceLines=0, rejected=0;
+
+    var out=[], seen={}, sourceItems=0, candidateRows=0, rejected=0;
     var codeRe=/^[A-Z0-9][A-Z0-9._\/\-]{2,}$/i;
     var dateRe=/^\d{1,2}$/;
     var monthRe=/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$/i;
     var yearRe=/^20\d{2}$/;
 
-    /* Do NOT rebuild the PDF into giant text lines. Herholdt positions the
-       code, description, R, price and effective date as separate PDF text
-       objects, and their baselines differ slightly. Instead, locate each
-       SKU object and reconstruct only the row around that SKU. This also
-       handles prices split into R + 3 + 600.00. */
+    /*
+      IMPORTANT: Herholdt's PDF does NOT guarantee that the logical row is
+      stored as one text object. The INV ID, description, price and effective
+      date are separate objects whose Y coordinates differ by fractions of a
+      point. In the extracted PDF the INV ID is the left-hand column, while
+      description/price/date occupy the same visual row.
+
+      Therefore:
+        1. group text objects into visual rows by Y (not by PDF object order);
+        2. require an R price AND an effective date;
+        3. take the INV ID from the left-hand column;
+        4. build the description from the text between INV ID and R;
+        5. accept prices whether they are one object ("8500.00") or split
+           across objects ("8" + "500.00").
+    */
     for(var pg=1;pg<=pdf.numPages;pg++){
-      var page=await pdf.getPage(pg), tc=await page.getTextContent(), items=tc.items||[];
+      var page=await pdf.getPage(pg);
+      var tc=await page.getTextContent();
+      var items=tc.items||[];
       var toks=[];
+
       items.forEach(function(it){
-        var t=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
+        var t=String(it.str||'')
+          .replace(/[\u0000-\u001F\u007F]/g,' ')
+          .replace(/\s+/g,' ')
+          .trim();
         if(!t) return;
-        var tr=it.transform||[], x=Number(tr[4])||0, y=Number(tr[5])||0;
-        toks.push({t:t,x:x,y:y,w:Number(it.width)||0});
+        var tr=it.transform||[];
+        toks.push({
+          t:t,
+          x:Number(tr[4])||0,
+          y:Number(tr[5])||0,
+          w:Number(it.width)||0
+        });
       });
-      sourceLines += toks.length;
+      sourceItems += toks.length;
 
-      toks.forEach(function(codeTok){
-        var code=codeTok.t.trim().toUpperCase();
-        if(!codeRe.test(code) || seen[code]) return;
+      /* Visual rows. 1.8 is enough for the small baseline differences in
+         this PDF without merging neighbouring products. */
+      toks.sort(function(a,b){ return b.y-a.y || a.x-b.x; });
+      var groups=[];
+      toks.forEach(function(z){
+        var g=groups.length?groups[groups.length-1]:null;
+        if(!g || Math.abs(g.y-z.y)>1.8){
+          g={y:z.y,a:[]};
+          groups.push(g);
+        }
+        g.a.push(z);
+      });
 
-        /* Product codes are in the first column. Only inspect text objects
-           close to that baseline and to the right of the code. */
-        var row=toks.filter(function(z){
-          return Math.abs(z.y-codeTok.y)<=2.5 && z.x>=codeTok.x;
-        }).sort(function(a,b){ return a.x-b.x; });
-        if(!row.length) return;
+      groups.forEach(function(g){
+        var a=g.a.slice().sort(function(x,y){return x.x-y.x;});
+        var texts=a.map(function(z){return z.t;});
 
         var ri=-1;
-        for(var i=0;i<row.length;i++){
-          if(/^R$/i.test(row[i].t) || /^R\s*$/i.test(row[i].t)){ ri=i; break; }
+        for(var i=0;i<a.length;i++){
+          if(/^R\s*$/i.test(a[i].t)){ ri=i; break; }
         }
         if(ri<0) return;
 
-        var desc=row.slice(0,ri).filter(function(z){ return z!==codeTok; })
-          .map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
-        if(!desc || /^(INV ID|DESCRIPTION|PRICE|EFFECTIVE)$/i.test(desc)) return;
-
-        var priceParts=[];
-        for(var j=ri+1;j<row.length;j++){
-          var tt=row[j].t.trim();
-          if(dateRe.test(tt) && j+2<row.length && monthRe.test(row[j+1].t.trim()) && yearRe.test(row[j+2].t.trim())) break;
-          if(priceParts.length<4 && /^[0-9][0-9,]*(?:\.[0-9]+)?$/.test(tt)) priceParts.push(tt);
-          else if(priceParts.length && /^[0-9]+(?:\.[0-9]+)?$/.test(tt)) priceParts.push(tt);
+        /* Find the effective date after the price. */
+        var di=-1;
+        for(var d=ri+1;d+2<a.length;d++){
+          if(dateRe.test(a[d].t) && monthRe.test(a[d+1].t) && yearRe.test(a[d+2].t)){
+            di=d; break;
+          }
         }
-        if(!priceParts.length) return;
-        var raw=priceParts.join(' ');
-        var price=numPrice_(raw);
-        if(!isFinite(price)) return;
+        if(di<0) return;
+
+        candidateRows++;
+
+        /*
+          INV ID is in the left column (roughly x < 130 in this supplier
+          document). Exclude ordinary numeric price fragments and known
+          headings. Prefer the first code-like token in that column.
+        */
+        var candidates=[];
+        for(var c=0;c<ri;c++){
+          var ct=a[c].t.trim();
+          if(!codeRe.test(ct)) continue;
+          if(/^(INV|ID|DESCRIPTION|PRICE|EFFECTIVE|VAT|EX)$/i.test(ct)) continue;
+          if(/^[0-9][0-9,]*(?:\.[0-9]+)?$/.test(ct)) continue;
+          candidates.push(a[c]);
+        }
+
+        var leftCandidates=candidates.filter(function(z){return z.x<130;});
+        var codeTok=leftCandidates.length?leftCandidates[0]:candidates[0];
+        if(!codeTok){ rejected++; return; }
+
+        var code=codeTok.t.toUpperCase();
+
+        /*
+          Build description from everything after the code and before R.
+          This is deliberately positional rather than relying on the order
+          returned by PDF.js.
+        */
+        var desc=a.filter(function(z){
+          return z.x>codeTok.x+codeTok.w-1 && z.x<a[ri].x;
+        }).map(function(z){return z.t;}).join(' ')
+          .replace(/\s+/g,' ').trim();
+
+        if(!desc || /^(INV ID|DESCRIPTION|PRICE|EFFECTIVE)$/i.test(desc)){
+          rejected++; return;
+        }
+
+        /* Price may be "8500.00", "8 500.00", "8" + "500.00", etc. */
+        var priceText=a.slice(ri+1,di).map(function(z){return z.t;}).join(' ');
+        var price=numPrice_(priceText);
+
+        /*
+          Some PDFs split the price into several text objects in a way that
+          leaves spaces. numPrice_ handles normal formats; this fallback
+          extracts the first numeric amount.
+        */
+        if(!isFinite(price)){
+          var pm=priceText.match(/[0-9][0-9\s,]*(?:\.[0-9]+)?/);
+          if(pm) price=numPrice_(pm[0]);
+        }
+
+        if(!isFinite(price) || price<=0){ rejected++; return; }
+        if(seen[code]) return;
 
         seen[code]=true;
         out.push({code:code,price:price,description:desc});
       });
     }
 
-    /* Fallback for unusual pages where a PDF text object is not on the same
-       baseline as the SKU. Build loose rows and use the first SKU + R price. */
-    if(out.length<300){
-      var loose=[];
-      for(var pg2=1;pg2<=pdf.numPages;pg2++){
-        var page2=await pdf.getPage(pg2), tc2=await page2.getTextContent(), its=tc2.items||[];
-        var ls=[];
-        its.forEach(function(it){
-          var t=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
-          if(!t) return;
-          var tr=it.transform||[]; ls.push({t:t,x:Number(tr[4])||0,y:Number(tr[5])||0});
-        });
-        ls.sort(function(a,b){ return b.y-a.y || a.x-b.x; });
-        var groups=[];
-        ls.forEach(function(z){
-          var g=groups.length?groups[groups.length-1]:null;
-          if(!g || Math.abs(g.y-z.y)>3){ g={y:z.y,a:[]}; groups.push(g); }
-          g.a.push(z);
-        });
-        groups.forEach(function(g){
-          g.a.sort(function(a,b){return a.x-b.x;});
-          var line=g.a.map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
-          var cm=line.match(/^([A-Z0-9][A-Z0-9._\/\-]{2,})\s+(.+?)\s+R\s*(.*)$/i);
-          if(!cm) return;
-          var code=cm[1].toUpperCase();
-          if(seen[code]) return;
-          var tail=cm[3].replace(/\s+\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+20\d{2}\s*$/i,'').trim();
-          var pm=tail.match(/^([0-9][0-9\s,]*(?:\.[0-9]+)?)/);
-          if(!pm) return;
-          var price=numPrice_(pm[1]), desc=cm[2].trim();
-          if(!desc || !isFinite(price)) return;
-          seen[code]=true; out.push({code:code,price:price,description:desc});
-        });
-      }
+    if(!out.length){
+      throw new Error('I could read the PDF, but could not identify product rows. Try the supplier CSV/Excel export instead.');
     }
 
-    if(!out.length) throw new Error('I could read the PDF, but could not identify product rows. Try the supplier CSV/Excel export instead.');
-    out._diagnostics={sourceLines:sourceLines,products:out.length,rejected:rejected};
+    out._diagnostics={
+      sourceItems:sourceItems,
+      productRows: candidateRows,
+      products:out.length,
+      rejected:rejected,
+      expectedProducts:381
+    };
     return out;
   }
   throw new Error('Use CSV, Excel (.xlsx/.xls) or PDF.');
@@ -3094,6 +3215,105 @@ document.getElementById('vpPrint').addEventListener('click',function(){
   setTimeout(function(){ document.title=was },1500);
 });
 
+/* ============ quote builder ============ */
+var QB={id:'',client:'',title:'',ref:'',expiry:'',xeroContact:null,items:[],prices:[]};
+function qbBlank(){
+  var d=new Date(); d.setDate(d.getDate()+14);
+  return {id:'qb-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),client:'',title:'',ref:'',expiry:d.toISOString().slice(0,10),xeroContact:null,xeroQuote:null,items:[],prices:[]};
+}
+function showQuote(){
+  backTo='screenHome'; document.getElementById('savedTag').textContent='quote'; document.getElementById('barCount').textContent='—';
+  show('screenQuote');
+  get1('cfg','quoteDraft').then(function(d){ QB=d||qbBlank(); if(!QB.xeroQuote) QB.xeroQuote=null; qbRenderAll(); qbLoadPrices(); }).catch(function(){ QB=qbBlank(); qbRenderAll(); qbLoadPrices(); });
+  xeroStatus_();
+}
+function qbSave(){
+  put('cfg',{id:'quoteDraft',client:QB.client,title:QB.title,ref:QB.ref,expiry:QB.expiry,xeroContact:QB.xeroContact,xeroQuote:QB.xeroQuote||null,items:QB.items}).catch(function(){});
+}
+function qbLoadPrices(){
+  if(PRICES&&PRICES.length){ QB.prices=PRICES; qbRenderResults(); return; }
+  apiGet({action:'prices'}).then(function(j){ QB.prices=j.prices||[]; qbRenderResults(); put('cfg',{id:'pricecache',list:QB.prices}).catch(function(){}); }).catch(function(){
+    get1('cfg','pricecache').then(function(c){ QB.prices=(c&&c.list)||[]; qbRenderResults(); });
+  });
+}
+function qbRenderAll(){
+  document.getElementById('qbClient').value=QB.client||''; document.getElementById('qbTitle').value=QB.title||'';
+  document.getElementById('qbRef').value=QB.ref||''; document.getElementById('qbExpiry').value=QB.expiry||'';
+  document.getElementById('qbSearch').value=''; document.getElementById('qbStatus').innerHTML=''; qbRenderResults(); qbRenderLines();
+  document.getElementById('qbXeroPicked').textContent=QB.xeroContact?'Xero customer: '+QB.xeroContact.name:'';
+}
+function qbRenderResults(){
+  var box=document.getElementById('qbResults'); if(!box) return; var q=(document.getElementById('qbSearch').value||'').trim().toLowerCase();
+  var words=q?q.split(/\s+/):[]; var list=(QB.prices||[]).filter(function(p){return p.active!==false;});
+  if(words.length) list=list.filter(function(p){var h=((p.description||'')+' '+(p.code||'')+' '+(p.category||'')+' '+(p.supplier||'')+' '+(p.unit||'')).toLowerCase(); return words.every(function(w){return h.indexOf(w)>=0;});});
+  list=list.slice(0,30); box.innerHTML='';
+  if(!list.length){box.innerHTML='<div class="no-res">'+(q?'Nothing matched.':'Start typing to find an item.')+'</div>';return;}
+  list.forEach(function(p){
+    var d=document.createElement('div'); d.className='qbresult';
+    var unit=(Number(p.sell)||0)+(Number(p.install)||0);
+    d.innerHTML='<div><b>'+esc(p.description)+'</b><div class="qbmeta">'+esc(p.code||'')+' · '+esc(p.category||'')+' · '+esc(p.unit||'each')+'</div></div><div class="qbadd"><input type="number" min="0.01" step="0.01" value="1"><button class="btn" type="button">Add</button></div>';
+    d.querySelector('button').addEventListener('click',function(){var qty=Number(d.querySelector('input').value)||1; qbAdd(p,qty);});
+    box.appendChild(d);
+  });
+}
+function qbAdd(p,qty){
+  var code=String(p.code||p.id||'').trim(); var unit=(Number(p.sell)||0)+(Number(p.install)||0);
+  var old=QB.items.find(function(x){return code && x.code===code;});
+  if(old) old.qty+=qty; else QB.items.push({code:code,desc:p.description||'',unit:p.unit||'each',sell:unit,qty:qty,spec:p.spec||''});
+  qbSave(); qbRenderLines();
+}
+function qbAddCustom(){
+  var d=document.getElementById('qbCustomDesc').value.trim(), v=Number(document.getElementById('qbCustomPrice').value)||0;
+  if(!d){alert('Give the line a description.');return;} QB.items.push({code:'',desc:d,unit:'',sell:v,qty:1,custom:true});
+  document.getElementById('qbCustomDesc').value='';document.getElementById('qbCustomPrice').value='';qbSave();qbRenderLines();
+}
+function qbRenderLines(){
+  var box=document.getElementById('qbLines'), sub=0; box.innerHTML='';
+  QB.items.forEach(function(it,i){var row=document.createElement('div');row.className='qbline';
+    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
+    var q=row.querySelector('input');q.addEventListener('input',function(){it.qty=Math.max(0,Number(q.value)||0);qbSave();qbRenderLines();});
+    row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
+  var vat=sub*.15,total=sub+vat;document.getElementById('qbCount').textContent=QB.items.length+(QB.items.length===1?' line':' lines');
+  document.getElementById('qbTag').textContent=QB.items.length+' lines';
+  document.getElementById('qbTotals').innerHTML='<div><span>Subtotal</span><b>'+money(sub)+'</b></div><div><span>VAT @ 15%</span><b>'+money(vat)+'</b></div><div class="grand"><span>Total</span><span>'+money(total)+'</span></div>';
+}
+function xeroStatus_(){
+  apiGet({action:'xeroStatus'}).then(function(j){
+    var tag=document.getElementById('xeroTag'); if(tag) tag.textContent=(j.xero&&j.xero.connected)?'Connected':'Not connected';
+    var msg=document.getElementById('xeroSetupMsg'); if(msg) msg.innerHTML=(j.xero&&j.xero.configured)?((j.xero.connected?'Xero is connected to <b>'+esc(j.xero.tenantName||'your organisation')+'</b>.':'Save settings, then connect Xero.')+'<br><span class="qbmeta">Xero redirect URI: '+esc(j.xero.redirectUri||'')+'</span>'):'Enter your Xero Client ID and Secret first.'; if(j.xero&&j.xero.clientId) document.getElementById('xeroClientId').value=j.xero.clientId;
+  }).catch(function(e){var m=document.getElementById('xeroSetupMsg');if(m)m.textContent=String(e.message||e);});
+}
+function xeroFind_(){
+  var q=document.getElementById('qbXeroQ').value.trim(), box=document.getElementById('qbXeroResults'); if(!q){box.innerHTML='<div class="hint">Type a customer name or email.</div>';return;}
+  box.innerHTML='<div class="queued">Searching Xero…</div>';
+  apiGet({action:'xeroContacts',q:q}).then(function(j){box.innerHTML='';(j.contacts||[]).forEach(function(c){var d=document.createElement('div');d.className='xeroresult';d.innerHTML='<b>'+esc(c.name)+'</b><div class="qbmeta">'+esc(c.email||'')+(c.number?' · '+esc(c.number):'')+'</div>';d.addEventListener('click',function(){QB.xeroContact=c;QB.client=c.name;document.getElementById('qbClient').value=c.name;document.getElementById('qbXeroPicked').textContent='Xero customer: '+c.name;box.innerHTML='';qbSave();});box.appendChild(d);});if(!box.innerHTML)box.innerHTML='<div class="no-res">No Xero customer found.</div>';}).catch(function(e){box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';});
+}
+function xeroCreateQuote_(){
+  if(!QB.xeroContact||!QB.xeroContact.contactID){alert('First find and select the customer in Xero.');return;}
+  if(!QB.items.length){alert('Add at least one quote line.');return;}
+  var btn=document.getElementById('qbXeroCreate');btn.disabled=true;btn.textContent='Creating…';
+  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',description:it.desc,quantity:Number(it.qty)||1,unitAmount:Number(it.sell)||0};})};
+  api({action:'xeroCreateQuote',quote:payload}).then(function(j){
+    btn.disabled=false;btn.textContent='Create quote in Xero';
+    QB.xeroQuote={quoteID:j.quoteID,quoteNumber:j.quoteNumber};qbSave();
+    document.getElementById('qbStatus').innerHTML='<div class="calc"><b>Xero quote created:</b> '+esc(j.quoteNumber||'')+'<br><span class="qbmeta">Xero Quote ID: '+esc(j.quoteID||'')+'</span></div>';
+  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e));});
+}
+['qbClient','qbTitle','qbRef','qbExpiry'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){QB[{qbClient:'client',qbTitle:'title',qbRef:'ref',qbExpiry:'expiry'}[id]]=this.value;qbSave();});});
+document.getElementById('qbSearch').addEventListener('input',qbRenderResults);
+document.getElementById('qbCustomAdd').addEventListener('click',qbAddCustom);
+document.getElementById('qbXeroFind').addEventListener('click',xeroFind_);
+document.getElementById('qbXeroCreate').addEventListener('click',xeroCreateQuote_);
+document.getElementById('qbNew').addEventListener('click',function(){if(QB.items.length&&!confirm('Clear this quote and start a new one?'))return;QB=qbBlank();qbRenderAll();qbSave();});
+document.getElementById('xeroSave').addEventListener('click',function(){
+  var msg=document.getElementById('xeroSetupMsg');msg.textContent='Saving…';
+  api({action:'xeroSetConfig',clientId:document.getElementById('xeroClientId').value.trim(),clientSecret:document.getElementById('xeroClientSecret').value, salesAccount:document.getElementById('xeroSalesAccount').value.trim()}).then(function(){document.getElementById('xeroClientSecret').value='';msg.textContent='Xero settings saved.';xeroStatus_();}).catch(function(e){msg.textContent=String(e.message||e);});
+});
+document.getElementById('xeroConnect').addEventListener('click',function(){
+  var msg=document.getElementById('xeroSetupMsg');msg.textContent='Preparing Xero…';
+  api({action:'xeroStart',returnUrl:location.origin+location.pathname}).then(function(j){location.href=j.authUrl;}).catch(function(e){msg.textContent=String(e.message||e);});
+});
+
 /* ============ stock ============ */
 /* A count, nothing more. You pick one place and count it; the app sends
    back that column alone, so four people counting four places never
@@ -3775,7 +3995,7 @@ function boot(){
   // confirm the account is still valid and the role hasn't changed
   apiGet({action:'me'}).then(function(j){
     ME.name=j.user.name; ME.role=j.user.role;
-    saveSession(); showHome();
+    saveSession(); showHome(); xeroStatus_(); if(location.hash.indexOf('xero=connected')>=0){ history.replaceState(null,'',location.pathname); alert('Xero connected.'); }
   }).catch(function(e){
     if(navigator.onLine){ clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); }); }
     else { showHome(); }   // offline: trust the stored session
