@@ -2017,14 +2017,20 @@ async function readSupplierFile_(file){
       });
       if(current.trim()) lines.push(current.trim());
     }
-    var out=[], seen={};
-    var re=/^([A-Z0-9][A-Z0-9._\/-]{2,})\s+(.+?)\s+R\s*([0-9\s,]+(?:\.[0-9]+)?)\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/i;
+    var out=[], seen={}, rejected=0;
+    /* Herholdt PDF extraction is not perfectly consistent. Match the stable
+       parts of a row: SKU at the start and the R-price; the effective date
+       is optional because PDF text extraction can split it. */
+    var rowRe=/^([A-Z0-9][A-Z0-9._\/\-]{2,})\s+(.+?)\s+R\s*([0-9][0-9\s,]*(?:\.[0-9]+)?)(?:\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4})?$/i;
     lines.forEach(function(line){
-      var m=line.match(re); if(!m) return;
-      var code=m[1].trim().toUpperCase(), price=numPrice_(m[3]);
-      if(!code || !isFinite(price) || seen[code]) return;
-      seen[code]=true; out.push({code:code,price:price,description:m[2].trim()});
+      var m=line.match(rowRe);
+      if(!m){ rejected++; return; }
+      var code=m[1].trim().toUpperCase(), price=numPrice_(m[3]), desc=m[2].trim();
+      if(!code || !desc || !isFinite(price) || seen[code]) return;
+      if(/^(customer price list|description|price|effective)$/i.test(desc)) return;
+      seen[code]=true; out.push({code:code,price:price,description:desc});
     });
+    out._diagnostics={sourceLines:lines.length,rejected:rejected,products:out.length};
     if(!out.length) throw new Error('I could read the PDF, but could not identify product rows. Try the supplier CSV/Excel export instead.');
     return out;
   }
@@ -2042,7 +2048,10 @@ function buildPricePreview_(rows){
     if(Math.abs(old-neu)<0.005) unchanged.push({incoming:r,current:p});
     else changes.push({incoming:r,current:p,old:old,newPrice:neu});
   });
-  return {changes:changes,notFound:notFound,unchanged:unchanged,total:rows.length};
+  var increases=0, decreases=0;
+  changes.forEach(function(x){ if(x.newPrice>x.old) increases++; else if(x.newPrice<x.old) decreases++; });
+  return {changes:changes,notFound:notFound,unchanged:unchanged,total:rows.length,
+    increases:increases,decreases:decreases,diagnostics:rows._diagnostics||null};
 }
 function renderPriceUpdater_(){
   var box=document.getElementById('prUpdater'); if(!box) return;
@@ -2053,9 +2062,13 @@ function renderPriceUpdater_(){
     '<p class="sub"><b>'+esc(PU_FILE.name)+'</b> · '+p.total+' supplier products found. Prices are matched by INV ID / SKU / Code.</p>'+
     '<div class="pustats">'+
       '<div class="pustat"><b>'+p.changes.length+'</b><span>Will change</span></div>'+
+      '<div class="pustat"><b>'+p.increases+'</b><span>Increases</span></div>'+
+      '<div class="pustat"><b>'+p.decreases+'</b><span>Decreases</span></div>'+
       '<div class="pustat"><b>'+p.notFound.length+'</b><span>Not found</span></div>'+
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
     '</div>';
+  var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceLines+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
+  box.querySelector('.pubox').insertAdjacentHTML('beforeend',diag);
   if(p.notFound.length) html+='<div class="puwarn"><b>'+p.notFound.length+' supplier codes were not found.</b> Nothing will be added automatically.</div>';
   if(p.changes.length){
     html+='<div class="pupreview"><table><thead><tr><th>Code</th><th>Description</th><th>Old</th><th>New</th></tr></thead><tbody>';
