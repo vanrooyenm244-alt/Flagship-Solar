@@ -1968,6 +1968,7 @@ document.getElementById('btnSignOut').addEventListener('click',function(){
 
 /* ============ prices ============ */
 var PRICES=[], PCATS=[], PTYPES=['Cost','Sell'], PDEF=20, PCAT='', PCQ='', PEDIT=null;
+var CACHE_TTL=10*60*1000; // local data is primary; refresh at most once per 10 minutes
 
 function money(n){
   var v=Math.round(Number(n)*100)/100;
@@ -1980,24 +1981,21 @@ function showPrices(){
   document.getElementById('prTag').textContent = (ME&&ME.role==='Admin')?'Admin':'View only';
   document.getElementById('prNew').style.display = (ME&&ME.role==='Admin')?'':'none';
   document.getElementById('prUpdate').style.display = (ME&&ME.role==='Admin')?'':'none';
-  PEDIT=null;
-  PCAT='';
-  PCQ='';
+  PEDIT=null; PCAT=''; PCQ='';
   var pq=document.getElementById('prQ'); if(pq) pq.value='';
   show('screenPrices');
-  if(PRICES.length){
-    renderCats();
-    renderPrices();
-    loadPrices();
-  } else {
+  if(PRICES.length){ renderCats(); renderPrices(); }
+  else {
     get1('cfg','pricecache').then(function(c){
-      if(c&&c.list&&c.list.length){ PRICES=c.list; PCACHE=PRICES; renderCats(); renderPrices(); }
-      return loadPrices();
-    }).catch(function(){ loadPrices(); });
+      if(c&&c.list&&c.list.length){ PRICES=c.list; PCACHE=PRICES; PCATS=c.categories||PCATS; renderCats(); renderPrices(); }
+      return c;
+    }).then(function(c){ if(!c||!c.list||!c.list.length||!c.savedAt||Date.now()-c.savedAt>CACHE_TTL) loadPrices(true); })
+      .catch(function(){ loadPrices(true); });
   }
 }
 
 var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null;
+
 
 function loadScript_(src, globalName){
   return new Promise(function(resolve,reject){
@@ -2316,21 +2314,14 @@ function applyPriceUpdate_(){
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
 
-function loadPrices(){
+function loadPrices(background){
   var box=document.getElementById('prList');
-  box.innerHTML='<div class="queued">Loading…</div>';
-  apiGet({action:'prices'}).then(function(j){
-    PRICES=j.prices||[];
-    PCACHE=PRICES;                       /* one list, not two */
-    put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
-    PCATS=j.categories||[];
-    PTYPES=j.types||PTYPES;
-    PDEF=j.defaultMarkup||20;
-    renderCats();
-    renderPrices();
-  }).catch(function(e){
-    box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
-  });
+  if(!background) box.innerHTML='<div class="queued">Loading…</div>';
+  return apiGet({action:'prices'}).then(function(j){
+    PRICES=j.prices||[]; PCACHE=PRICES; PCATS=j.categories||[]; PTYPES=j.types||PTYPES; PDEF=j.defaultMarkup||20;
+    put('cfg',{id:'pricecache',list:PCACHE,categories:PCATS,savedAt:Date.now()}).catch(function(){});
+    renderCats(); renderPrices();
+  }).catch(function(e){ if(!background) box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>'; });
 }
 
 function renderCats(){
@@ -3242,10 +3233,16 @@ function qbSave(){
 }
 function qbLoadPrices(){
   if(PRICES&&PRICES.length){ QB.prices=PRICES; qbRenderResults(); return; }
-  apiGet({action:'prices'}).then(function(j){ QB.prices=j.prices||[]; qbRenderResults(); put('cfg',{id:'pricecache',list:QB.prices}).catch(function(){}); }).catch(function(){
-    get1('cfg','pricecache').then(function(c){ QB.prices=(c&&c.list)||[]; qbRenderResults(); });
-  });
+  get1('cfg','pricecache').then(function(c){
+    if(c&&c.list&&c.list.length){
+      PRICES=c.list; PCACHE=PRICES; PCATS=c.categories||PCATS; QB.prices=PRICES; qbRenderResults();
+      if(!c.savedAt || Date.now()-c.savedAt>CACHE_TTL) loadPrices(true);
+      return;
+    }
+    return loadPrices(true).then(function(){ QB.prices=PRICES; qbRenderResults(); });
+  }).catch(function(){ loadPrices(true); });
 }
+
 function qbRenderAll(){
   document.getElementById('qbClient').value=QB.client||''; document.getElementById('qbTitle').value=QB.title||'';
   document.getElementById('qbRef').value=QB.ref||''; document.getElementById('qbExpiry').value=QB.expiry||'';
@@ -3355,26 +3352,23 @@ function showStock(){
 
 function loadStock(){
   var box=document.getElementById('stPlaces');
-  box.innerHTML='<div class="queued">Loading\u2026</div>';
-  apiGet({action:'stock'}).then(function(j){
-    ST.items=j.stock||[]; ST.places=j.places||['Store','GWM','NP200'];
-    ST.cats=j.categories||[];
-    put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
-    renderPlaces();
-  }).catch(function(e){
-    get1('cfg','stockcache').then(function(c){
-      if(c&&c.list&&c.list.length){
-        ST.items=c.list; ST.places=c.places||['Store','GWM','NP200']; ST.cats=c.cats||[];
-        document.getElementById('stWarn').innerHTML=
-          '<div class="queued"><b>No signal.</b> Counting from the list saved on this phone. '+
-          'What you count is kept here until you send it.</div>';
-        renderPlaces();
-      } else {
-        box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+
-          '<br>Open this once with signal to load the list.</div>';
-      }
+  get1('cfg','stockcache').then(function(c){
+    var have=c&&c.list&&c.list.length;
+    if(have){
+      ST.items=c.list; ST.places=c.places||['Store','GWM','NP200']; ST.cats=c.cats||[];
+      renderPlaces(); if(ST.place){ renderCatsStock(); renderStock(); }
+    } else box.innerHTML='<div class="queued">First load — getting stock list…</div>';
+    var stale=!c||!c.savedAt||Date.now()-c.savedAt>CACHE_TTL;
+    if(!have||stale) return apiGet({action:'stock'}).then(function(j){
+      ST.items=j.stock||[]; ST.places=j.places||['Store','GWM','NP200']; ST.cats=j.categories||[];
+      put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats,savedAt:Date.now()}).catch(function(){});
+      renderPlaces(); if(ST.place){ renderCatsStock(); renderStock(); }
+      document.getElementById('stWarn').innerHTML='';
+    }).catch(function(e){
+      if(have) document.getElementById('stWarn').innerHTML='<div class="queued"><b>Offline copy.</b> Showing the stock list saved on this phone.</div>';
+      else box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'<br>Open this once with signal to load the list.</div>';
     });
-  });
+  }).catch(function(e){ box.innerHTML='<div class="calc bad">Could not open saved stock list.<br>'+esc(String(e.message||e))+'</div>'; });
 }
 
 function renderPlaces(){
@@ -3435,7 +3429,11 @@ function renderStock(){
   });
   box.innerHTML='';
   if(!list.length){ box.innerHTML='<div class="no-res">Nothing matched.</div>'; return; }
-  list.forEach(function(it){
+  /* Avoid creating hundreds of input elements at once. Search/category can
+     narrow the list; the initial unfiltered view shows the first 120. */
+  var shown=(q||ST.cat)?list:list.slice(0,120);
+  var frag=document.createDocumentFragment();
+  shown.forEach(function(it){
     var row=document.createElement('div');
     var typed=ST.counts[it.item];
     row.className='strow'+(typed!==undefined?' done':'');
@@ -3451,8 +3449,14 @@ function renderStock(){
       else { ST.counts[it.item]=Math.max(0,Number(v)||0); row.classList.add('done'); }
       stockBar(); saveStockDraft();
     });
-    box.appendChild(row);
+    frag.appendChild(row);
   });
+  box.appendChild(frag);
+  if(!q&&!ST.cat&&list.length>shown.length){
+    var more=document.createElement('div'); more.className='hint';
+    more.textContent='Showing '+shown.length+' of '+list.length+' items. Use search or a category to find the rest.';
+    box.appendChild(more);
+  }
   stockBar();
 }
 
@@ -3673,6 +3677,23 @@ function saveEntries(){
 }
 
 /* ---- screen ---- */
+function syncTimesheetsFromSheet(){
+  if(!CFG.url || !ME || (ME.role!=='Admin' && ME.role!=='Technician')) return Promise.resolve();
+  var key=cycleKey(CYCLE);
+  return apiGet({action:'timesheetAll',cycle:key}).then(function(j){
+    var remote=j.entries||{};
+    Object.keys(remote).forEach(function(name){
+      if(!ENTRIES[name]) ENTRIES[name]={};
+      Object.keys(remote[name]).forEach(function(day){
+        // Never overwrite an unsent local edit. Remote rows are marked sent.
+        if(!ENTRIES[name][day] || ENTRIES[name][day].sent) ENTRIES[name][day]=remote[name][day];
+      });
+    });
+    put('cfg',{id:entKey(),data:ENTRIES}).catch(function(){});
+    renderPeople();
+  }).catch(function(e){ console.warn('timesheet sync',e); });
+}
+
 function showTime(){
   backTo='screenHome';
   document.getElementById('savedTag').textContent='timesheet';
@@ -3706,6 +3727,8 @@ function showTime(){
     }).catch(function(){});
   });
   renderQueue();
+  // Admin/Technician view: show local data immediately, then sync all workers in one request.
+  if(ME && (ME.role==='Admin' || ME.role==='Technician')) syncTimesheetsFromSheet();
 }
 
 function cycleOpen(){
@@ -3726,10 +3749,10 @@ function renderCycle(){
 }
 
 document.getElementById('cycPrev').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,-1); OPEN=null; loadEntries().then(renderCycle);
+  CYCLE=shiftCycle(CYCLE,-1); OPEN=null; loadEntries().then(renderCycle).then(syncTimesheetsFromSheet);
 });
 document.getElementById('cycNext').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,1); OPEN=null; loadEntries().then(renderCycle);
+  CYCLE=shiftCycle(CYCLE,1); OPEN=null; loadEntries().then(renderCycle).then(syncTimesheetsFromSheet);
 });
 
 function workerTotals(name){
