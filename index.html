@@ -655,7 +655,7 @@ table.page{border-collapse:collapse}
   .qbmeta{font-size:11px;color:var(--muted);margin-top:3px}
   .qbadd{display:flex;gap:6px;align-items:center}
   .qbadd input{width:68px;text-align:center;padding:9px}
-  .qbline{display:grid;grid-template-columns:1fr 72px 105px 34px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #e8edf2}
+  .qbline{display:grid;grid-template-columns:1fr 72px 105px 105px 34px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #e8edf2}
   .qbline:last-child{border-bottom:0}
   .qbline .amount{text-align:right;font-weight:700}
   .qbline input{width:100%;padding:8px}
@@ -664,7 +664,7 @@ table.page{border-collapse:collapse}
   .qbtotal .grand{font-size:18px;font-weight:800;color:var(--navy)}
   .xeroresult{border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:6px;cursor:pointer}
   .xeroresult:hover{background:#f5f8fb}
-  @media(max-width:650px){.qbgrid{grid-template-columns:1fr}.qbline{grid-template-columns:1fr 65px 90px 30px}}
+  @media(max-width:650px){.qbgrid{grid-template-columns:1fr}.qbline{grid-template-columns:1fr 55px 82px 90px 30px}.qbline input{font-size:14px;padding:7px}}
 
 </style>
 </head>
@@ -3277,9 +3277,21 @@ function qbAddCustom(){
 function qbRenderLines(){
   var box=document.getElementById('qbLines'), sub=0; box.innerHTML='';
   QB.items.forEach(function(it,i){var row=document.createElement('div');row.className='qbline';
-    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
-    var q=row.querySelector('input');q.addEventListener('input',function(){it.qty=Math.max(0,Number(q.value)||0);qbSave();qbRenderLines();});
-    row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
+    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input class="qbqty" type="number" min="0" step="0.01" value="'+(it.qty===undefined?1:it.qty)+'" title="Quantity"><input class="qbprice" type="number" min="0" step="0.01" value="'+(Number(it.sell)||0).toFixed(2)+'" title="Unit price excl VAT"><div class="amount">'+money((it.qty===undefined?1:it.qty)*(Number(it.sell)||0))+'</div><button class="x" type="button">×</button>';
+    var q=row.querySelector('.qbqty'), price=row.querySelector('.qbprice');
+    function refreshRow(){
+      var qty=Math.max(0,Number(q.value)||0), unit=Math.max(0,Number(price.value)||0);
+      it.qty=qty; it.sell=unit;
+      row.querySelector('.amount').textContent=money(qty*unit);
+      var totalSub=QB.items.reduce(function(s,x){return s+(Number(x.qty)||0)*(Number(x.sell)||0);},0);
+      var vat2=totalSub*.15, total2=totalSub+vat2;
+      document.getElementById('qbTotals').innerHTML='<div><span>Subtotal</span><b>'+money(totalSub)+'</b></div><div><span>VAT @ 15%</span><b>'+money(vat2)+'</b></div><div class="grand"><span>Total</span><span>'+money(total2)+'</span></div>';
+      qbSave();
+    }
+    q.addEventListener('input',refreshRow);
+    price.addEventListener('input',refreshRow);
+    row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});
+    box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
   var vat=sub*.15,total=sub+vat;document.getElementById('qbCount').textContent=QB.items.length+(QB.items.length===1?' line':' lines');
   document.getElementById('qbTag').textContent=QB.items.length+' lines';
   document.getElementById('qbTotals').innerHTML='<div><span>Subtotal</span><b>'+money(sub)+'</b></div><div><span>VAT @ 15%</span><b>'+money(vat)+'</b></div><div class="grand"><span>Total</span><span>'+money(total)+'</span></div>';
