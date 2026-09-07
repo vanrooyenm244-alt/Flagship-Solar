@@ -655,7 +655,7 @@ table.page{border-collapse:collapse}
   .qbmeta{font-size:11px;color:var(--muted);margin-top:3px}
   .qbadd{display:flex;gap:6px;align-items:center}
   .qbadd input{width:68px;text-align:center;padding:9px}
-  .qbline{display:grid;grid-template-columns:1fr 72px 105px 105px 34px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #e8edf2}
+  .qbline{display:grid;grid-template-columns:1fr 72px 105px 34px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #e8edf2}
   .qbline:last-child{border-bottom:0}
   .qbline .amount{text-align:right;font-weight:700}
   .qbline input{width:100%;padding:8px}
@@ -664,7 +664,7 @@ table.page{border-collapse:collapse}
   .qbtotal .grand{font-size:18px;font-weight:800;color:var(--navy)}
   .xeroresult{border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:6px;cursor:pointer}
   .xeroresult:hover{background:#f5f8fb}
-  @media(max-width:650px){.qbgrid{grid-template-columns:1fr}.qbline{grid-template-columns:1fr 55px 82px 90px 30px}.qbline input{font-size:14px;padding:7px}}
+  @media(max-width:650px){.qbgrid{grid-template-columns:1fr}.qbline{grid-template-columns:1fr 65px 90px 30px}}
 
 </style>
 </head>
@@ -772,6 +772,7 @@ table.page{border-collapse:collapse}
       <div class="setrow"><label>Xero sales account code <span class="hint">(optional if your Xero quote line defaults are set)</span></label><input id="xeroSalesAccount" placeholder="e.g. 200"></div>
       <button class="btn ghost" type="button" id="xeroSave" style="width:100%">Save Xero settings</button>
       <button class="btn" type="button" id="xeroConnect" style="width:100%;margin-top:8px">Connect Xero</button>
+      <button class="btn ghost" type="button" id="xeroSyncItems" style="width:100%;margin-top:8px">Sync Xero Items</button>
       <div id="xeroSetupMsg" class="hint" style="margin-top:8px"></div>
     </div>
   </section>
@@ -1021,6 +1022,14 @@ table.page{border-collapse:collapse}
     <div class="field"><label>Titel op die dekblad</label><input data-p="title" placeholder="Sonkrag vir julle plek"></div>
     <div class="field"><label>Voorberei deur</label><input data-p="by" placeholder="Flagship Solar (Pty) Ltd"></div>
     <div class="field"><label>Geldigheid</label><input data-p="valid" placeholder="Pryse geldig vir 14 dae"></div>
+    <div class="qbcard" style="margin-top:14px">
+      <h3 style="margin:0 0 8px">Xero customer / Send proposal</h3>
+      <div class="field"><label>Customer email</label><input id="vpEmail" type="email" placeholder="customer@example.com"></div>
+      <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
+      <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
+      <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
+      <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
+    </div>
   </section>
 
   </td></tr></tbody>
@@ -1143,6 +1152,7 @@ table.page{border-collapse:collapse}
   <div class="count"><b id="pbarTot">R0</b>incl VAT</div>
   <button class="btn ghost" type="button" id="vpAdd2">Add item</button>
   <button class="btn" type="button" id="vpPrint">Save as PDF</button>
+  <button class="btn ghost" type="button" id="vpPublish2">Send to Customer</button>
 </div>
 
 <div class="actionbar hidden" id="stbar">
@@ -1741,8 +1751,7 @@ function openFinder(targetEl){
   var q=scrim.querySelector('#fq');
   q.addEventListener('input',function(){ results(q.value) });
   scrim.querySelector('#aSave').addEventListener('click',addClause);
-  if(CLAUSES.length){ results(''); }
-  else { results(''); seedClauses().then(function(){ if(scrim) results(q.value); }).catch(function(){}); }
+  results('');
   setTimeout(function(){ q.focus() },80);
 }
 function closeFinder(){ if(scrim){scrim.remove(); scrim=null; finderTarget=null} }
@@ -1968,7 +1977,6 @@ document.getElementById('btnSignOut').addEventListener('click',function(){
 
 /* ============ prices ============ */
 var PRICES=[], PCATS=[], PTYPES=['Cost','Sell'], PDEF=20, PCAT='', PCQ='', PEDIT=null;
-var CACHE_TTL=10*60*1000; // local data is primary; refresh at most once per 10 minutes
 
 function money(n){
   var v=Math.round(Number(n)*100)/100;
@@ -1981,21 +1989,15 @@ function showPrices(){
   document.getElementById('prTag').textContent = (ME&&ME.role==='Admin')?'Admin':'View only';
   document.getElementById('prNew').style.display = (ME&&ME.role==='Admin')?'':'none';
   document.getElementById('prUpdate').style.display = (ME&&ME.role==='Admin')?'':'none';
-  PEDIT=null; PCAT=''; PCQ='';
+  PEDIT=null;
+  PCAT='';
+  PCQ='';
   var pq=document.getElementById('prQ'); if(pq) pq.value='';
   show('screenPrices');
-  if(PRICES.length){ renderCats(); renderPrices(); }
-  else {
-    get1('cfg','pricecache').then(function(c){
-      if(c&&c.list&&c.list.length){ PRICES=c.list; PCACHE=PRICES; PCATS=c.categories||PCATS; renderCats(); renderPrices(); }
-      return c;
-    }).then(function(c){ if(!c||!c.list||!c.list.length||!c.savedAt||Date.now()-c.savedAt>CACHE_TTL) loadPrices(true); })
-      .catch(function(){ loadPrices(true); });
-  }
+  loadPrices();
 }
 
 var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null;
-
 
 function loadScript_(src, globalName){
   return new Promise(function(resolve,reject){
@@ -2314,14 +2316,21 @@ function applyPriceUpdate_(){
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
 
-function loadPrices(background){
+function loadPrices(){
   var box=document.getElementById('prList');
-  if(!background) box.innerHTML='<div class="queued">Loading…</div>';
-  return apiGet({action:'prices'}).then(function(j){
-    PRICES=j.prices||[]; PCACHE=PRICES; PCATS=j.categories||[]; PTYPES=j.types||PTYPES; PDEF=j.defaultMarkup||20;
-    put('cfg',{id:'pricecache',list:PCACHE,categories:PCATS,savedAt:Date.now()}).catch(function(){});
-    renderCats(); renderPrices();
-  }).catch(function(e){ if(!background) box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>'; });
+  box.innerHTML='<div class="queued">Loading…</div>';
+  apiGet({action:'prices'}).then(function(j){
+    PRICES=j.prices||[];
+    PCACHE=PRICES;                       /* one list, not two */
+    put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
+    PCATS=j.categories||[];
+    PTYPES=j.types||PTYPES;
+    PDEF=j.defaultMarkup||20;
+    renderCats();
+    renderPrices();
+  }).catch(function(e){
+    box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
+  });
 }
 
 function renderCats(){
@@ -2648,7 +2657,7 @@ function vpBlank(lang){
           valid:en?'Prices valid for 14 days':'Pryse geldig vir 14 dae',
           bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',
           invkw:'',strings:'',pick:{},
-          now:'',prop:'',items:[],showPrices:false,
+          now:'',prop:'',items:[],showPrices:false, customerEmail:'', xeroContact:null, publishToken:'', publishUrl:'', publishStatus:'DRAFT',
           incl:en?EN_INCL:VP_INCL, excl:en?EN_EXCL:VP_EXCL,
           steps:en?EN_STEPS:VP_STEPS, terms:en?EN_TERMS:VP_TERMS,
           scope:en?EN_SCOPE:VP_SCOPE};
@@ -2736,6 +2745,9 @@ function openProp(id){
       if(el.tagName==='TEXTAREA') vpGrow(el);
     });
     document.getElementById('vpShow').checked = !!VP.showPrices;
+    var ve=document.getElementById('vpEmail'); if(ve) ve.value=VP.customerEmail||'';
+    var vx=document.getElementById('vpXeroPicked'); if(vx) vx.textContent=VP.xeroContact?'Xero customer: '+VP.xeroContact.name:'';
+    var vs=document.getElementById('vpPublishStatus'); if(vs) vs.innerHTML=VP.publishUrl?'<b>'+esc(VP.publishStatus||'SENT')+'</b> — <a target="_blank" rel="noopener" href="'+esc(VP.publishUrl)+'">Open customer link</a>':'Not sent yet.';
     vpMirrorAll();
     backTo='screenProps';
     document.getElementById('savedTag').textContent='proposal';
@@ -3205,6 +3217,11 @@ function vpAddItem(p){
 document.getElementById('vpAdd').addEventListener('click',function(){ openPick(); });
 document.getElementById('vpAdd2').addEventListener('click',function(){ openPick(); });
 
+document.getElementById('vpXeroFind').addEventListener('click',vpXeroFind_);
+document.getElementById('vpPublish').addEventListener('click',vpPublish_);
+document.getElementById('vpPublish2').addEventListener('click',vpPublish_);
+document.getElementById('vpEmail').addEventListener('input',function(){VP.customerEmail=this.value;vpSave();});
+
 document.getElementById('vpPrint').addEventListener('click',function(){
   vpMirrorAll(); vpCover(); vpCalc();
   document.body.classList[VP.showPrices?'add':'remove']('vpshow');
@@ -3215,6 +3232,40 @@ document.getElementById('vpPrint').addEventListener('click',function(){
   window.print();
   setTimeout(function(){ document.title=was },1500);
 });
+
+
+function vpXeroFind_(){
+  var q=(document.getElementById('vpXeroQ').value||'').trim(), box=document.getElementById('vpXeroResults');
+  if(!q){box.innerHTML='<div class="hint">Type a customer name or email.</div>';return;}
+  box.innerHTML='<div class="queued">Searching Xero…</div>';
+  apiGet({action:'xeroContacts',q:q}).then(function(j){
+    box.innerHTML='';
+    (j.contacts||[]).forEach(function(c){
+      var d=document.createElement('div'); d.className='xeroresult';
+      d.innerHTML='<b>'+esc(c.name)+'</b><div class="qbmeta">'+esc(c.email||'')+(c.number?' · '+esc(c.number):'')+'</div>';
+      d.addEventListener('click',function(){
+        VP.xeroContact=c; VP.client=c.name; if(c.email){VP.customerEmail=c.email; var e=document.getElementById('vpEmail');if(e)e.value=c.email;}
+        var ci=document.querySelector('#screenProp input[data-p="client"]'); if(ci)ci.value=VP.client;
+        var pick=document.getElementById('vpXeroPicked'); if(pick)pick.textContent='Xero customer: '+c.name;
+        box.innerHTML=''; vpSave(); vpMirrorAll();
+      }); box.appendChild(d);
+    });
+    if(!box.innerHTML)box.innerHTML='<div class="no-res">No Xero customer found.</div>';
+  }).catch(function(e){box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';});
+}
+function vpPublish_(){
+  vpMirrorAll(); vpCalc(); vpLines();
+  if(!VP.xeroContact||!VP.xeroContact.contactID){alert('First select the customer in Xero.');return;}
+  if(!VP.client.trim()){alert('Customer name is required.');return;}
+  if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
+  VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
+  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Sending…';}});
+  api({action:'proposalPublish',proposal:VP}).then(function(j){
+    VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
+    var st=document.getElementById('vpPublishStatus'); if(st)st.innerHTML='<b>Sent.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open customer link</a>';
+    alert('Value Proposal sent. The customer can now accept it.');
+  }).catch(function(e){alert('Send failed: '+String(e.message||e));}).finally(function(){btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});});
+}
 
 /* ============ quote builder ============ */
 var QB={id:'',client:'',title:'',ref:'',expiry:'',xeroContact:null,items:[],prices:[]};
@@ -3233,16 +3284,10 @@ function qbSave(){
 }
 function qbLoadPrices(){
   if(PRICES&&PRICES.length){ QB.prices=PRICES; qbRenderResults(); return; }
-  get1('cfg','pricecache').then(function(c){
-    if(c&&c.list&&c.list.length){
-      PRICES=c.list; PCACHE=PRICES; PCATS=c.categories||PCATS; QB.prices=PRICES; qbRenderResults();
-      if(!c.savedAt || Date.now()-c.savedAt>CACHE_TTL) loadPrices(true);
-      return;
-    }
-    return loadPrices(true).then(function(){ QB.prices=PRICES; qbRenderResults(); });
-  }).catch(function(){ loadPrices(true); });
+  apiGet({action:'prices'}).then(function(j){ QB.prices=j.prices||[]; qbRenderResults(); put('cfg',{id:'pricecache',list:QB.prices}).catch(function(){}); }).catch(function(){
+    get1('cfg','pricecache').then(function(c){ QB.prices=(c&&c.list)||[]; qbRenderResults(); });
+  });
 }
-
 function qbRenderAll(){
   document.getElementById('qbClient').value=QB.client||''; document.getElementById('qbTitle').value=QB.title||'';
   document.getElementById('qbRef').value=QB.ref||''; document.getElementById('qbExpiry').value=QB.expiry||'';
@@ -3266,7 +3311,7 @@ function qbRenderResults(){
 function qbAdd(p,qty){
   var code=String(p.code||p.id||'').trim(); var unit=(Number(p.sell)||0)+(Number(p.install)||0);
   var old=QB.items.find(function(x){return code && x.code===code;});
-  if(old) old.qty+=qty; else QB.items.push({code:code,desc:p.description||'',unit:p.unit||'each',sell:unit,qty:qty,spec:p.spec||''});
+  if(old) old.qty+=qty; else QB.items.push({code:code,desc:p.description||'',unit:p.unit||'each',sell:unit,qty:qty,spec:p.spec||'',xeroItemID:p.xeroItemID||'',xeroItemCode:p.xeroItemCode||''});
   qbSave(); qbRenderLines();
 }
 function qbAddCustom(){
@@ -3277,21 +3322,9 @@ function qbAddCustom(){
 function qbRenderLines(){
   var box=document.getElementById('qbLines'), sub=0; box.innerHTML='';
   QB.items.forEach(function(it,i){var row=document.createElement('div');row.className='qbline';
-    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input class="qbqty" type="number" min="0" step="0.01" value="'+(it.qty===undefined?1:it.qty)+'" title="Quantity"><input class="qbprice" type="number" min="0" step="0.01" value="'+(Number(it.sell)||0).toFixed(2)+'" title="Unit price excl VAT"><div class="amount">'+money((it.qty===undefined?1:it.qty)*(Number(it.sell)||0))+'</div><button class="x" type="button">×</button>';
-    var q=row.querySelector('.qbqty'), price=row.querySelector('.qbprice');
-    function refreshRow(){
-      var qty=Math.max(0,Number(q.value)||0), unit=Math.max(0,Number(price.value)||0);
-      it.qty=qty; it.sell=unit;
-      row.querySelector('.amount').textContent=money(qty*unit);
-      var totalSub=QB.items.reduce(function(s,x){return s+(Number(x.qty)||0)*(Number(x.sell)||0);},0);
-      var vat2=totalSub*.15, total2=totalSub+vat2;
-      document.getElementById('qbTotals').innerHTML='<div><span>Subtotal</span><b>'+money(totalSub)+'</b></div><div><span>VAT @ 15%</span><b>'+money(vat2)+'</b></div><div class="grand"><span>Total</span><span>'+money(total2)+'</span></div>';
-      qbSave();
-    }
-    q.addEventListener('input',refreshRow);
-    price.addEventListener('input',refreshRow);
-    row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});
-    box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
+    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
+    var q=row.querySelector('input');q.addEventListener('input',function(){it.qty=Math.max(0,Number(q.value)||0);qbSave();qbRenderLines();});
+    row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
   var vat=sub*.15,total=sub+vat;document.getElementById('qbCount').textContent=QB.items.length+(QB.items.length===1?' line':' lines');
   document.getElementById('qbTag').textContent=QB.items.length+' lines';
   document.getElementById('qbTotals').innerHTML='<div><span>Subtotal</span><b>'+money(sub)+'</b></div><div><span>VAT @ 15%</span><b>'+money(vat)+'</b></div><div class="grand"><span>Total</span><span>'+money(total)+'</span></div>';
@@ -3311,7 +3344,7 @@ function xeroCreateQuote_(){
   if(!QB.xeroContact||!QB.xeroContact.contactID){alert('First find and select the customer in Xero.');return;}
   if(!QB.items.length){alert('Add at least one quote line.');return;}
   var btn=document.getElementById('qbXeroCreate');btn.disabled=true;btn.textContent='Creating…';
-  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',description:it.desc,quantity:Number(it.qty)||1,unitAmount:Number(it.sell)||0};})};
+  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',xeroItemCode:it.xeroItemCode||'',description:it.desc,quantity:Number(it.qty)||1,unitAmount:Number(it.sell)||0};})};
   api({action:'xeroCreateQuote',quote:payload}).then(function(j){
     btn.disabled=false;btn.textContent='Create quote in Xero';
     QB.xeroQuote={quoteID:j.quoteID,quoteNumber:j.quoteNumber};qbSave();
@@ -3332,6 +3365,27 @@ document.getElementById('xeroConnect').addEventListener('click',function(){
   var msg=document.getElementById('xeroSetupMsg');msg.textContent='Preparing Xero…';
   api({action:'xeroStart',returnUrl:location.origin+location.pathname}).then(function(j){location.href=j.authUrl;}).catch(function(e){msg.textContent=String(e.message||e);});
 });
+
+
+function xeroSyncItems_(){
+  var b=document.getElementById('xeroSyncItems'); if(!b)return; b.disabled=true;b.textContent='Syncing Xero items…';
+  apiGet({action:'xeroItems'}).then(function(j){
+    var xi=j.items||[];
+    return get1('cfg','pricecache').then(function(pc){
+      var prices=(pc&&pc.list)||[];
+      var byCode={},byDesc={};
+      xi.forEach(function(x){if(x.code)byCode[String(x.code).trim().toLowerCase()]=x;if(x.name)byDesc[String(x.name).trim().toLowerCase()]=x;});
+      prices.forEach(function(p){
+        var x=(p.code&&byCode[String(p.code).trim().toLowerCase()])||byDesc[String(p.description||'').trim().toLowerCase()];
+        if(x){p.xeroItemID=x.itemID||'';p.xeroItemCode=x.code||'';p.xeroDescription=x.name||x.description||'';}
+      });
+      PRICES=prices; QB.prices=prices;
+      return Promise.all([put('cfg',{id:'xeroItemsCache',updated:Date.now(),items:xi}),put('cfg',{id:'pricecache',list:prices})]).then(function(){qbRenderResults();alert('Synced '+xi.length+' Xero items. Existing Flagship items were matched where code/description matched.');});
+    });
+  }).catch(function(e){alert('Xero item sync failed: '+String(e.message||e));}).finally(function(){b.disabled=false;b.textContent='Sync Xero Items';});
+}
+
+document.getElementById('xeroSyncItems').addEventListener('click',xeroSyncItems_);
 
 /* ============ stock ============ */
 /* A count, nothing more. You pick one place and count it; the app sends
@@ -3364,23 +3418,26 @@ function showStock(){
 
 function loadStock(){
   var box=document.getElementById('stPlaces');
-  get1('cfg','stockcache').then(function(c){
-    var have=c&&c.list&&c.list.length;
-    if(have){
-      ST.items=c.list; ST.places=c.places||['Store','GWM','NP200']; ST.cats=c.cats||[];
-      renderPlaces(); if(ST.place){ renderCatsStock(); renderStock(); }
-    } else box.innerHTML='<div class="queued">First load — getting stock list…</div>';
-    var stale=!c||!c.savedAt||Date.now()-c.savedAt>CACHE_TTL;
-    if(!have||stale) return apiGet({action:'stock'}).then(function(j){
-      ST.items=j.stock||[]; ST.places=j.places||['Store','GWM','NP200']; ST.cats=j.categories||[];
-      put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats,savedAt:Date.now()}).catch(function(){});
-      renderPlaces(); if(ST.place){ renderCatsStock(); renderStock(); }
-      document.getElementById('stWarn').innerHTML='';
-    }).catch(function(e){
-      if(have) document.getElementById('stWarn').innerHTML='<div class="queued"><b>Offline copy.</b> Showing the stock list saved on this phone.</div>';
-      else box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'<br>Open this once with signal to load the list.</div>';
+  box.innerHTML='<div class="queued">Loading\u2026</div>';
+  apiGet({action:'stock'}).then(function(j){
+    ST.items=j.stock||[]; ST.places=j.places||['Store','GWM','NP200'];
+    ST.cats=j.categories||[];
+    put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
+    renderPlaces();
+  }).catch(function(e){
+    get1('cfg','stockcache').then(function(c){
+      if(c&&c.list&&c.list.length){
+        ST.items=c.list; ST.places=c.places||['Store','GWM','NP200']; ST.cats=c.cats||[];
+        document.getElementById('stWarn').innerHTML=
+          '<div class="queued"><b>No signal.</b> Counting from the list saved on this phone. '+
+          'What you count is kept here until you send it.</div>';
+        renderPlaces();
+      } else {
+        box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+
+          '<br>Open this once with signal to load the list.</div>';
+      }
     });
-  }).catch(function(e){ box.innerHTML='<div class="calc bad">Could not open saved stock list.<br>'+esc(String(e.message||e))+'</div>'; });
+  });
 }
 
 function renderPlaces(){
@@ -3441,11 +3498,7 @@ function renderStock(){
   });
   box.innerHTML='';
   if(!list.length){ box.innerHTML='<div class="no-res">Nothing matched.</div>'; return; }
-  /* Avoid creating hundreds of input elements at once. Search/category can
-     narrow the list; the initial unfiltered view shows the first 120. */
-  var shown=(q||ST.cat)?list:list.slice(0,120);
-  var frag=document.createDocumentFragment();
-  shown.forEach(function(it){
+  list.forEach(function(it){
     var row=document.createElement('div');
     var typed=ST.counts[it.item];
     row.className='strow'+(typed!==undefined?' done':'');
@@ -3461,14 +3514,8 @@ function renderStock(){
       else { ST.counts[it.item]=Math.max(0,Number(v)||0); row.classList.add('done'); }
       stockBar(); saveStockDraft();
     });
-    frag.appendChild(row);
+    box.appendChild(row);
   });
-  box.appendChild(frag);
-  if(!q&&!ST.cat&&list.length>shown.length){
-    var more=document.createElement('div'); more.className='hint';
-    more.textContent='Showing '+shown.length+' of '+list.length+' items. Use search or a category to find the rest.';
-    box.appendChild(more);
-  }
   stockBar();
 }
 
@@ -3689,23 +3736,6 @@ function saveEntries(){
 }
 
 /* ---- screen ---- */
-function syncTimesheetsFromSheet(){
-  if(!CFG.url || !ME || (ME.role!=='Admin' && ME.role!=='Technician')) return Promise.resolve();
-  var key=cycleKey(CYCLE);
-  return apiGet({action:'timesheetAll',cycle:key}).then(function(j){
-    var remote=j.entries||{};
-    Object.keys(remote).forEach(function(name){
-      if(!ENTRIES[name]) ENTRIES[name]={};
-      Object.keys(remote[name]).forEach(function(day){
-        // Never overwrite an unsent local edit. Remote rows are marked sent.
-        if(!ENTRIES[name][day] || ENTRIES[name][day].sent) ENTRIES[name][day]=remote[name][day];
-      });
-    });
-    put('cfg',{id:entKey(),data:ENTRIES}).catch(function(){});
-    renderPeople();
-  }).catch(function(e){ console.warn('timesheet sync',e); });
-}
-
 function showTime(){
   backTo='screenHome';
   document.getElementById('savedTag').textContent='timesheet';
@@ -3739,8 +3769,6 @@ function showTime(){
     }).catch(function(){});
   });
   renderQueue();
-  // Admin/Technician view: show local data immediately, then sync all workers in one request.
-  if(ME && (ME.role==='Admin' || ME.role==='Technician')) syncTimesheetsFromSheet();
 }
 
 function cycleOpen(){
@@ -3761,10 +3789,10 @@ function renderCycle(){
 }
 
 document.getElementById('cycPrev').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,-1); OPEN=null; loadEntries().then(renderCycle).then(syncTimesheetsFromSheet);
+  CYCLE=shiftCycle(CYCLE,-1); OPEN=null; loadEntries().then(renderCycle);
 });
 document.getElementById('cycNext').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,1); OPEN=null; loadEntries().then(renderCycle).then(syncTimesheetsFromSheet);
+  CYCLE=shiftCycle(CYCLE,1); OPEN=null; loadEntries().then(renderCycle);
 });
 
 function workerTotals(name){
@@ -4037,33 +4065,17 @@ window.addEventListener('online',flushQueue);
 function boot(){
   if(!CFG.url){ showAuth(); return; }
   if(!ME){ showAuth(); return; }
-
-  // Show the app immediately from the saved session. Do not make the user
-  // wait for Google Apps Script just to see the Home screen.
-  showHome();
-
-  // Validate the session in the background. If the server rejects it, then
-  // send the user back to login; otherwise leave the UI alone.
+  // confirm the account is still valid and the role hasn't changed
   apiGet({action:'me'}).then(function(j){
-    var changed = (ME.name!==j.user.name || ME.role!==j.user.role);
     ME.name=j.user.name; ME.role=j.user.role;
-    if(changed) saveSession();
-    if(location.hash.indexOf('xero=connected')>=0){
-      history.replaceState(null,'',location.pathname);
-      alert('Xero connected.');
-    }
+    saveSession(); showHome(); xeroStatus_(); if(location.hash.indexOf('xero=connected')>=0){ history.replaceState(null,'',location.pathname); alert('Xero connected.'); }
   }).catch(function(e){
-    if(navigator.onLine){
-      clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); });
-    }
+    if(navigator.onLine){ clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); }); }
+    else { showHome(); }   // offline: trust the stored session
   });
 }
 
-open().then(function(){
-  // Clause library is not needed to open the app. Seed/load it in the background.
-  seedClauses().catch(function(){});
-  return Promise.all([loadCfg(),loadSession()]);
-}).then(boot).catch(function(err){
+open().then(seedClauses).then(loadCfg).then(loadSession).then(boot).catch(function(err){
   console.error('storage unavailable', err);
   MEM = true;
   CLAUSES = SEED.map(function(s,i){ return {id:'seed-'+i, std:s[0], clause:s[1], title:s[2], terms:s[3], own:false}; });
