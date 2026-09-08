@@ -666,6 +666,56 @@ table.page{border-collapse:collapse}
   .xeroresult:hover{background:#f5f8fb}
   @media(max-width:650px){.qbgrid{grid-template-columns:1fr}.qbline{grid-template-columns:1fr 65px 90px 30px}}
 
+
+
+/* ============ Job Cards ============ */
+
+.jc-sign{border:1px solid var(--rule);border-radius:10px;padding:10px;margin-top:12px;background:#fff}.jc-sign canvas{display:block;width:100%;height:180px;border:1px dashed #AEB8C3;border-radius:8px;background:#fff;touch-action:none}.jc-sign .sigtools{display:flex;gap:7px;margin-top:7px}.jc-sign .sigtools button{flex:1}
+
+.jc-types{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 12px}
+.jc-type{border:1px solid var(--rule);background:#fff;border-radius:10px;padding:12px;text-align:left;cursor:pointer;font:inherit;color:var(--ink);font-weight:600}
+.jc-type.on{border-color:var(--navy);background:#EEF4FA;box-shadow:0 0 0 1px var(--navy);color:var(--navy)}
+.jc-section{border:1px solid var(--rule);border-radius:12px;padding:13px;margin:10px 0;background:#fff}
+.jc-section h3{margin:0 0 9px;color:var(--navy);font-size:16px}
+.jc-section .hint{margin:0 0 9px}
+.jc-grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.jc-field{margin:8px 0}
+.jc-field label{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px}
+.jc-field input,.jc-field textarea,.jc-field select{width:100%;border:1px solid var(--rule);border-radius:8px;padding:10px 9px;font:inherit;font-size:15px;background:#fff;outline:none}
+.jc-field textarea{min-height:72px;resize:vertical}
+.jc-field input:focus,.jc-field textarea:focus,.jc-field select:focus{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.jc-photo{border:1px dashed #AEB8C3;border-radius:10px;padding:9px;margin:8px 0;background:#FBFCFD}
+.jc-photo .pt{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:6px}
+.jc-photo input[type=file]{width:100%;font-size:13px}
+.jc-photo img{display:block;width:100%;max-height:230px;object-fit:contain;border-radius:8px;margin-top:8px;background:#F2F4F6}
+.jc-photo .pcap{margin-top:7px}
+.jc-photo .pcap input{width:100%;border:1px solid var(--rule);border-radius:7px;padding:8px;font:inherit;font-size:13px}
+.jc-row-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.jc-row-actions .btn{flex:1;min-width:130px}
+.jc-status{display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;background:#EEF2F6;color:var(--muted)}
+.jc-status.submitted{background:#EAF6EF;color:#1B6E48}.jc-status.reviewed{background:#EAF1F8;color:var(--navy)}.jc-status.completed{background:#EAF6EF;color:#17643A}
+.jc-item{border:1px solid var(--rule);border-radius:10px;padding:10px;margin:8px 0;background:#FBFCFD}
+.jc-item .remove{float:right;border:0;background:none;color:var(--red);font-weight:700;cursor:pointer}
+.jc-measure{display:grid;grid-template-columns:1fr 130px;gap:7px;align-items:center;margin:7px 0}
+.jc-measure label{font-size:13px;color:var(--ink)}
+.jc-measure input{width:100%;border:1px solid var(--rule);border-radius:7px;padding:9px;font:inherit}
+.jc-list-row{border:1px solid var(--rule);border-radius:11px;padding:12px 13px;margin:8px 0;background:#fff;display:flex;align-items:center;gap:10px}
+.jc-list-row .info{flex:1;min-width:0}.jc-list-row .info b{display:block;color:var(--navy);font-size:15px}.jc-list-row .info span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.jc-list-row .actions{display:flex;gap:5px;flex-wrap:wrap}.jc-list-row .actions button{border:1px solid var(--rule);background:#fff;color:var(--navy);border-radius:7px;padding:7px 10px;font:inherit;font-size:12px;font-weight:600}
+.jc-print{display:none}
+.jc-report{font-family:Arial,sans-serif;background:#fff;color:#18212B;padding:20px;max-width:820px;margin:0 auto}
+.jc-report .rhead{display:flex;align-items:center;gap:16px;border-bottom:2px solid #1F4E79;padding-bottom:12px;margin-bottom:16px}.jc-report .rhead img{width:150px;height:auto}.jc-report .rhead .rhinfo{margin-left:auto;text-align:right;font-size:12px;color:#667085}.jc-report h1{font-size:24px;color:#1F4E79;margin:0 0 3px}.jc-report h2{font-size:16px;color:#1F4E79;border-bottom:1px solid #CBD3DC;padding-bottom:5px;margin:20px 0 9px}.jc-report .rmeta{display:grid;grid-template-columns:1fr 1fr;gap:7px 18px;font-size:13px}.jc-report .rmeta b{color:#1F4E79}.jc-report .rblock{font-size:13px;line-height:1.5;white-space:pre-wrap}.jc-report .rphotos{display:grid;grid-template-columns:1fr 1fr;gap:10px}.jc-report .rphoto{border:1px solid #CBD3DC;padding:7px;break-inside:avoid}.jc-report .rphoto img{display:block;width:100%;height:150px;object-fit:contain}.jc-report .rphoto .cap{font-size:11px;margin-top:5px}.jc-report table{width:100%;border-collapse:collapse;font-size:13px}.jc-report th,.jc-report td{border-bottom:1px solid #E4E8ED;padding:7px 5px;text-align:left}.jc-report th{color:#1F4E79}
+@media(max-width:650px){.jc-types,.jc-grid2,.jc-report .rmeta,.jc-report .rphotos{grid-template-columns:1fr}.jc-list-row{align-items:flex-start}.jc-list-row .actions{flex-direction:column}.jc-measure{grid-template-columns:1fr 105px}}
+@media print{
+  body.jcprinting{background:#fff!important;padding:0!important}
+  body.jcprinting .appbar,body.jcprinting .jc-editor,body.jcprinting .actionbar,body.jcprinting #btnBack{display:none!important}
+  body.jcprinting #screenJobCard{display:block!important;max-width:none!important;padding:0!important}
+  body.jcprinting #screenJobCard .jc-print{display:block!important}
+  body.jcprinting .wrap{max-width:none;padding:0}
+  body.jcprinting .jc-report{max-width:none;padding:0}
+  body.jcprinting .jc-report .rphoto img{height:80mm}
+}
+
 </style>
 </head>
 <body>
@@ -710,6 +760,10 @@ table.page{border-collapse:collapse}
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2a1 1 0 0 0 .84-.46l.92-1.42A1 1 0 0 1 9.3 4.6h5.4a1 1 0 0 1 .84.52l.92 1.42a1 1 0 0 0 .84.46h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.8" r="3.6"/></svg></span>
       <span class="tx"><b>Inspections</b><span>Photo report, saved on this phone</span></span><span class="go">›</span>
     </button>
+    <button class="tile" data-go="jobcards" data-role="Admin,Technician,Worker" type="button">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h14v15H5z"/><path d="M8 8h8M8 11.5h8M8 15h5"/><path d="M17 18.5v2"/></svg></span>
+      <span class="tx"><b>Job Cards</b><span>Record work, photos and inspections</span></span><span class="go">›</span>
+    </button>
     <button class="tile" data-go="stock" type="button">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3.6l8.5 3.9v9L12 20.4 3.5 16.5z"/><path d="M3.5 7.5 12 11.4l8.5-3.9M12 11.4v9"/></svg></span>
       <span class="tx"><b>Stock</b><span>Count the store or a bakkie</span></span><span class="go">›</span>
@@ -750,6 +804,44 @@ table.page{border-collapse:collapse}
     <button class="btn" type="button" id="btnNew" style="width:100%;padding:15px">+ Start a new inspection</button>
     <div class="joblist" id="joblist"></div>
   </section>
+</div>
+
+
+<!-- ================= JOB CARDS ================= -->
+<div class="wrap hidden" id="screenJobCards">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Job Cards</h2><span class="tag">Saved on this phone</span></div>
+    <p class="hint">Create one job card for the day's work. Pick only the work types you actually did; the relevant sections open automatically.</p>
+    <button class="btn" type="button" id="jcNew" style="width:100%;padding:15px">+ Start a new job card</button>
+    <div id="jcList"></div>
+  </section>
+</div>
+
+<!-- ================= JOB CARD EDITOR ================= -->
+<div class="wrap hidden" id="screenJobCard">
+  <div class="jc-editor">
+    <section class="sheet">
+      <div class="sheet-head"><h2>Job Card <span id="jcNoHead"></span></h2><span id="jcStatusHead" class="jc-status">Draft</span></div>
+      <div class="jc-grid2">
+        <div class="jc-field"><label>Customer</label><input id="jcCustomer" placeholder="Customer name"></div>
+        <div class="jc-field"><label>Site / Job</label><input id="jcSite" placeholder="Site address or job name"></div>
+        <div class="jc-field"><label>Date</label><input id="jcDate" type="date"></div>
+        <div class="jc-field"><label>Technician(s)</label><input id="jcTechs" placeholder="e.g. Michael, Jacobus"></div>
+      </div>
+      <h3>What are we installing / doing today?</h3>
+      <div class="jc-types" id="jcTypes"></div>
+      <div id="jcSections"></div>
+      <div class="jc-row-actions">
+        <button class="btn ghost" id="jcSave" type="button">Save</button>
+        <button class="btn" id="jcSubmit" type="button">Submit Job Card</button>
+        <button class="btn ghost" id="jcPdf" type="button">Generate PDF</button>
+        <button class="btn ghost" id="jcShare" type="button">Share PDF</button>
+      </div>
+      <div id="jcMsg" class="hint" style="margin-top:8px"></div>
+      <div class="jc-sign"><h3 style="margin:0 0 5px">Client sign-off</h3><p class="hint">Customer signs with a finger on the phone after the work is complete.</p><canvas id="jcSignature" width="900" height="260"></canvas><div class="sigtools"><button class="btn ghost" id="jcSigClear" type="button">Clear signature</button><button class="btn ghost" id="jcSigDone" type="button">Save signature</button></div></div>
+    </section>
+  </div>
+  <div class="jc-print"><div id="jcReport" class="jc-report"></div></div>
 </div>
 
 <!-- ================= SETTINGS ================= -->
@@ -1216,10 +1308,10 @@ var PRESETS = {
 };
 
 /* ============ storage ============ */
-var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], DBNAME='flagship-inspections';
+var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], MEMJOBCARDS=[], DBNAME='flagship-inspections';
 function open(){
   return new Promise(function(res,rej){
-    var r = indexedDB.open(DBNAME,3);
+    var r = indexedDB.open(DBNAME,4);
     r.onupgradeneeded=function(e){
       var d=e.target.result;
       if(!d.objectStoreNames.contains('jobs')) d.createObjectStore('jobs',{keyPath:'id'});
@@ -1227,6 +1319,7 @@ function open(){
       if(!d.objectStoreNames.contains('cfg')) d.createObjectStore('cfg',{keyPath:'id'});
       if(!d.objectStoreNames.contains('props')) d.createObjectStore('props',{keyPath:'id'});
       if(!d.objectStoreNames.contains('quotes')) d.createObjectStore('quotes',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('jobcards')) d.createObjectStore('jobcards',{keyPath:'id'});
     };
     r.onsuccess=function(){DB=r.result;res(DB)};
     r.onerror=function(){rej(r.error)};
@@ -1237,16 +1330,17 @@ function memJob(id){ for(var i=0;i<MEMJOBS.length;i++) if(MEMJOBS[i].id===id) re
 function put(store,val){
   if(MEM){
     if(store==='jobs'){ var e=memJob(val.id); if(e){ Object.assign(e,val); } else MEMJOBS.push(val); }
+    else if(store==='jobcards'){ var je=MEMJOBCARDS.find(function(x){return x.id===val.id}); if(je) Object.assign(je,val); else MEMJOBCARDS.push(val); }
     else if(store==='cfg'){ MEMCFG[val.id]=val; }
     else if(store==='quotes'){ var qe=MEMQUOTES.find(function(x){return x.id===val.id}); if(qe) Object.assign(qe,val); else MEMQUOTES.push(val); }
     return Promise.resolve();
   }
   return new Promise(function(res,rej){var q=tx(store,'readwrite').put(val);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
-function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():CLAUSES.slice())));
+function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='jobcards'?MEMJOBCARDS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():CLAUSES.slice()))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').getAll();q.onsuccess=function(){res(q.result||[])};q.onerror=function(){rej(q.error)}}); }
-function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null)));
+function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='jobcards'?(MEMJOBCARDS.find(function(x){return x.id===id})||null):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').get(id);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}}); }
-function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
+function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else if(store==='jobcards') MEMJOBCARDS=MEMJOBCARDS.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
   return new Promise(function(res,rej){var q=tx(store,'readwrite').delete(id);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
 
 /* ============ slots ============ */
@@ -1429,7 +1523,7 @@ function save(){
 document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')) save(); });
 
 /* ============ screens ============ */
-var SCREENS=['screenAuth','screenHome','screenJobs','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
+var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
 var backTo='screenHome';
 
 function show(id){
@@ -1458,6 +1552,116 @@ function showHome(){
   });
   show('screenHome');
 }
+
+
+/* ============ JOB CARDS ============ */
+var JC=null, jcSaveTimer=null, JC_TYPES=[
+  {id:'panels',name:'Solar Panels'},
+  {id:'fullsolar',name:'Full Solar Installation'},
+  {id:'descale',name:'Heatpump Descale'},
+  {id:'plug',name:'Plug Change'},
+  {id:'firmware',name:'Battery Firmware Update'},
+  {id:'coc',name:'COC Inspection Work'},
+  {id:'custom',name:'Custom Jobs'}
+];
+
+function jcBlank(){
+  var d=new Date(), ds=d.getFullYear()+'-'+pad2_(d.getMonth()+1)+'-'+pad2_(d.getDate());
+  return {id:'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),number:'JC-'+ds.replace(/-/g,'')+'-'+String(Date.now()).slice(-4),customer:'',site:'',date:ds,technicians:ME?ME.name:'',types:[],status:'DRAFT',signature:'',signatureName:'',signedAt:'',created:Date.now(),updated:Date.now(),sections:{descale:{},plug:{},firmware:{},coc:{},fullsolar:{},panels:{},custom:{items:[]}}};
+}
+function jcEscLines_(s){ return esc(String(s==null?'':s)).replace(/\n/g,'<br>'); }
+function jcGet_(obj,path){ var a=path.split('.'),x=obj; for(var i=0;i<a.length;i++) x=x&&x[a[i]]; return x==null?'':x; }
+function jcSet_(obj,path,val){ var a=path.split('.'),x=obj; for(var i=0;i<a.length-1;i++){if(!x[a[i]])x[a[i]]={};x=x[a[i]];} x[a[a.length-1]]=val; }
+function jcHas_(id){return JC&&JC.types.indexOf(id)>=0;}
+function jcPhotoBlock_(section,key,label){
+  var sec=JC.sections[section]||{}; var val=sec[key]||{}; if(typeof val==='string') val={img:val,cap:''};
+  var id='jcp-'+section+'-'+key+'-'+Math.random().toString(36).slice(2,7);
+  return '<div class="jc-photo"><div class="pt">'+esc(label)+'</div>'+
+    (val.img?'<img src="'+val.img+'" alt="">':'')+
+    '<input type="file" accept="image/*" capture="environment" data-jc-photo="'+section+'|'+key+'" id="'+id+'">'+
+    '<div class="pcap"><input value="'+esc(val.cap||'')+'" placeholder="Photo note / what it shows" data-jc-cap="'+section+'|'+key+'"></div></div>';
+}
+function jcText_(section,key,label,placeholder,multi){
+  var val=(JC.sections[section]||{})[key]||'';
+  return '<div class="jc-field"><label>'+esc(label)+'</label>'+(multi?'<textarea data-jc-field="'+section+'|'+key+'" placeholder="'+esc(placeholder||'')+'">'+esc(val)+'</textarea>':'<input data-jc-field="'+section+'|'+key+'" value="'+esc(val)+'" placeholder="'+esc(placeholder||'')+'">')+'</div>';
+}
+function jcRenderTypes_(){
+  var el=document.getElementById('jcTypes'); if(!el)return; el.innerHTML=JC_TYPES.map(function(t){return '<button type="button" class="jc-type '+(jcHas_(t.id)?'on':'')+'" data-jc-type="'+t.id+'">'+esc(t.name)+'</button>';}).join('');
+  el.querySelectorAll('[data-jc-type]').forEach(function(b){b.addEventListener('click',function(){var id=b.getAttribute('data-jc-type'),i=JC.types.indexOf(id);if(i>=0)JC.types.splice(i,1);else JC.types.push(id);if(id==='custom'&&!JC.sections.custom.items.length)JC.sections.custom.items=[{description:'',photo:{img:'',cap:''}}];jcRenderAll_();jcScheduleSave_();});});
+}
+function jcRenderSections_(){
+  var out='';
+  if(jcHas_('panels')) out+='<section class="jc-section"><h3>Solar Panels</h3><p class="hint">Record the panel work and add photos that prove what was installed.</p>'+jcText_('panels','work','Work performed','Describe the panel installation / replacement.',true)+jcPhotoBlock_('panels','photo','Panel installation / completed work')+'</section>';
+  if(jcHas_('fullsolar')) out+='<section class="jc-section"><h3>Full Solar Installation</h3><p class="hint">General installation record. Detailed inspection fields appear below when COC Inspection Work is selected.</p>'+jcText_('fullsolar','work','Work performed','What was installed, changed or commissioned?',true)+jcPhotoBlock_('fullsolar','before','Site / installation before work')+jcPhotoBlock_('fullsolar','after','Completed installation')+'</section>';
+  if(jcHas_('descale')) out+='<section class="jc-section"><h3>Heatpump Descale</h3>'+jcPhotoBlock_('descale','location','Photo — where the heatpump is')+jcPhotoBlock_('descale','before','Photo — pipes / water before descale')+jcPhotoBlock_('descale','after','Photo — after descale')+jcText_('descale','notes','Work / findings','What was cleaned, replaced or found?',true)+'</section>';
+  if(jcHas_('plug')) out+='<section class="jc-section"><h3>Plug Change</h3>'+jcPhotoBlock_('plug','before','Photo — before')+jcPhotoBlock_('plug','after','Photo — after')+jcText_('plug','notes','Notes','Any faults or observations?',true)+'</section>';
+  if(jcHas_('firmware')) out+='<section class="jc-section"><h3>Battery Firmware Update</h3>'+jcText_('firmware','version','Firmware version','e.g. V1.2.3')+jcPhotoBlock_('firmware','photo','Photo — firmware screen')+jcText_('firmware','notes','Notes','Any update result or issue?',true)+'</section>';
+  if(jcHas_('coc')){
+    var c=JC.sections.coc||{};
+    out+='<section class="jc-section"><h3>COC Inspection Work</h3><p class="hint">Inspection evidence. Take the photos on site before moving to the next step.</p>'+jcPhotoBlock_('coc','roof','Photo — roof / panel area')+jcPhotoBlock_('coc','inverterwall','Photo — wall where inverter & battery will hang')+
+      '<div class="jc-grid2">'+jcText_('coc','inverterSerial','Inverter serial number','Serial number')+jcText_('coc','batterySerial','Battery serial number','Serial number')+'</div>'+jcPhotoBlock_('coc','dbBefore','Photo — main DB before work')+jcPhotoBlock_('coc','changeover','Photo — changeover board')+jcPhotoBlock_('coc','earthNeutral','Photo — earth-neutral bridge at inverter')+jcPhotoBlock_('coc','dbAfter','Photo — main DB after work')+jcPhotoBlock_('coc','railEarth','Photo — earth on rails')+jcPhotoBlock_('coc','roofRoute','Photo — panel cable route in roof space')+
+      '<div class="jc-grid2">'+jcText_('coc','snags','Snags','Any outstanding snags?',true)+jcText_('coc','damages','Damages caused by our team','Describe any damage and add photos below.',true)+'</div>'+jcPhotoBlock_('coc','damagePhoto','Photo — damage caused by our team')+
+      '<h3 style="margin-top:15px">Measurements</h3>'+['Live → Neutral Voltage','Neutral → Earth Voltage','Live → Earth Voltage','Panels DC Voltage','DC Disconnect — Fuse size'].map(function(label,i){var k=['ln','ne','le','dc','fuse'][i],v=c[k]||'';return '<div class="jc-measure"><label>'+esc(label)+'</label><input value="'+esc(v)+'" placeholder="Value / size" data-jc-coc="'+k+'"></div>';}).join('')+jcPhotoBlock_('coc','fusePhoto','Photo — DC Disconnect / fuse')+'</section>';
+  }
+  if(jcHas_('custom')){
+    var items=JC.sections.custom.items||[];
+    out+='<section class="jc-section"><h3>Custom Jobs</h3><p class="hint">Add as many individual tasks as needed. Each task can have its own photo.</p><div id="jcCustomItems">'+items.map(function(it,i){return '<div class="jc-item"><button class="remove" type="button" data-jc-remove-item="'+i+'">Remove</button><div class="jc-field"><label>What was done?</label><textarea data-jc-custom-desc="'+i+'" placeholder="Describe the work">'+esc(it.description||'')+'</textarea></div>'+jcCustomPhoto_(i,it.photo)+'</div>';}).join('')+'</div><button class="add" type="button" id="jcAddCustom">+ Add another item</button></section>';
+  }
+  document.getElementById('jcSections').innerHTML=out;
+  jcBindFields_();
+}
+function jcCustomPhoto_(i,val){val=val||{};var id='jcc-'+i+'-'+Math.random().toString(36).slice(2,7);return '<div class="jc-photo"><div class="pt">Photo</div>'+(val.img?'<img src="'+val.img+'" alt="">':'')+'<input type="file" accept="image/*" capture="environment" data-jc-custom-photo="'+i+'" id="'+id+'"><div class="pcap"><input value="'+esc(val.cap||'')+'" placeholder="Photo note" data-jc-custom-cap="'+i+'"></div></div>';}
+function jcBindFields_(){
+  document.querySelectorAll('#screenJobCard [data-jc-field]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-field').split('|');if(!JC.sections[p[0]])JC.sections[p[0]]={};JC.sections[p[0]][p[1]]=el.value;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-coc]').forEach(function(el){el.addEventListener('input',function(){JC.sections.coc[el.getAttribute('data-jc-coc')]=el.value;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}shrink(f,function(url){var p=input.getAttribute('data-jc-photo').split('|');if(!JC.sections[p[0]])JC.sections[p[0]]={};JC.sections[p[0]][p[1]]={img:url,cap:(JC.sections[p[0]][p[1]]||{}).cap||''};jcRenderSections_();jcScheduleSave_();});});});
+  document.querySelectorAll('#screenJobCard [data-jc-cap]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-cap').split('|'),v=JC.sections[p[0]][p[1]]||{};if(typeof v==='string')v={img:v};v.cap=el.value;JC.sections[p[0]][p[1]]=v;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-custom-desc]').forEach(function(el){el.addEventListener('input',function(){JC.sections.custom.items[Number(el.getAttribute('data-jc-custom-desc'))].description=el.value;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-custom-cap]').forEach(function(el){el.addEventListener('input',function(){var i=Number(el.getAttribute('data-jc-custom-cap')),v=JC.sections.custom.items[i].photo||{};v.cap=el.value;JC.sections.custom.items[i].photo=v;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-custom-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}shrink(f,function(url){var i=Number(input.getAttribute('data-jc-custom-photo'));JC.sections.custom.items[i].photo={img:url,cap:(JC.sections.custom.items[i].photo||{}).cap||''};jcRenderSections_();jcScheduleSave_();});});});
+  document.querySelectorAll('#screenJobCard [data-jc-remove-item]').forEach(function(b){b.addEventListener('click',function(){JC.sections.custom.items.splice(Number(b.getAttribute('data-jc-remove-item')),1);jcRenderSections_();jcScheduleSave_();});});
+  var add=document.getElementById('jcAddCustom');if(add)add.addEventListener('click',function(){JC.sections.custom.items.push({description:'',photo:{img:'',cap:''}});jcRenderSections_();jcScheduleSave_();});
+}
+function jcScheduleSave_(){clearTimeout(jcSaveTimer);jcSaveTimer=setTimeout(jcSaveLocal_,350);}
+function jcSaveLocal_(){if(!JC)return;JC.updated=Date.now();put('jobcards',JC).then(function(){var h=document.getElementById('jcStatusHead');if(h){h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();h.className='jc-status '+JC.status.toLowerCase();}var m=document.getElementById('jcMsg');if(m)m.textContent='Saved on this phone · '+new Date(JC.updated).toLocaleTimeString();}).catch(function(){alert('Could not save this job card on the phone.');});}
+function jcRenderAll_(){if(!JC)return;document.getElementById('jcNoHead').textContent=JC.number||'';document.getElementById('jcCustomer').value=JC.customer||'';document.getElementById('jcSite').value=JC.site||'';document.getElementById('jcDate').value=JC.date||'';document.getElementById('jcTechs').value=JC.technicians||'';jcRenderTypes_();jcRenderSections_();jcInitSignature_();var h=document.getElementById('jcStatusHead');h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();h.className='jc-status '+JC.status.toLowerCase();jcRenderReport_();}
+function jcBindCommon_(){['jcCustomer','jcSite','jcDate','jcTechs'].forEach(function(id){var e=document.getElementById(id);e.addEventListener('input',function(){JC.customer=document.getElementById('jcCustomer').value;JC.site=document.getElementById('jcSite').value;JC.date=document.getElementById('jcDate').value;JC.technicians=document.getElementById('jcTechs').value;jcRenderReport_();jcScheduleSave_();});});}
+
+function jcInitSignature_(){
+  var c=document.getElementById('jcSignature');if(!c)return;var ctx=c.getContext('2d');ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.clearRect(0,0,c.width,c.height);if(JC.signature){var im=new Image();im.onload=function(){ctx.drawImage(im,0,0,c.width,c.height)};im.src=JC.signature;}
+  var drawing=false,last=null;
+  function pos(e){var r=c.getBoundingClientRect(),x=(e.clientX-r.left)*(c.width/r.width),y=(e.clientY-r.top)*(c.height/r.height);return{x:x,y:y};}
+  c.onpointerdown=function(e){drawing=true;last=pos(e);c.setPointerCapture&&c.setPointerCapture(e.pointerId);};
+  c.onpointermove=function(e){if(!drawing)return;var q=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(q.x,q.y);ctx.stroke();last=q;};
+  c.onpointerup=function(){drawing=false;JC.signature=c.toDataURL('image/png');JC.signedAt=new Date().toISOString();jcRenderReport_();jcScheduleSave_();};
+  c.onpointercancel=function(){drawing=false;};
+  var cl=document.getElementById('jcSigClear');if(cl)cl.onclick=function(){ctx.clearRect(0,0,c.width,c.height);JC.signature='';JC.signedAt='';jcRenderReport_();jcScheduleSave_();};
+  var done=document.getElementById('jcSigDone');if(done)done.onclick=function(){JC.signature=c.toDataURL('image/png');JC.signedAt=JC.signedAt||new Date().toISOString();jcRenderReport_();jcScheduleSave_();alert('Signature saved.');};
+}
+function jcNew_(){JC=jcBlank();backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();jcSaveLocal_();}
+function showJobCards(){currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRenderList_();}
+function jcRenderList_(){getAll('jobcards').then(function(list){list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+st.toLowerCase()+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+j.id+'">Open</button><button type="button" data-jc-pdf="'+j.id+'">PDF</button><button type="button" data-jc-del="'+j.id+'">Delete</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Delete this job card?'))del('jobcards',b.getAttribute('data-jc-del')).then(jcRenderList_);});});});}
+function jcPhotoCount_(j){var n=0;function walk(x){if(!x)return;if(typeof x==='object'){if(x.img)n++;Object.keys(x).forEach(function(k){if(k!=='img')walk(x[k]);});}}walk(j.sections);return n;}
+function jcOpen_(id,pdf){get1('jobcards',id).then(function(j){if(!j)return;JC=j;backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();if(pdf)setTimeout(jcGeneratePdf_,50);});}
+function jcSubmit_(){if(!JC)return;var missing=[];if(!JC.customer.trim())missing.push('Customer');if(!JC.site.trim())missing.push('Site / Job');if(!JC.types.length)missing.push('at least one job type');if(missing.length){alert('Please fill in: '+missing.join(', '));return;}JC.status='SUBMITTED';jcSaveLocal_();if(CFG.url&&ME){var b=document.getElementById('jcSubmit');b.disabled=true;api({action:'jobCardSave',jobCard:jcMetaOnly_(JC)}).then(function(){document.getElementById('jcMsg').textContent='Submitted to the Google Sheet.';}).catch(function(e){document.getElementById('jcMsg').textContent='Saved locally, but sheet sync failed: '+String(e.message||e);}).finally(function(){b.disabled=false;});}else document.getElementById('jcMsg').textContent='Saved locally. Connect the sheet to submit centrally.';}
+function jcMetaOnly_(j){var x=JSON.parse(JSON.stringify(j));function strip(v){if(!v||typeof v!=='object')return v;if(Array.isArray(v))return v.map(strip);var o={};Object.keys(v).forEach(function(k){if(k==='img')return;o[k]=strip(v[k]);});return o;}x.sections=strip(x.sections);return x;}
+function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appbar img')||{}).src||'';var html='<div class="rhead"><img src="'+logo+'"><div class="rhinfo"><h1>JOB CARD</h1><div>'+esc(JC.number||'')+'</div><div>'+esc(JC.status||'DRAFT')+'</div></div></div><div class="rmeta"><div><b>Customer</b><br>'+esc(JC.customer||'—')+'</div><div><b>Site / Job</b><br>'+esc(JC.site||'—')+'</div><div><b>Date</b><br>'+esc(JC.date||'—')+'</div><div><b>Technician(s)</b><br>'+esc(JC.technicians||'—')+'</div></div>';
+  JC.types.forEach(function(t){var s=JC.sections[t]||{};var title=(JC_TYPES.find(function(x){return x.id===t})||{name:t}).name;html+='<h2>'+esc(title)+'</h2>';
+    if(t==='panels'||t==='fullsolar')html+='<div class="rblock">'+jcEscLines_(s.work||'')+'</div>'+jcReportPhotos_([s.photo,s.before,s.after]);
+    if(t==='descale')html+='<div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.location,s.before,s.after]);
+    if(t==='plug')html+='<div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.before,s.after]);
+    if(t==='firmware')html+='<div class="rmeta"><div><b>Firmware</b><br>'+esc(s.version||'—')+'</div></div><div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.photo]);
+    if(t==='coc'){html+='<div class="rmeta"><div><b>Inverter serial</b><br>'+esc(s.inverterSerial||'—')+'</div><div><b>Battery serial</b><br>'+esc(s.batterySerial||'—')+'</div></div><h2>Measurements</h2><table><tr><th>Measurement</th><th>Value</th></tr>'+[['Live → Neutral','ln'],['Neutral → Earth','ne'],['Live → Earth','le'],['Panels DC Voltage','dc'],['DC Disconnect — Fuse size','fuse']].map(function(a){return '<tr><td>'+a[0]+'</td><td>'+esc(s[a[1]]||'—')+'</td></tr>';}).join('')+'</table><h2>Snags / Damages</h2><div class="rblock"><b>Snags:</b> '+jcEscLines_(s.snags||'—')+'\n\n<b>Damages:</b> '+jcEscLines_(s.damages||'—')+'</div>'+jcReportPhotos_([s.roof,s.inverterwall,s.dbBefore,s.changeover,s.earthNeutral,s.dbAfter,s.railEarth,s.roofRoute,s.damagePhoto,s.fusePhoto]);}
+    if(t==='custom')(s.items||[]).forEach(function(it,i){html+='<div class="rblock"><b>Item '+(i+1)+'</b> — '+jcEscLines_(it.description||'')+'</div>'+jcReportPhotos_([it.photo]);});
+  });
+  if(JC.signature)html+='<h2>Client sign-off</h2><div class="rblock">Signed electronically'+(JC.signedAt?' · '+esc(new Date(JC.signedAt).toLocaleString()):'')+'</div><div style="margin-top:6px"><img src="'+JC.signature+'" style="max-width:420px;width:100%;height:100px;object-fit:contain;border-bottom:1px solid #667085"></div>';document.getElementById('jcReport').innerHTML=html;}
+function jcReportPhotos_(arr){var a=arr.filter(function(x){return x&&x.img;});if(!a.length)return '';return '<div class="rphotos">'+a.map(function(x){return '<div class="rphoto"><img src="'+x.img+'"><div class="cap">'+esc(x.cap||'')+'</div></div>';}).join('')+'</div>';}
+function jcLoadPdfLibs_(){if(window.jspdf&&window.html2canvas)return Promise.resolve();function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}return load('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').then(function(){return load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');});}
+function jcBuildPdf_(){jcRenderReport_();return jcLoadPdfLibs_().then(function(){var el=document.getElementById('jcReport'),J=window.jspdf.jsPDF;return new Promise(function(resolve,reject){var doc=new J({orientation:'p',unit:'mm',format:'a4'});doc.html(el,{x:8,y:8,width:194,windowWidth:820,autoPaging:'text',margin:[8,8,8,8],html2canvas:{scale:1.25,useCORS:false},callback:function(d){resolve(d);}});});});}
+function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
+function jcSharePdf_(){if(!JC)return;var b=document.getElementById('jcShare');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var blob=doc.output('blob'),name=(JC.number||'Job-Card')+'.pdf',file=new File([blob],name,{type:'application/pdf'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]})))return navigator.share({title:'Flagship Job Card '+(JC.number||''),text:(JC.customer||'')+' — '+(JC.site||''),files:[file]});var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u);},2000);alert('Your browser cannot share PDF files directly, so the PDF was saved instead.');}).catch(function(e){if(e&&e.name==='AbortError')return;alert('PDF share failed: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
+document.getElementById('jcNew').addEventListener('click',jcNew_);document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
 
 function showJobs(){
   currentId=null;
@@ -1510,6 +1714,7 @@ document.getElementById('btnNew').addEventListener('click',function(){
 });
 document.getElementById('btnBack').addEventListener('click',function(){
   if(backTo==='screenJobs') showJobs();
+  else if(backTo==='screenJobCards') showJobCards();
   else if(backTo==='screenAuth') showAuth();
   else showHome();
 });
