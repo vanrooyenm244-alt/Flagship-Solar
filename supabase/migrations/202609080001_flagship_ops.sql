@@ -137,6 +137,5 @@ create policy "notifications recipient update" on public.notifications for updat
 create policy "audit managers read" on public.audit_log for select using (has_permission(company_id,'jobs.manage'));
 
 insert into storage.buckets(id,name,public) values ('job-card-photos','job-card-photos',false) on conflict(id) do nothing;
-alter table storage.objects enable row level security;
 create policy "job card photo upload" on storage.objects for insert to authenticated with check (bucket_id='job-card-photos');
 create policy "job card photo read" on storage.objects for select to authenticated using (bucket_id='job-card-photos');
