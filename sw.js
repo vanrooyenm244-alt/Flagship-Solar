@@ -1,9 +1,10 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-v43';
+const CACHE = 'flagship-v44';
 const SHELL = [
   './',
   './index.html',
+  './supabase-client.js',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',

@@ -109,6 +109,42 @@ anywhere, not backed up.
 
 Timesheets and prices live in the Google Sheet, not on the phone.
 
+## Supabase field-service foundation
+
+The repository now includes an opt-in Supabase path for the shared field-service
+system. It does not contain a project URL, API key, service-role key, or fake
+Xero credentials.
+
+1. Create a Supabase project and run
+   [`supabase/migrations/202609080001_flagship_ops.sql`](supabase/migrations/202609080001_flagship_ops.sql)
+   in its SQL editor (or apply it through the Supabase CLI).
+2. Copy `supabase-config.example.js` to `supabase-config.js`, then put in the
+   project URL and **anon/public** key. `supabase-config.js` is ignored by Git.
+3. Create the first user through Supabase Auth, then assign that profile a
+   company membership, role, permissions, and job capabilities in Supabase.
+   This initial bootstrap is intentionally an administrator action; the app
+   never grants itself admin access.
+
+The existing Google Sheets sign-in, timesheets, prices, and offline behavior
+remain the active path. The adapter is intentionally isolated until the
+Supabase authentication and field-service screens are migrated together; it
+does not replace the legacy account session merely because a project URL has
+been configured.
+
+The migration is the data/security foundation for the remaining field-service
+views: companies, memberships, granular permissions, capabilities, customers,
+jobs and lead/helpers, job cards/items/files, calendar events, booking
+requests, timesheets, notifications, and an audit log. RLS restricts access by
+membership, assigned job, and permission; it is not based on a client-side role
+check alone. A booking-decision audit trigger is included. The app does not yet
+ship a calendar or Xero API integration, because either would need a configured
+backend and, for Xero, real OAuth credentials.
+
+GPS arrival/departure data is modelled with a source field (`manual`,
+`foreground_gps`, or `native_background`). Browser PWAs cannot promise reliable
+background tracking on Android, so any future implementation must clearly show
+the source rather than treating a stationary phone as proof of attendance.
+
 ## Accounts and roles
 
 Everyone signs in. Accounts live in the **Users** sheet and the script checks
