@@ -1,6 +1,6 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-v49';
+const CACHE = 'flagship-v50';
 const SHELL = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const SHELL = [
   './assets/band-top.jpg',
   './assets/band-bottom.jpg',
   './assets/cover.jpg'
+  './xero-customer.js',
 ];
 
 self.addEventListener('install', (e) => {
