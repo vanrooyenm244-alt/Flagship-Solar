@@ -2538,20 +2538,17 @@ function loadPrices(){
     var list = j.prices || [];
 
     PRICES=(list||[]).map(function(x){
-      return {
-        id:x.id,
-        category:x.category||'',
-        supplier:x.supplier||'',
-        code:x.code||'',
-        description:x.description||'',
-        unit:x.unit||'',
-        cost:Number(x.cost)||0,
-        type:x.type||'Cost',
-        markup:x.markup==null?'':Number(x.markup),
-        install:Number(x.install)||0,
-        spec:x.spec||'',
-        active:x.active!==false,
-        updated:x.updated||''
+return {
+  id:x.id,
+  category:x.category||'',
+  supplier:x.supplier||'',
+  code:x.code||'',
+  description:x.description||'',
+  unit:x.unit||'',
+  cost:Number(x.cost)||0,
+  type:x.type||'Cost',
+  markup:x.markup==null?'':Number(x.markup),
+  sell:Number(x.sell)||0,
       };
     });
 
