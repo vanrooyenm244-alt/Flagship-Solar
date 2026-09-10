@@ -2530,14 +2530,56 @@ function applyPriceUpdate_(){
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
 
+var PRICES_LOADING=false;
+
 function loadPrices(){
   var box=document.getElementById('prList');
-  box.innerHTML='<div class="queued">Loading…</div>';
 
-  apiGet({action:'prices'}).then(function(j){
-    var list = j.prices || [];
+  get1('cfg','pricecache').then(function(c){
 
-    PRICES=(list||[]).map(function(x){
+    if(c && c.list && c.list.length){
+      PRICES=c.list;
+      PCACHE=PRICES;
+      renderCats();
+      renderPrices();
+    } else {
+      box.innerHTML='<div class="queued">Loading…</div>';
+    }
+
+    if(PRICES_LOADING) return;
+    PRICES_LOADING=true;
+
+    apiGet({action:'prices'}).then(function(j){
+      PRICES=j.prices||[];
+      PCACHE=PRICES;
+      PCATS=j.categories||[];
+      PTYPES=j.types||PTYPES;
+      PDEF=j.defaultMarkup||20;
+
+      put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
+
+      renderCats();
+      renderPrices();
+
+    }).catch(function(e){
+
+      if(!PRICES.length){
+        box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
+      }
+
+    }).finally(function(){
+      PRICES_LOADING=false;
+    });
+
+  }).catch(function(){
+
+    if(PRICES.length){
+      renderCats();
+      renderPrices();
+    }
+
+  });
+}
 return {
   id:x.id,
   category:x.category||'',
