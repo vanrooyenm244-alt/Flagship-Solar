@@ -3667,25 +3667,66 @@ function showStock(){
 
 function loadStock(){
   var box=document.getElementById('stPlaces');
-  box.innerHTML='<div class="queued">Loading\u2026</div>';
-  apiGet({action:'stock'}).then(function(j){
-    ST.items=j.stock||[]; ST.places=j.places||['Store','GWM','NP200'];
-    ST.cats=j.categories||[];
-    put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
-    renderPlaces();
-  }).catch(function(e){
-    get1('cfg','stockcache').then(function(c){
-      if(c&&c.list&&c.list.length){
-        ST.items=c.list; ST.places=c.places||['Store','GWM','NP200']; ST.cats=c.cats||[];
+
+  get1('cfg','stockcache').then(function(c){
+
+    var have=c && c.list && c.list.length;
+
+    if(have){
+      ST.items=c.list;
+      ST.places=c.places||['Store','GWM','NP200'];
+      ST.cats=c.cats||[];
+      renderPlaces();
+
+      if(ST.place){
+        renderCatsStock();
+        renderStock();
+      }
+    } else {
+      box.innerHTML='<div class="queued">First load — getting stock list…</div>';
+    }
+
+    apiGet({action:'stock'}).then(function(j){
+
+      ST.items=j.stock||[];
+      ST.places=j.places||['Store','GWM','NP200'];
+      ST.cats=j.categories||[];
+
+      put('cfg',{
+        id:'stockcache',
+        list:ST.items,
+        places:ST.places,
+        cats:ST.cats,
+        savedAt:Date.now()
+      }).catch(function(){});
+
+      renderPlaces();
+
+      if(ST.place){
+        renderCatsStock();
+        renderStock();
+      }
+
+      document.getElementById('stWarn').innerHTML='';
+
+    }).catch(function(e){
+
+      if(have){
         document.getElementById('stWarn').innerHTML=
-          '<div class="queued"><b>No signal.</b> Counting from the list saved on this phone. '+
-          'What you count is kept here until you send it.</div>';
-        renderPlaces();
+          '<div class="queued"><b>Offline copy.</b> Showing the stock list saved on this phone.</div>';
       } else {
-        box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+
+        box.innerHTML=
+          '<div class="calc bad">'+
+          esc(String(e.message||e))+
           '<br>Open this once with signal to load the list.</div>';
       }
+
     });
+
+  }).catch(function(e){
+    box.innerHTML=
+      '<div class="calc bad">Could not open saved stock list.<br>'+
+      esc(String(e.message||e))+'</div>';
   });
 }
 
