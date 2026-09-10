@@ -4080,17 +4080,19 @@ function showTime(){
     }
 renderCycle();
 
-if(CFG.url){
-  Promise.all([
-    fetchWorkers(),
-    fetchTimesheetAll()
-  ]).then(function(){
-    if(ME && ME.role==='Worker') WORKERS=[ME.name];
-    renderCycle();
-  }).catch(function(){
-    renderCycle();
-  });
+  if(CFG.url){
+    Promise.all([
+      fetchWorkers(),
+      fetchTimesheetAll()
+    ]).then(function(){
+      if(ME && ME.role==='Worker') WORKERS=[ME.name];
+      renderCycle();
+    }).catch(function(){
+      renderCycle();
+    });
+  }
   renderQueue();
+    });
 }
 
 function cycleOpen(){
