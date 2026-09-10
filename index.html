@@ -2534,7 +2534,7 @@ function loadPrices(){
   var box=document.getElementById('prList');
   box.innerHTML='<div class="queued">Loading…</div>';
 
-  apiget({action:'prices'}).then(function(j){
+  apiGet({action:'prices'}).then(function(j){
     var list = j.prices || [];
 
     PRICES=(list||[]).map(function(x){
@@ -2548,10 +2548,10 @@ function loadPrices(){
         cost:Number(x.cost)||0,
         type:x.type||'Cost',
         markup:x.markup==null?'':Number(x.markup),
-        install:Number(x.install_cost)||0,
+        install:Number(x.install)||0,
         spec:x.spec||'',
         active:x.active!==false,
-        updated:x.updated_at||''
+        updated:x.updated||''
       };
     });
 
