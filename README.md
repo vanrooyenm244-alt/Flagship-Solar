@@ -4,6 +4,8 @@ Inspections, timesheets and prices, in one app on the phone.
 
 ## Files to upload (repo root)
 
+Deployment trigger: 2026-09-10
+
 ```
 index.html            <- the whole app, logo built in
 manifest.webmanifest  <- name and icon for the home screen
