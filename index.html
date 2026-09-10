@@ -2580,42 +2580,7 @@ function loadPrices(){
 
   });
 }
-return {
-  id:x.id,
-  category:x.category||'',
-  supplier:x.supplier||'',
-  code:x.code||'',
-  description:x.description||'',
-  unit:x.unit||'',
-  cost:Number(x.cost)||0,
-  type:x.type||'Cost',
-  markup:x.markup==null?'':Number(x.markup),
-  sell:Number(x.sell)||0,
-      };
-    });
 
-    PCACHE=PRICES;
-
-    PCATS=[...new Set(
-      PRICES.map(function(x){return x.category;}).filter(Boolean)
-    )];
-
-    PTYPES=[...new Set(
-      PRICES.map(function(x){return x.type;}).filter(Boolean)
-    )];
-
-    PDEF=20;
-
-    renderCats();
-    renderPrices();
-
-  }).catch(function(e){
-    console.error('Supabase prices error:',e);
-    box.innerHTML='<div class="calc bad">'+
-      esc(String(e.message||e))+
-      '</div>';
-  });
-}
 
 function renderCats(){
   var box=document.getElementById('prCats');
