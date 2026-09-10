@@ -2126,12 +2126,6 @@ function fetchTimesheetAll(){
 
     return ENTRIES;
   });
-}
-  return apiGet({action:'workers'}).then(function(j){
-    WORKERS=j.workers||[];
-    return put('cfg',{id:'workers',list:WORKERS}).then(function(){ return WORKERS; });
-  });
-}
 
 /* ============ sign in ============ */
 var AUTHMODE='in';
