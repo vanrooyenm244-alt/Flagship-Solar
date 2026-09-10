@@ -2102,6 +2102,37 @@ function fetchWorkers(){
   });
 }
 
+function fetchTimesheetAll(){
+  return apiGet({
+    action:'timesheetAll',
+    cycle:cycleKey(CYCLE)
+  }).then(function(j){
+
+    var server=j.entries||{};
+
+    Object.keys(server).forEach(function(name){
+      if(!ENTRIES[name]) ENTRIES[name]={};
+
+      Object.keys(server[name]).forEach(function(ds){
+        var local=ENTRIES[name][ds];
+
+        if(!local || local.sent){
+          ENTRIES[name][ds]=server[name][ds];
+        }
+      });
+    });
+
+    put('cfg',{id:entKey(),data:ENTRIES}).catch(function(){});
+
+    return ENTRIES;
+  });
+}
+  return apiGet({action:'workers'}).then(function(j){
+    WORKERS=j.workers||[];
+    return put('cfg',{id:'workers',list:WORKERS}).then(function(){ return WORKERS; });
+  });
+}
+
 /* ============ sign in ============ */
 var AUTHMODE='in';
 
@@ -4052,11 +4083,17 @@ function showTime(){
       renderCycle();
       return;
     }
+renderCycle();
+
+if(CFG.url){
+  Promise.all([
+    fetchWorkers(),
+    fetchTimesheetAll()
+  ]).then(function(){
+    if(ME && ME.role==='Worker') WORKERS=[ME.name];
     renderCycle();
-    if(CFG.url) fetchWorkers().then(function(){
-      if(ME && ME.role==='Worker') WORKERS=[ME.name];
-      renderCycle();
-    }).catch(function(){});
+  }).catch(function(){
+    renderCycle();
   });
   renderQueue();
 }
