@@ -2533,17 +2533,47 @@ document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
 function loadPrices(){
   var box=document.getElementById('prList');
   box.innerHTML='<div class="queued">Loading…</div>';
-  apiGet({action:'prices'}).then(function(j){
-    PRICES=j.prices||[];
-    PCACHE=PRICES;                       /* one list, not two */
-    put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
-    PCATS=j.categories||[];
-    PTYPES=j.types||PTYPES;
-    PDEF=j.defaultMarkup||20;
+
+  FlagshipSupabase.listPrices().then(function(list){
+
+    PRICES=(list||[]).map(function(x){
+      return {
+        id:x.id,
+        category:x.category||'',
+        supplier:x.supplier||'',
+        code:x.code||'',
+        description:x.description||'',
+        unit:x.unit||'',
+        cost:Number(x.cost)||0,
+        type:x.type||'Cost',
+        markup:x.markup==null?'':Number(x.markup),
+        install:Number(x.install_cost)||0,
+        spec:x.spec||'',
+        active:x.active!==false,
+        updated:x.updated_at||''
+      };
+    });
+
+    PCACHE=PRICES;
+
+    PCATS=[...new Set(
+      PRICES.map(function(x){return x.category;}).filter(Boolean)
+    )];
+
+    PTYPES=[...new Set(
+      PRICES.map(function(x){return x.type;}).filter(Boolean)
+    )];
+
+    PDEF=20;
+
     renderCats();
     renderPrices();
+
   }).catch(function(e){
-    box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
+    console.error('Supabase prices error:',e);
+    box.innerHTML='<div class="calc bad">'+
+      esc(String(e.message||e))+
+      '</div>';
   });
 }
 
