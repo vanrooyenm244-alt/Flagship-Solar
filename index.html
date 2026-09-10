@@ -4277,28 +4277,65 @@ window.addEventListener('online',flushQueue);
 
 /* ============ boot ============ */
 function boot(){
-  if(!CFG.url){ showAuth(); return; }
-  if(!ME){ showAuth(); return; }
-  // confirm the account is still valid and the role hasn't changed
-  apiGet({action:'me'}).then(function(j){
-    ME.name=j.user.name; ME.role=j.user.role;
-    saveSession(); showHome(); xeroStatus_(); if(location.hash.indexOf('xero=connected')>=0){ history.replaceState(null,'',location.pathname); alert('Xero connected.'); }
-  }).catch(function(e){
-    if(navigator.onLine){ clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); }); }
-    else { showHome(); }   // offline: trust the stored session
-  });
+  if(!CFG.url || !ME){
+    showAuth();
+    return;
+  }
+
+  // Show the app immediately using the locally saved session.
+  showHome();
+
+  // Validate the session in the background.
+  apiGet({action:'me'})
+    .then(function(j){
+      ME.name = j.user.name;
+      ME.role = j.user.role;
+      saveSession();
+      xeroStatus_();
+
+      if(location.hash.indexOf('xero=connected')>=0){
+        history.replaceState(null,'',location.pathname);
+        alert('Xero connected.');
+      }
+    })
+    .catch(function(e){
+      if(navigator.onLine){
+        clearSession().then(function(){
+          showAuth();
+          authMsg('bad',String(e.message||e));
+        });
+      }
+      // Offline: keep the locally cached session and app usable.
+    });
 }
 
-open().then(seedClauses).then(loadCfg).then(loadSession).then(boot).catch(function(err){
-  console.error('storage unavailable', err);
-  MEM = true;
-  CLAUSES = SEED.map(function(s,i){ return {id:'seed-'+i, std:s[0], clause:s[1], title:s[2], terms:s[3], own:false}; });
-  var n = document.createElement('div');
-  n.className = 'notice warn';
-  n.innerHTML = '<b>Nothing can be saved right now.</b> This browser is blocking local storage \u2014 usually because the file was opened straight from the phone (a <i>file://</i> address) or in a private window. The camera and PDF still work, but close the tab and you lose the job. Put the files on an https address to fix it.';
-  document.getElementById('screenHome').prepend(n);
-  showAuth();
-});
+open()
+  .then(loadCfg)
+  .then(loadSession)
+  .then(boot)
+  .then(function(){
+    return seedClauses();
+  })
+  .catch(function(err){
+    console.error('storage unavailable', err);
+    MEM = true;
+    CLAUSES = SEED.map(function(s,i){
+      return {
+        id:'seed-'+i,
+        std:s[0],
+        clause:s[1],
+        title:s[2],
+        terms:s[3],
+        own:false
+      };
+    });
+
+    var n = document.createElement('div');
+    n.className = 'notice warn';
+    n.innerHTML = '<b>Nothing can be saved right now.</b> This browser is blocking local storage \u2014 usually because the file was opened straight from the phone (a <i>file://</i> address)';
+    document.getElementById('screenHome').prepend(n);
+    showAuth();
+  });
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}) });
