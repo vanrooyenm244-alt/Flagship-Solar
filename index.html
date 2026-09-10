@@ -2534,7 +2534,7 @@ function loadPrices(){
   var box=document.getElementById('prList');
   box.innerHTML='<div class="queued">Loading…</div>';
 
-  api({action:'prices'}).then(function(j){
+  apiget({action:'prices'}).then(function(j){
     var list = j.prices || [];
 
     PRICES=(list||[]).map(function(x){
