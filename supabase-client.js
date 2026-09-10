@@ -71,10 +71,24 @@
       session = null;
       return end;
     },
-    memberships: function () {
-      if (!session || !session.user) return Promise.resolve([]);
-      return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=company_id,role:roles(name),companies(name,slug)', { method: 'GET' });
-    },
+memberships: function () {
+  if (!session || !session.user) return Promise.resolve([]);
+  return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=company_id,role:roles(name),companies(name,slug)', { method: 'GET' });
+},
+
+listPrices: function () {
+  return rest(
+    'price_items',
+    'select=*&active=eq.true&order=category.asc,description.asc',
+    { method: 'GET' }
+  );
+},
+
+listJobCards: function () {
+  return rest('job_cards', 'select=*&order=updated_at.desc', { method: 'GET' }).then(function (rows) {
+    return rows.map(toLegacyCard);
+  });
+},
     listJobCards: function () {
       return rest('job_cards', 'select=*&order=updated_at.desc', { method: 'GET' }).then(function (rows) { return rows.map(toLegacyCard); });
     },
