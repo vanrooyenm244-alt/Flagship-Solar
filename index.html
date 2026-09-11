@@ -1584,7 +1584,9 @@ var JC=null, jcSaveTimer=null, JC_TYPES=[
   {id:'coc',name:'COC Inspection Work'},
   {id:'custom',name:'Custom Jobs'}
 ];
-
+function pad2_(n){
+  return String(n).padStart(2,'0');
+}
 function jcBlank(){
   var d=new Date(), ds=d.getFullYear()+'-'+pad2_(d.getMonth()+1)+'-'+pad2_(d.getDate());
   return {id:'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),number:'JC-'+ds.replace(/-/g,'')+'-'+String(Date.now()).slice(-4),customer:'',site:'',date:ds,technicians:ME?ME.name:'',types:[],status:'DRAFT',signature:'',signatureName:'',signedAt:'',created:Date.now(),updated:Date.now(),sections:{descale:{},plug:{},firmware:{},coc:{},fullsolar:{},panels:{},custom:{items:[]}}};
