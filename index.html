@@ -825,7 +825,7 @@ table.page{border-collapse:collapse}
   <section class="sheet">
     <div class="sheet-head"><h2>Job Cards</h2><span class="tag">Saved on this phone</span></div>
     <p class="hint">Create one job card for the day's work. Pick only the work types you actually did; the relevant sections open automatically.</p>
-    <button class="btn" type="button" id="jcNew" style="width:100%;padding:15px">+ Start a new job card</button>
+    <button class="btn" type="button" id="jcNew" onclick="jcNew_()" style="width:100%;padding:15px">+ Start a new job card</button>
     <div id="jcList"></div>
   </section>
 </div>
@@ -1684,7 +1684,7 @@ function jcLoadPdfLibs_(){if(window.jspdf&&window.html2canvas)return Promise.res
 function jcBuildPdf_(){jcRenderReport_();return jcLoadPdfLibs_().then(function(){var el=document.getElementById('jcReport'),J=window.jspdf.jsPDF;return new Promise(function(resolve,reject){var doc=new J({orientation:'p',unit:'mm',format:'a4'});doc.html(el,{x:8,y:8,width:194,windowWidth:820,autoPaging:'text',margin:[8,8,8,8],html2canvas:{scale:1.25,useCORS:false},callback:function(d){resolve(d);}});});});}
 function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
 function jcSharePdf_(){if(!JC)return;var b=document.getElementById('jcShare');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var blob=doc.output('blob'),name=(JC.number||'Job-Card')+'.pdf',file=new File([blob],name,{type:'application/pdf'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]})))return navigator.share({title:'Flagship Job Card '+(JC.number||''),text:(JC.customer||'')+' — '+(JC.site||''),files:[file]});var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u);},2000);alert('Your browser cannot share PDF files directly, so the PDF was saved instead.');}).catch(function(e){if(e&&e.name==='AbortError')return;alert('PDF share failed: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
-document.getElementById('jcNew').addEventListener('click',jcNew_);document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
+document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
 
 function showJobs(){
   currentId=null;
