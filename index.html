@@ -777,6 +777,10 @@ table.page{border-collapse:collapse}
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h14v15H5z"/><path d="M8 8h8M8 11.5h8M8 15h5"/><path d="M17 18.5v2"/></svg></span>
       <span class="tx"><b>Job Cards</b><span>Record work, photos and inspections</span></span><span class="go">›</span>
     </button>
+    <button class="tile" data-go="calendar" data-role="Admin,Technician,Worker" type="button">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M7 3.5v3M17 3.5v3M3.5 9h17M7 12.5h.01M12 12.5h.01M17 12.5h.01M7 16h.01M12 16h.01"/></svg></span>
+      <span class="tx"><b>Calendar</b><span>Schedule jobs and view your work</span></span><span class="go">›</span>
+    </button>
     <button class="tile" data-go="stock" type="button">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3.6l8.5 3.9v9L12 20.4 3.5 16.5z"/><path d="M3.5 7.5 12 11.4l8.5-3.9M12 11.4v9"/></svg></span>
       <span class="tx"><b>Stock</b><span>Count the store or a bakkie</span></span><span class="go">›</span>
@@ -819,6 +823,35 @@ table.page{border-collapse:collapse}
   </section>
 </div>
 
+
+<!-- ================= CALENDAR ================= -->
+<div class="wrap hidden" id="screenCalendar">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Calendar</h2><span class="tag" id="calModeTag">My jobs</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn ghost" id="calPrev" type="button">‹</button><button class="btn ghost" id="calToday" type="button">Today</button><button class="btn ghost" id="calNext" type="button">›</button>
+      <button class="btn ghost" id="calToggleMode" type="button">All jobs</button><button class="btn" id="calNew" type="button">+ Schedule job</button>
+    </div>
+    <h3 id="calTitle" style="margin:8px 0"></h3>
+    <div id="calGrid"></div>
+    <div id="calForm" class="hidden" style="margin-top:15px;border-top:1px solid #ddd;padding-top:15px">
+      <h3>Schedule Job</h3>
+      <div class="jc-grid2">
+        <div class="jc-field"><label>Customer</label><input id="calCustomer" placeholder="Customer name"></div>
+        <div class="jc-field"><label>Site / Address</label><input id="calSite" placeholder="Site or address"></div>
+        <div class="jc-field"><label>Date</label><input id="calDate" type="date"></div>
+        <div class="jc-field"><label>Start time</label><input id="calStart" type="time"></div>
+        <div class="jc-field"><label>End time</label><input id="calEnd" type="time"></div>
+        <div class="jc-field"><label>Technician</label><input id="calTech" placeholder="Technician name"></div>
+        <div class="jc-field"><label>Company</label><input id="calCompany" placeholder="Flagship Solar / Hi Service Gas"></div>
+        <div class="jc-field"><label>Job type</label><input id="calType" placeholder="Installation, repair, inspection..."></div>
+      </div>
+      <div class="jc-field"><label>Notes</label><textarea id="calNotes" rows="3" placeholder="Job notes"></textarea></div>
+      <div class="jc-row-actions"><button class="btn" id="calSave" type="button">Save job</button><button class="btn ghost" id="calCancel" type="button">Cancel</button></div>
+      <div id="calMsg" class="hint"></div>
+    </div>
+  </section>
+</div>
 
 <!-- ================= JOB CARDS ================= -->
 <div class="wrap hidden" id="screenJobCards">
@@ -1328,10 +1361,10 @@ var PRESETS = {
 };
 
 /* ============ storage ============ */
-var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], MEMJOBCARDS=[], DBNAME='flagship-inspections';
+var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], MEMJOBCARDS=[], MEMCALENDAR=[], DBNAME='flagship-inspections';
 function open(){
   return new Promise(function(res,rej){
-    var r = indexedDB.open(DBNAME,4);
+    var r = indexedDB.open(DBNAME,5);
     r.onupgradeneeded=function(e){
       var d=e.target.result;
       if(!d.objectStoreNames.contains('jobs')) d.createObjectStore('jobs',{keyPath:'id'});
@@ -1340,6 +1373,7 @@ function open(){
       if(!d.objectStoreNames.contains('props')) d.createObjectStore('props',{keyPath:'id'});
       if(!d.objectStoreNames.contains('quotes')) d.createObjectStore('quotes',{keyPath:'id'});
       if(!d.objectStoreNames.contains('jobcards')) d.createObjectStore('jobcards',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('calendar')) d.createObjectStore('calendar',{keyPath:'id'});
     };
     r.onsuccess=function(){DB=r.result;res(DB)};
     r.onerror=function(){rej(r.error)};
@@ -1352,15 +1386,16 @@ function put(store,val){
     if(store==='jobs'){ var e=memJob(val.id); if(e){ Object.assign(e,val); } else MEMJOBS.push(val); }
     else if(store==='jobcards'){ var je=MEMJOBCARDS.find(function(x){return x.id===val.id}); if(je) Object.assign(je,val); else MEMJOBCARDS.push(val); }
     else if(store==='cfg'){ MEMCFG[val.id]=val; }
+    else if(store==='calendar'){ var ce=MEMCALENDAR.find(function(x){return x.id===val.id}); if(ce) Object.assign(ce,val); else MEMCALENDAR.push(val); }
     else if(store==='quotes'){ var qe=MEMQUOTES.find(function(x){return x.id===val.id}); if(qe) Object.assign(qe,val); else MEMQUOTES.push(val); }
     return Promise.resolve();
   }
   return new Promise(function(res,rej){var q=tx(store,'readwrite').put(val);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
-function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='jobcards'?MEMJOBCARDS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():CLAUSES.slice()))));
+function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='jobcards'?MEMJOBCARDS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():(store==='calendar'?MEMCALENDAR.slice():CLAUSES.slice())))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').getAll();q.onsuccess=function(){res(q.result||[])};q.onerror=function(){rej(q.error)}}); }
-function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='jobcards'?(MEMJOBCARDS.find(function(x){return x.id===id})||null):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null))));
+function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='jobcards'?(MEMJOBCARDS.find(function(x){return x.id===id})||null):(store==='calendar'?(MEMCALENDAR.find(function(x){return x.id===id})||null):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null)))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').get(id);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}}); }
-function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else if(store==='jobcards') MEMJOBCARDS=MEMJOBCARDS.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
+function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else if(store==='jobcards') MEMJOBCARDS=MEMJOBCARDS.filter(function(j){return j.id!==id}); else if(store==='calendar') MEMCALENDAR=MEMCALENDAR.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
   return new Promise(function(res,rej){var q=tx(store,'readwrite').delete(id);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
 
 /* ============ slots ============ */
@@ -1542,8 +1577,39 @@ function save(){
 
 document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')) save(); });
 
+
+/* ============ calendar ============ */
+var CAL_DATE=new Date(), CAL_ALL=false;
+function calPad_(n){return String(n).padStart(2,'0');}
+function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
+function calEsc_(x){return esc(x||'');}
+function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !n || String(e.technician||'').toLowerCase().indexOf(n)>=0;}
+function showCalendar(){backTo='screenHome';show('screenCalendar');calRender_();}
+function calRender_(){
+  getAll('calendar').then(function(items){
+    items=items.filter(calIsMine_).sort(function(a,b){return (a.date+a.startTime).localeCompare(b.date+b.startTime);});
+    var y=CAL_DATE.getFullYear(),m=CAL_DATE.getMonth();
+    document.getElementById('calTitle').textContent=CAL_DATE.toLocaleString(undefined,{month:'long',year:'numeric'});
+    document.getElementById('calModeTag').textContent=CAL_ALL?'All jobs':'My jobs';
+    document.getElementById('calToggleMode').textContent=CAL_ALL?'My jobs':'All jobs';
+    var first=new Date(y,m,1), start=new Date(y,m,1-first.getDay()), html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px">';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(x){html+='<b style="padding:5px;text-align:center">'+x+'</b>';});
+    for(var i=0;i<42;i++){var d=new Date(start);d.setDate(start.getDate()+i);var key=calDateKey_(d), day=items.filter(function(e){return e.date===key;});html+='<div style="min-height:82px;border:1px solid #ddd;border-radius:6px;padding:4px;background:'+(d.getMonth()===m?'#fff':'#f5f5f5')+'"><b>'+d.getDate()+'</b>'+day.map(function(e){return '<div data-cal-open="'+calEsc_(e.id)+'" style="cursor:pointer;margin-top:4px;padding:4px;border-radius:4px;background:#e8f0ff;overflow:hidden"><b>'+calEsc_(e.startTime||'')+'</b> '+calEsc_(e.customer||'Job')+'<br><small>'+calEsc_(e.technician||'')+'</small></div>';}).join('')+'</div>';}
+    html+='</div>';document.getElementById('calGrid').innerHTML=html;
+    document.querySelectorAll('[data-cal-open]').forEach(function(el){el.onclick=function(){calOpen_(el.getAttribute('data-cal-open'));};});
+  });
+}
+function calOpen_(id){get1('calendar',id).then(function(e){if(!e)return;var msg='Job: '+(e.customer||'')+'\nSite: '+(e.site||'')+'\n'+(e.date||'')+' '+(e.startTime||'')+'–'+(e.endTime||'')+'\nTechnician: '+(e.technician||'')+'\nStatus: '+(e.status||'SCHEDULED');if(e.jobCardId)msg+='\nJob Card linked';if(confirm(msg+'\n\nOpen Job Card?')){JC=jcBlank();JC.customer=e.customer||'';JC.site=e.site||'';JC.date=e.date||'';JC.techs=e.technician||'';JC.types=e.jobType?[e.jobType]:[];JC.calendarEventId=e.id;backTo='screenCalendar';show('screenJobCard');jcRenderAll_();jcBindCommon_();jcSaveLocal_();}});}
+document.getElementById('calNew').addEventListener('click',function(){document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);});
+document.getElementById('calCancel').addEventListener('click',function(){document.getElementById('calForm').classList.add('hidden');});
+document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
+document.getElementById('calPrev').addEventListener('click',function(){CAL_DATE.setMonth(CAL_DATE.getMonth()-1);calRender_();});
+document.getElementById('calNext').addEventListener('click',function(){CAL_DATE.setMonth(CAL_DATE.getMonth()+1);calRender_();});
+document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();calRender_();});
+document.getElementById('calSave').addEventListener('click',function(){var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:document.getElementById('calCompany').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled.';document.getElementById('calForm').classList.add('hidden');calRender_();});});
+
 /* ============ screens ============ */
-var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
+var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenCalendar','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
 var backTo='screenHome';
 
 function show(id){
@@ -1827,6 +1893,7 @@ document.getElementById('btnNew').addEventListener('click',function(){
 document.getElementById('btnBack').addEventListener('click',function(){
   if(backTo==='screenJobs') showJobs();
   else if(backTo==='screenJobCards') showJobCards();
+  else if(backTo==='screenCalendar') showCalendar();
   else if(backTo==='screenAuth') showAuth();
   else showHome();
 });
@@ -1841,6 +1908,7 @@ document.querySelectorAll('[data-go]').forEach(function(b){
     else if(t==='quote') showQuote();
     else if(t==='stock') showStock();
     else if(t==='jobcards') showJobCards();
+    else if(t==='calendar') showCalendar();
   });
 });
 
