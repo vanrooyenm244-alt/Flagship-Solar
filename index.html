@@ -1661,7 +1661,16 @@ function jcInitSignature_(){
   var cl=document.getElementById('jcSigClear');if(cl)cl.onclick=function(){ctx.clearRect(0,0,c.width,c.height);JC.signature='';JC.signedAt='';jcRenderReport_();jcScheduleSave_();};
   var done=document.getElementById('jcSigDone');if(done)done.onclick=function(){JC.signature=c.toDataURL('image/png');JC.signedAt=JC.signedAt||new Date().toISOString();jcRenderReport_();jcScheduleSave_();alert('Signature saved.');};
 }
-function jcNew_(){JC=jcBlank();backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();jcSaveLocal_();}
+function jcNew_(){
+  JC=jcBlank();
+  backTo='screenJobCards';
+  show('screenJobCard');
+  jcRenderAll_();
+  jcBindCommon_();
+  jcSaveLocal_();
+}
+
+window.jcNew_=jcNew_;
 function jcRefreshFromSupabase_(){if(!jcSupabaseEnabled_())return Promise.resolve();return window.FlagshipSupabase.listJobCards().then(function(cards){return Promise.all(cards.map(function(card){return put('jobcards',card);}));}).catch(function(){/* Offline cache remains usable. */});}
 function showJobCards(){currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRefreshFromSupabase_().then(jcRenderList_);}
 function jcRenderList_(){getAll('jobcards').then(function(list){list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+st.toLowerCase()+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+j.id+'">Open</button><button type="button" data-jc-pdf="'+j.id+'">PDF</button><button type="button" data-jc-del="'+j.id+'">Delete</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Delete this job card?'))del('jobcards',b.getAttribute('data-jc-del')).then(jcRenderList_);});});});}
