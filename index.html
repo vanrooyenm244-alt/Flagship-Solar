@@ -1692,7 +1692,53 @@ function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appb
   if(JC.signature)html+='<h2>Client sign-off</h2><div class="rblock">Signed electronically'+(JC.signedAt?' · '+esc(new Date(JC.signedAt).toLocaleString()):'')+'</div><div style="margin-top:6px"><img src="'+JC.signature+'" style="max-width:420px;width:100%;height:100px;object-fit:contain;border-bottom:1px solid #667085"></div>';document.getElementById('jcReport').innerHTML=html;}
 function jcReportPhotos_(arr){var a=arr.filter(function(x){return x&&x.img;});if(!a.length)return '';return '<div class="rphotos">'+a.map(function(x){return '<div class="rphoto"><img src="'+x.img+'"><div class="cap">'+esc(x.cap||'')+'</div></div>';}).join('')+'</div>';}
 function jcLoadPdfLibs_(){if(window.jspdf&&window.html2canvas)return Promise.resolve();function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}return load('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').then(function(){return load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');});}
-function jcBuildPdf_(){jcRenderReport_();return jcLoadPdfLibs_().then(function(){var el=document.getElementById('jcReport'),J=window.jspdf.jsPDF;return new Promise(function(resolve,reject){var doc=new J({orientation:'p',unit:'mm',format:'a4'});doc.html(el,{x:8,y:8,width:194,windowWidth:820,autoPaging:'text',margin:[8,8,8,8],html2canvas:{scale:1.25,useCORS:false},callback:function(d){resolve(d);}});});});}
+function jcBuildPdf_(){
+  jcRenderReport_();
+  return jcLoadPdfLibs_().then(function(){
+    var source=document.getElementById('jcReport');
+    if(!source)throw new Error('Job Card report was not found.');
+
+    /* The on-screen report is inside .jc-print, which is display:none.
+       Render a visible off-screen clone instead of the hidden element. */
+    var holder=document.createElement('div');
+    holder.style.position='fixed';
+    holder.style.left='-100000px';
+    holder.style.top='0';
+    holder.style.width='820px';
+    holder.style.display='block';
+    holder.style.background='#fff';
+    holder.style.zIndex='-1';
+
+    var el=source.cloneNode(true);
+    el.style.display='block';
+    el.style.width='820px';
+    el.style.maxWidth='820px';
+    el.style.margin='0';
+    holder.appendChild(el);
+    document.body.appendChild(holder);
+
+    var J=window.jspdf.jsPDF;
+    return new Promise(function(resolve,reject){
+      var doc=new J({orientation:'p',unit:'mm',format:'a4'});
+      doc.html(el,{
+        x:8,
+        y:8,
+        width:194,
+        windowWidth:820,
+        autoPaging:'text',
+        margin:[8,8,8,8],
+        html2canvas:{scale:1.25,useCORS:true,allowTaint:false},
+        callback:function(d){
+          holder.remove();
+          resolve(d);
+        }
+      }).catch(function(e){
+        holder.remove();
+        reject(e);
+      });
+    });
+  });
+}
 function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
 function jcSharePdf_(){if(!JC)return;var b=document.getElementById('jcShare');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var blob=doc.output('blob'),name=(JC.number||'Job-Card')+'.pdf',file=new File([blob],name,{type:'application/pdf'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]})))return navigator.share({title:'Flagship Job Card '+(JC.number||''),text:(JC.customer||'')+' — '+(JC.site||''),files:[file]});var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u);},2000);alert('Your browser cannot share PDF files directly, so the PDF was saved instead.');}).catch(function(e){if(e&&e.name==='AbortError')return;alert('PDF share failed: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
 document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
