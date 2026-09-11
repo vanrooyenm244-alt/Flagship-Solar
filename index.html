@@ -11,6 +11,48 @@
 <meta name="application-name" content="Flagship">
 <title>Flagship</title>
 <style>
+  <style>
+
+.st-admin-form {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid #d8dce3;
+  border-radius: 10px;
+  background: #f7f8fa;
+}
+
+.st-admin-form h3 {
+  margin: 0 0 14px;
+  font-size: 17px;
+}
+
+.st-admin-form label {
+  display: block;
+  margin: 10px 0 5px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.st-admin-form input,
+.st-admin-form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #c9ced6;
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+}
+
+.st-form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.st-form-actions button {
+  flex: 1;
+}
 :root{
   --navy:#1F4E79; --navy-deep:#143352; --red:#C0392B;
   --slate:#1B2430; --slate-2:#26313F; --edge:#3A4756;
@@ -4715,14 +4757,140 @@ open()
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}) });
 }
-var stAddBtn = document.getElementById('stAddItem');
+/* ============ stock: add new item ============ */
 
+function stockForm_(){
+  var tools = document.getElementById('stAdminTools');
+  if (!tools) return;
+
+  var old = document.getElementById('stItemForm');
+
+  /* Clicking the button again closes the form */
+  if (old) {
+    old.remove();
+    return;
+  }
+
+  var cats = ST.cats && ST.cats.length
+    ? ST.cats
+    : [
+        'Wire & Cable',
+        'Conduit & Trunking',
+        'DB & Enclosures',
+        'Breakers',
+        'PV & DC',
+        'Lugs & Ferrules',
+        'Roof Structure',
+        'Plumbing',
+        'Consumable',
+        'Tools',
+        'Other'
+      ];
+
+  var form = document.createElement('div');
+  form.id = 'stItemForm';
+  form.className = 'st-admin-form';
+
+  form.innerHTML =
+    '<h3>Add New Stock Item</h3>' +
+
+    '<label>Item name</label>' +
+    '<input id="stNewItem" type="text" placeholder="e.g. 6mm Red PV Cable" autocomplete="off">' +
+
+    '<label>Category</label>' +
+    '<select id="stNewCategory"></select>' +
+
+    '<label>Unit</label>' +
+    '<input id="stNewUnit" type="text" placeholder="each or per meter" value="each">' +
+
+    '<label>Last price</label>' +
+    '<input id="stNewPrice" type="number" min="0" step="0.01" placeholder="0.00" inputmode="decimal">' +
+
+    '<div class="st-form-actions">' +
+      '<button type="button" class="btn secondary" id="stCancelItem">Cancel</button>' +
+      '<button type="button" class="btn" id="stSaveItem">Add Item</button>' +
+    '</div>' +
+
+    '<div id="stItemMsg"></div>';
+
+  tools.appendChild(form);
+
+  var catSelect = document.getElementById('stNewCategory');
+
+  cats.forEach(function(cat){
+    var option = document.createElement('option');
+    option.value = cat;
+    option.textContent = cat;
+    catSelect.appendChild(option);
+  });
+
+  document.getElementById('stCancelItem').addEventListener('click', function(){
+    form.remove();
+  });
+
+  document.getElementById('stSaveItem').addEventListener('click', function(){
+    stockSaveItem_();
+  });
+
+  document.getElementById('stNewItem').focus();
+}
+
+
+function stockSaveItem_(){
+  var name = document.getElementById('stNewItem').value.trim();
+  var category = document.getElementById('stNewCategory').value;
+  var unit = document.getElementById('stNewUnit').value.trim() || 'each';
+  var price = Number(document.getElementById('stNewPrice').value) || 0;
+
+  var msg = document.getElementById('stItemMsg');
+  var btn = document.getElementById('stSaveItem');
+
+  if (!name) {
+    msg.innerHTML = '<div class="calc bad">Enter an item name.</div>';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+  msg.innerHTML = '';
+
+  api({
+    action: 'stockAdd',
+    item: {
+      item: name,
+      category: category,
+      unit: unit,
+      price: price
+    }
+  }).then(function(){
+    alert('Item added successfully.');
+
+    var form = document.getElementById('stItemForm');
+    if (form) form.remove();
+
+    /* Reload the stock list and update the local cache */
+    loadStock();
+
+  }).catch(function(e){
+    msg.innerHTML =
+      '<div class="calc bad">' +
+      esc(String(e.message || e)) +
+      '</div>';
+
+    btn.disabled = false;
+    btn.textContent = 'Add Item';
+  });
+}
+
+
+/* Add Item button listener */
 var stAddBtn = document.getElementById('stAddItem');
 
 if (stAddBtn) {
   stAddBtn.addEventListener('click', function(){
-    alert('Add Item button works');
+    stockForm_();
   });
+}
 }
 })();
   
