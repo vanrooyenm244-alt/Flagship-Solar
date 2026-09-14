@@ -1172,7 +1172,7 @@ table.page{border-collapse:collapse}
       <div class="field"><label>Customer email</label><input id="vpEmail" type="email" placeholder="customer@example.com"></div>
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
-      <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
+      <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button><button class="btn ghost" id="vpXeroSend" type="button" style="width:100%;margin-top:8px">Create Xero Quote</button>
       <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
     </div>
   </section>
@@ -3080,90 +3080,20 @@ var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter
 var AF_LABELS=null;   /* filled from the markup the first time we swap */
 
 function applyLang(lang){
-  var en=(lang==='en');
-
-  /* Translate all fixed proposal labels, not only the small data-t set. */
-  var text={
-    'ipBill':en?'Eskom per month (R)':'Eskom per maand (R)',
-    'ipTar':en?'Tariff (R per kWh)':'Tarief (R per kWh)',
-    'ipPan':en?'Panels that fit':'Panele wat pas',
-    'ipW':en?'Watts each':'Watt elk',
-    'ipBat':en?'Battery (kWh)':'Battery (kWh)',
-    'ipKw':en?'Inverter (kW)':'Omsetter (kW)',
-    'ipSun':en?'Sun hours per day':'Sonure per dag',
-    'ipStr':en?'DC strings (leave blank = automatic)':'DC strings (los leeg = self)',
-    'vpEmail':en?'Customer email':'Kliënt se e-pos',
-    'vpXeroQ':en?'Search customer in Xero':'Soek kliënt in Xero',
-    'vpXeroFind':en?'Find':'Soek',
-    'vpPublish':en?'Send Value Proposal':'Stuur waardevoorstel',
-    'vpPublish2':en?'Send to Customer':'Stuur aan kliënt',
-    'vpPrint':en?'Save as PDF':'Stoor as PDF',
-    'vpAdd':en?'+ Add from price list':'+ Voeg uit pryslys by',
-    'vpAdd2':en?'+ Add from price list':'+ Voeg uit pryslys by',
-    'vpShowLabel':en?'Show prices on the PDF':'Wys pryse op die PDF'
-  };
-  Object.keys(text).forEach(function(id){
-    var e=document.getElementById(id);
-    if(e && id!=='vpEmail' && id!=='vpXeroQ') e.textContent=text[id];
-  });
-
-  var labels={
-    'ipBill':en?'Eskom per month (R)':'Eskom per maand (R)',
-    'ipTar':en?'Tariff (R per kWh)':'Tarief (R per kWh)',
-    'ipPan':en?'Panels that fit':'Panele wat pas',
-    'ipW':en?'Watts each':'Watt elk',
-    'ipBat':en?'Battery (kWh)':'Battery (kWh)',
-    'ipKw':en?'Inverter (kW)':'Omsetter (kW)',
-    'ipSun':en?'Sun hours per day':'Sonure per dag',
-    'ipStr':en?'DC strings (leave blank = automatic)':'DC strings (los leeg = self)',
-    'vpEmail':en?'Customer email':'Kliënt se e-pos'
-  };
-  Object.keys(labels).forEach(function(id){
-    var e=document.querySelector('label[for="'+id+'"]');
-    if(e) e.textContent=labels[id];
-  });
-
-  var ph={
-    'ipBill':en?'2500':'2500', 'ipTar':'3.02', 'ipPan':en?'9':'9',
-    'ipW':'620', 'ipBat':'16', 'ipKw':'8', 'ipSun':'4.0',
-    'ipStr':en?'automatic':'self',
-    'vpEmail':'customer@example.com', 'vpXeroQ':en?'Search customer in Xero':'Soek kliënt in Xero'
-  };
-  Object.keys(ph).forEach(function(id){
-    var e=document.getElementById(id); if(e) e.placeholder=ph[id];
-  });
-
-  var pick={panel:en?'Panel':'Paneel',battery:en?'Battery':'Battery',inverter:en?'Inverter':'Omsetter',roof:en?'Roof structure':'Dakstruktuur',switch:en?'Changeover board':'Skakelbord'};
-  document.querySelectorAll('#vpPick [data-pick]').forEach(function(b){
-    var role=b.getAttribute('data-pick'), k=b.querySelector('.k');
-    if(k && pick[role]) k.textContent=pick[role];
-  });
-
-  /* Existing data-t labels used by the proposal sheets and PDF. */
-  var src=en?EN_LABELS:AF_LABELS;
   var els=document.querySelectorAll('#screenProp [data-t]');
   if(!AF_LABELS){
     AF_LABELS={};
     els.forEach(function(e){ AF_LABELS[e.getAttribute('data-t')]=e.innerHTML; });
   }
-  src=en?EN_LABELS:AF_LABELS;
+  var src=(lang==='en')?EN_LABELS:AF_LABELS;
   els.forEach(function(e){
     var k=e.getAttribute('data-t');
     if(src[k]!==undefined) e.innerHTML=src[k];
   });
   var t=document.querySelector('#screenProp .vpsrc');
-  if(t) t.lastChild.textContent=en?' Show prices on the PDF':' Wys pryse op die PDF';
-
-  /* Textareas are customer-facing content; their placeholders must follow the proposal language. */
-  var now=document.querySelector('#screenProp textarea[data-p="now"]');
-  var prop=document.querySelector('#screenProp textarea[data-p="prop"]');
-  if(now) now.placeholder=en?'What you currently pay and why this is a cost you cannot control.':'Wat julle nou betaal en hoekom dit die enigste koste is waaroor julle nie beheer het nie.';
-  if(prop) prop.placeholder=en?'Anything else about this proposal — roof direction, shading, where the board will be installed.':'Enigiets anders oor hierdie voorstel — dakrigting, skaduwee, waar die bord kom.';
-
-  /* Internal details are still Afrikaans by design, but the customer-facing actions are bilingual. */
-  var detail=document.querySelector('#screenProp h2');
-  var xh=document.querySelector('#screenProp h3');
-  if(xh && xh.textContent.indexOf('Xero')>=0) xh.textContent=en?'Xero customer / Send proposal':'Xero customer / Send proposal';
+  if(t) t.lastChild.textContent=(lang==='en')?' Show prices on the PDF':' Wys pryse op die PDF';
+  var add=document.getElementById('vpAdd');
+  if(add) add.textContent=(lang==='en')?'+ Add from price list':'+ Add from price list';
 }
 
 function vpBlank(lang){
@@ -3290,7 +3220,8 @@ function switchFor(kw){
   return null;
 }
 function switchDesc(sw){
-  return 'Skakelbord \u2014 '+sw.co+' oorskakelaar, '+sw.br+' breakers, '+sw.wire+' bedrading';
+  var en=VP&&VP.lang==='en';
+  return (en?'Changeover board \u2014 ':'Skakelbord \u2014 ')+sw.co+(en?' changeover, ':' oorskakelaar, ')+sw.br+(en?' breakers, ':' breakers, ')+sw.wire+(en?' wiring':' bedrading');
 }
 
 /* Nine panels to a string is the ceiling, so 14 panels is two strings of
@@ -3595,6 +3526,25 @@ function vpCalc(){
   box.innerHTML=txt;
 }
 
+function vpItemText_(text){
+  var s=String(text||'');
+  if(!VP || VP.lang!=='en') return s;
+  var map={
+    'Skakelbord':'Changeover board',
+    'Roofhook with Rails':'Roof hook with rails',
+    'Dakstruktuur':'Roof structure',
+    'Solar panel':'Solar panel',
+    'Battery':'Battery',
+    'Omsetter':'Inverter',
+    'panele':'panels',
+    'battery':'battery',
+    'bedrading':'wiring',
+    'oorskakelaar':'changeover'
+  };
+  Object.keys(map).forEach(function(k){s=s.replace(new RegExp(k,'gi'),map[k]);});
+  return s;
+}
+
 function vpLines(){
   var box=document.getElementById('vpLines');
   box.innerHTML='';
@@ -3604,7 +3554,7 @@ function vpLines(){
   VP.items.forEach(function(it,i){
     var row=document.createElement('div');
     row.className='pline'+(it.role?' auto':'')+(it.custom?' edited':'');
-    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(it.desc)+'</b>'+
+    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(vpItemText_(it.desc))+'</b>'+
       (it.spec?'<span>'+esc(it.spec)+'</span>':'')+'</div>'+
       '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty||1)+'"></div>'+
       '<div class="amt"></div><button type="button" class="x" aria-label="Remove">\u00d7</button>';
@@ -3737,6 +3687,7 @@ document.getElementById('vpAdd2').addEventListener('click',function(){ openPick(
 
 document.getElementById('vpXeroFind').addEventListener('click',vpXeroFind_);
 document.getElementById('vpPublish').addEventListener('click',vpPublish_);
+document.getElementById('vpXeroSend').addEventListener('click',vpXeroSend_);
 document.getElementById('vpPublish2').addEventListener('click',vpPublish_);
 document.getElementById('vpEmail').addEventListener('input',function(){VP.customerEmail=this.value;vpSave();});
 
@@ -3771,9 +3722,16 @@ function vpXeroFind_(){
     if(!box.innerHTML)box.innerHTML='<div class="no-res">No Xero customer found.</div>';
   }).catch(function(e){box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';});
 }
+function vpXeroSend_(){
+  if(!VP || !VP.publishToken){alert('Send the proposal to the customer first.');return;}
+  var b=document.getElementById('vpXeroSend'); if(b){b.disabled=true;b.textContent='Creating Xero quote…';}
+  api({action:'proposalSendToXero',token:VP.publishToken}).then(function(j){
+    alert(j.quoteNumber?'Xero quote '+j.quoteNumber+' created.':'Xero quote created.');
+  }).catch(function(e){alert('Xero quote failed: '+String(e.message||e));}).finally(function(){if(b){b.disabled=false;b.textContent='Create Xero Quote';}});
+}
+
 function vpPublish_(){
   vpMirrorAll(); vpCalc(); vpLines();
-  if(!VP.xeroContact||!VP.xeroContact.contactID){alert('First select the customer in Xero.');return;}
   if(!VP.client.trim()){alert('Customer name is required.');return;}
   if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
   VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
@@ -3840,7 +3798,7 @@ function qbAddCustom(){
 function qbRenderLines(){
   var box=document.getElementById('qbLines'), sub=0; box.innerHTML='';
   QB.items.forEach(function(it,i){var row=document.createElement('div');row.className='qbline';
-    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
+    row.innerHTML='<div><b>'+esc(vpItemText_(it.desc))+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
     var q=row.querySelector('input');q.addEventListener('input',function(){it.qty=Math.max(0,Number(q.value)||0);qbSave();qbRenderLines();});
     row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
   var vat=sub*.15,total=sub+vat;document.getElementById('qbCount').textContent=QB.items.length+(QB.items.length===1?' line':' lines');
