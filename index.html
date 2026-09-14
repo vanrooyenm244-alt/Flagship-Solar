@@ -560,10 +560,7 @@ table.page{border-collapse:collapse}
   #screenProps{display:none!important}
   #screenProp{page:vp}                       /* margin-free page, bands bleed */
   #screenProp .vpin,#screenProp .addrow,#screenProp #vpAdd,
-  .pline .x,.vpsrc,#vpInternal{display:none!important}
-  /* Internal/admin controls and calculation markers never belong in the customer PDF. */
-  .pline .d b::after{content:none!important}
-  .vpnote .none{display:none!important}
+  .pline .x,.vpsrc{display:none!important}
 
   .bandtop,.bandbot{display:block}
   .bandtop{margin:0 0 8mm}
@@ -1160,7 +1157,7 @@ table.page{border-collapse:collapse}
     </div>
   </section>
 
-  <section class="sheet" id="vpInternal">
+  <section class="sheet">
     <div class="sheet-head"><h2>Besonderhede</h2><span class="tag">Nie gedruk nie</span></div>
     <p class="hint">Dit vul die dekblad en die onderteken-strook in.</p>
     <div class="field"><label>Kliënt</label><input data-p="client" placeholder="Naam"></div>
@@ -3083,20 +3080,90 @@ var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter
 var AF_LABELS=null;   /* filled from the markup the first time we swap */
 
 function applyLang(lang){
+  var en=(lang==='en');
+
+  /* Translate all fixed proposal labels, not only the small data-t set. */
+  var text={
+    'ipBill':en?'Eskom per month (R)':'Eskom per maand (R)',
+    'ipTar':en?'Tariff (R per kWh)':'Tarief (R per kWh)',
+    'ipPan':en?'Panels that fit':'Panele wat pas',
+    'ipW':en?'Watts each':'Watt elk',
+    'ipBat':en?'Battery (kWh)':'Battery (kWh)',
+    'ipKw':en?'Inverter (kW)':'Omsetter (kW)',
+    'ipSun':en?'Sun hours per day':'Sonure per dag',
+    'ipStr':en?'DC strings (leave blank = automatic)':'DC strings (los leeg = self)',
+    'vpEmail':en?'Customer email':'Kliënt se e-pos',
+    'vpXeroQ':en?'Search customer in Xero':'Soek kliënt in Xero',
+    'vpXeroFind':en?'Find':'Soek',
+    'vpPublish':en?'Send Value Proposal':'Stuur waardevoorstel',
+    'vpPublish2':en?'Send to Customer':'Stuur aan kliënt',
+    'vpPrint':en?'Save as PDF':'Stoor as PDF',
+    'vpAdd':en?'+ Add from price list':'+ Voeg uit pryslys by',
+    'vpAdd2':en?'+ Add from price list':'+ Voeg uit pryslys by',
+    'vpShowLabel':en?'Show prices on the PDF':'Wys pryse op die PDF'
+  };
+  Object.keys(text).forEach(function(id){
+    var e=document.getElementById(id);
+    if(e && id!=='vpEmail' && id!=='vpXeroQ') e.textContent=text[id];
+  });
+
+  var labels={
+    'ipBill':en?'Eskom per month (R)':'Eskom per maand (R)',
+    'ipTar':en?'Tariff (R per kWh)':'Tarief (R per kWh)',
+    'ipPan':en?'Panels that fit':'Panele wat pas',
+    'ipW':en?'Watts each':'Watt elk',
+    'ipBat':en?'Battery (kWh)':'Battery (kWh)',
+    'ipKw':en?'Inverter (kW)':'Omsetter (kW)',
+    'ipSun':en?'Sun hours per day':'Sonure per dag',
+    'ipStr':en?'DC strings (leave blank = automatic)':'DC strings (los leeg = self)',
+    'vpEmail':en?'Customer email':'Kliënt se e-pos'
+  };
+  Object.keys(labels).forEach(function(id){
+    var e=document.querySelector('label[for="'+id+'"]');
+    if(e) e.textContent=labels[id];
+  });
+
+  var ph={
+    'ipBill':en?'2500':'2500', 'ipTar':'3.02', 'ipPan':en?'9':'9',
+    'ipW':'620', 'ipBat':'16', 'ipKw':'8', 'ipSun':'4.0',
+    'ipStr':en?'automatic':'self',
+    'vpEmail':'customer@example.com', 'vpXeroQ':en?'Search customer in Xero':'Soek kliënt in Xero'
+  };
+  Object.keys(ph).forEach(function(id){
+    var e=document.getElementById(id); if(e) e.placeholder=ph[id];
+  });
+
+  var pick={panel:en?'Panel':'Paneel',battery:en?'Battery':'Battery',inverter:en?'Inverter':'Omsetter',roof:en?'Roof structure':'Dakstruktuur',switch:en?'Changeover board':'Skakelbord'};
+  document.querySelectorAll('#vpPick [data-pick]').forEach(function(b){
+    var role=b.getAttribute('data-pick'), k=b.querySelector('.k');
+    if(k && pick[role]) k.textContent=pick[role];
+  });
+
+  /* Existing data-t labels used by the proposal sheets and PDF. */
+  var src=en?EN_LABELS:AF_LABELS;
   var els=document.querySelectorAll('#screenProp [data-t]');
   if(!AF_LABELS){
     AF_LABELS={};
     els.forEach(function(e){ AF_LABELS[e.getAttribute('data-t')]=e.innerHTML; });
   }
-  var src=(lang==='en')?EN_LABELS:AF_LABELS;
+  src=en?EN_LABELS:AF_LABELS;
   els.forEach(function(e){
     var k=e.getAttribute('data-t');
     if(src[k]!==undefined) e.innerHTML=src[k];
   });
   var t=document.querySelector('#screenProp .vpsrc');
-  if(t) t.lastChild.textContent=(lang==='en')?' Show prices on the PDF':' Wys pryse op die PDF';
-  var add=document.getElementById('vpAdd');
-  if(add) add.textContent=(lang==='en')?'+ Add from price list':'+ Add from price list';
+  if(t) t.lastChild.textContent=en?' Show prices on the PDF':' Wys pryse op die PDF';
+
+  /* Textareas are customer-facing content; their placeholders must follow the proposal language. */
+  var now=document.querySelector('#screenProp textarea[data-p="now"]');
+  var prop=document.querySelector('#screenProp textarea[data-p="prop"]');
+  if(now) now.placeholder=en?'What you currently pay and why this is a cost you cannot control.':'Wat julle nou betaal en hoekom dit die enigste koste is waaroor julle nie beheer het nie.';
+  if(prop) prop.placeholder=en?'Anything else about this proposal — roof direction, shading, where the board will be installed.':'Enigiets anders oor hierdie voorstel — dakrigting, skaduwee, waar die bord kom.';
+
+  /* Internal details are still Afrikaans by design, but the customer-facing actions are bilingual. */
+  var detail=document.querySelector('#screenProp h2');
+  var xh=document.querySelector('#screenProp h3');
+  if(xh && xh.textContent.indexOf('Xero')>=0) xh.textContent=en?'Xero customer / Send proposal':'Xero customer / Send proposal';
 }
 
 function vpBlank(lang){
@@ -3706,8 +3773,7 @@ function vpXeroFind_(){
 }
 function vpPublish_(){
   vpMirrorAll(); vpCalc(); vpLines();
-  /* Publishing a Value Proposal is independent of Xero. Xero is only used
-     for optional accounting actions such as creating a formal quote. */
+  if(!VP.xeroContact||!VP.xeroContact.contactID){alert('First select the customer in Xero.');return;}
   if(!VP.client.trim()){alert('Customer name is required.');return;}
   if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
   VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
@@ -3715,7 +3781,7 @@ function vpPublish_(){
   api({action:'proposalPublish',proposal:VP}).then(function(j){
     VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
     var st=document.getElementById('vpPublishStatus'); if(st)st.innerHTML='<b>Sent.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open customer link</a>';
-    alert('Value Proposal sent. The customer link is ready to share.');
+    alert('Value Proposal sent. The customer can now accept it.');
   }).catch(function(e){alert('Send failed: '+String(e.message||e));}).finally(function(){btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});});
 }
 
