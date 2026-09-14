@@ -7,6 +7,8 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,">
 <meta name="apple-mobile-web-app-title" content="Flagship">
 <meta name="application-name" content="Flagship">
 <title>Flagship</title>
@@ -3541,7 +3543,7 @@ function vpLines(){
   VP.items.forEach(function(it,i){
     var row=document.createElement('div');
     row.className='pline'+(it.role?' auto':'')+(it.custom?' edited':'');
-    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(vpItemDesc_(it))+</b>'+
+    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(vpItemDesc_(it))+'</b>'+
       (it.spec?'<span>'+esc(it.spec)+'</span>':'')+'</div>'+
       '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty||1)+'"></div>'+
       '<div class="amt"></div><button type="button" class="x" aria-label="Remove">\u00d7</button>';
