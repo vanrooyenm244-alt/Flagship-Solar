@@ -560,7 +560,10 @@ table.page{border-collapse:collapse}
   #screenProps{display:none!important}
   #screenProp{page:vp}                       /* margin-free page, bands bleed */
   #screenProp .vpin,#screenProp .addrow,#screenProp #vpAdd,
-  .pline .x,.vpsrc,#vpInternalDetails{display:none!important}
+  .pline .x,.vpsrc,#vpInternal{display:none!important}
+  /* Internal/admin controls and calculation markers never belong in the customer PDF. */
+  .pline .d b::after{content:none!important}
+  .vpnote .none{display:none!important}
 
   .bandtop,.bandbot{display:block}
   .bandtop{margin:0 0 8mm}
@@ -1157,7 +1160,7 @@ table.page{border-collapse:collapse}
     </div>
   </section>
 
-  <section class="sheet" id="vpInternalDetails">
+  <section class="sheet" id="vpInternal">
     <div class="sheet-head"><h2>Besonderhede</h2><span class="tag">Nie gedruk nie</span></div>
     <p class="hint">Dit vul die dekblad en die onderteken-strook in.</p>
     <div class="field"><label>Kliënt</label><input data-p="client" placeholder="Naam"></div>
@@ -3080,43 +3083,20 @@ var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter
 var AF_LABELS=null;   /* filled from the markup the first time we swap */
 
 function applyLang(lang){
-  var en=(lang==='en');
   var els=document.querySelectorAll('#screenProp [data-t]');
   if(!AF_LABELS){
     AF_LABELS={};
     els.forEach(function(e){ AF_LABELS[e.getAttribute('data-t')]=e.innerHTML; });
   }
-  var src=en?EN_LABELS:AF_LABELS;
+  var src=(lang==='en')?EN_LABELS:AF_LABELS;
   els.forEach(function(e){
     var k=e.getAttribute('data-t');
     if(src[k]!==undefined) e.innerHTML=src[k];
   });
-
-  /* These are form labels/placeholders rather than data-t headings. */
-  var labels={
-    ipBill:en?'Electricity bill per month (R)':'Eskom per maand (R)',
-    ipTar:en?'Tariff (R per kWh)':'Tarief (R per kWh)',
-    ipPan:en?'Panels that fit':'Panele wat pas',
-    ipW:en?'Watts each':'Watt elk',
-    ipBat:en?'Battery (kWh)':'Battery (kWh)',
-    ipKw:en?'Inverter (kW)':'Omsetter (kW)',
-    ipSun:en?'Sun hours per day':'Sonure per dag',
-    ipStr:en?'DC strings (leave blank = automatic)':'DC strings (los leeg = self)'
-  };
-  Object.keys(labels).forEach(function(id){
-    var e=document.getElementById(id); if(e && e.previousElementSibling) e.previousElementSibling.textContent=labels[id];
-  });
-  var pickLabels={panel:en?'Panel':'Paneel',battery:en?'Battery':'Battery',inverter:en?'Inverter':'Omsetter',roof:en?'Roof structure':'Dakstruktuur',switch:en?'Changeover board':'Skakelbord'};
-  document.querySelectorAll('#vpPick [data-pick]').forEach(function(b){
-    var role=b.getAttribute('data-pick'), k=b.querySelector('.k');
-    if(k) k.textContent=pickLabels[role]||k.textContent;
-  });
   var t=document.querySelector('#screenProp .vpsrc');
-  if(t) t.lastChild.textContent=en?' Show prices on the PDF':' Wys pryse op die PDF';
+  if(t) t.lastChild.textContent=(lang==='en')?' Show prices on the PDF':' Wys pryse op die PDF';
   var add=document.getElementById('vpAdd');
-  if(add) add.textContent=en?'+ Add from price list':'+ Voeg uit pryslys by';
-  var add2=document.getElementById('vpAdd2');
-  if(add2) add2.textContent=en?'+ Add from price list':'+ Voeg uit pryslys by';
+  if(add) add.textContent=(lang==='en')?'+ Add from price list':'+ Add from price list';
 }
 
 function vpBlank(lang){
@@ -3726,19 +3706,17 @@ function vpXeroFind_(){
 }
 function vpPublish_(){
   vpMirrorAll(); vpCalc(); vpLines();
-  if(!VP.client.trim()){alert(VP.lang==='en'?'Customer name is required.':'Kliënt se naam is nodig.');return;}
-  if(!VP.items||!VP.items.length){alert(VP.lang==='en'?'The proposal has no priced lines.':'Die voorstel het geen geprysde reëls nie.');return;}
+  /* Publishing a Value Proposal is independent of Xero. Xero is only used
+     for optional accounting actions such as creating a formal quote. */
+  if(!VP.client.trim()){alert('Customer name is required.');return;}
+  if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
   VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
-  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];
-  btns.forEach(function(b){if(b){b.disabled=true;b.textContent=VP.lang==='en'?'Sending…':'Stuur…';}});
+  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Sending…';}});
   api({action:'proposalPublish',proposal:VP}).then(function(j){
     VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
-    var st=document.getElementById('vpPublishStatus');
-    if(st)st.innerHTML='<b>'+(VP.lang==='en'?'Sent.':'Gestuur.')+'</b> — <a target="_blank" rel="noopener" href="'+esc(j.url)+'">'+(VP.lang==='en'?'Open customer link':'Maak kliëntskakel oop')+'</a>';
-    alert(VP.lang==='en'?'Value Proposal sent. The customer can now accept it.':'Value Proposal gestuur. Die kliënt kan dit nou aanvaar.');
-  }).catch(function(e){alert((VP.lang==='en'?'Send failed: ':'Stuur het misluk: ')+String(e.message||e));}).finally(function(){
-    btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?(VP.lang==='en'?'Send Value Proposal':'Stuur Value Proposal'):(VP.lang==='en'?'Send to Customer':'Stuur aan kliënt');}});
-  });
+    var st=document.getElementById('vpPublishStatus'); if(st)st.innerHTML='<b>Sent.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open customer link</a>';
+    alert('Value Proposal sent. The customer link is ready to share.');
+  }).catch(function(e){alert('Send failed: '+String(e.message||e));}).finally(function(){btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});});
 }
 
 /* ============ quote builder ============ */
