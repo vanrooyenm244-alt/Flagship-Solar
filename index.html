@@ -960,6 +960,10 @@ table.page{border-collapse:collapse}
       <button class="btn" type="button" id="stAddItem" style="width:100%">
         + Add New Item
       </button>
+      <button class="btn ghost" type="button" id="stUpload" style="width:100%;margin-top:8px">
+        Upload Stock
+      </button>
+      <div id="stUploader"></div>
     </div>
 
     <div id="stBody" class="hidden">
@@ -3849,6 +3853,114 @@ document.getElementById('xeroSyncItems').addEventListener('click',xeroSyncItems_
    write over each other. Numbers live on the phone until they go. */
 var ST={place:'', items:[], cats:[], places:[], counts:{}, cat:'', q:''};
 
+/* ============ stock upload ============ */
+var SU_FILE=null, SU_ROWS=[], SU_PREVIEW=null, SU_PLACE='';
+function stockNormClient_(s){
+  return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function stockHeaderIndex_(h, words){
+  h=String(h||'').toLowerCase().replace(/[^a-z0-9]+/g,' ');
+  for(var i=0;i<words.length;i++) if(h.indexOf(words[i])>=0) return true;
+  return false;
+}
+function stockRowsFromMatrix_(matrix){
+  var rows=(matrix||[]).filter(function(r){return r&&r.some(function(x){return String(x||'').trim()!=='';});});
+  if(!rows.length) throw new Error('No readable rows found.');
+  var hi=0, best=-1;
+  rows.slice(0,12).forEach(function(r,i){
+    var score=r.reduce(function(n,x){var z=String(x||''); return n+(stockHeaderIndex_(z,['item','description','product','stock','code','sku'])?2:0)+(stockHeaderIndex_(z,['qty','quantity','units','ordered'])?3:0);},0);
+    if(score>best){best=score;hi=i;}
+  });
+  var head=rows[hi].map(function(x){return String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();});
+  var itemCol=-1, qtyCol=-1;
+  head.forEach(function(h,i){
+    if(itemCol<0 && /item|description|product|stock name|details|code|sku/.test(h)) itemCol=i;
+    if(qtyCol<0 && /qty|quantity|units|ordered|amount/.test(h)) qtyCol=i;
+  });
+  if(itemCol<0) itemCol=0;
+  if(qtyCol<0) qtyCol=Math.min(2, Math.max(1, rows[hi].length-1));
+  var out=[];
+  rows.slice(hi+1).forEach(function(r){
+    var item=String(r[itemCol]||'').trim();
+    var q=String(r[qtyCol]||'').replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+    var qty=q?Number(q[0]):NaN;
+    if(item && isFinite(qty) && qty>0 && !/total|subtotal|vat|invoice|page/i.test(item)) out.push({item:item,qty:qty});
+  });
+  if(!out.length) throw new Error('No item + quantity rows found. The file must contain an item/description column and a quantity column.');
+  return out;
+}
+async function readStockFile_(file){
+  var name=(file.name||'').toLowerCase(), ext=name.split('.').pop();
+  if(ext==='csv' || file.type==='text/csv') return stockRowsFromMatrix_(csvRows_(await file.text()));
+  if(ext==='xlsx' || ext==='xls'){
+    var XLSX=await loadScript_('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','XLSX');
+    var wb=XLSX.read(await file.arrayBuffer(),{type:'array'}), ws=wb.Sheets[wb.SheetNames[0]];
+    return stockRowsFromMatrix_(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
+  }
+  if(ext==='pdf' || file.type==='application/pdf'){
+    var pdfjs=await loadScript_('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','pdfjsLib');
+    pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise, out=[];
+    for(var pg=1;pg<=pdf.numPages;pg++){
+      var page=await pdf.getPage(pg), tc=await page.getTextContent(), toks=(tc.items||[]).map(function(x){var t=String(x.str||'').trim(),tr=x.transform||[];return t?{t:t,x:Number(tr[4])||0,y:Number(tr[5])||0}:null;}).filter(Boolean);
+      toks.sort(function(a,b){return b.y-a.y||a.x-b.x;});
+      var groups=[];
+      toks.forEach(function(z){var g=groups.length?groups[groups.length-1]:null;if(!g||Math.abs(g.y-z.y)>2){g={y:z.y,a:[]};groups.push(g);}g.a.push(z);});
+      groups.forEach(function(g){
+        var text=g.a.map(function(z){return z.t;}).join(' ');
+        if(/description|quantity|qty|invoice|subtotal|total/i.test(text)) return;
+        var nums=text.match(/(?:^|\s)(\d+(?:\.\d+)?)\s*$/);
+        if(!nums) nums=text.match(/\bqty\s*[:x-]?\s*(\d+(?:\.\d+)?)/i);
+        if(!nums) return;
+        var qty=Number(nums[1]), item=text.replace(nums[0],'').replace(/\s{2,}/g,' ').trim();
+        item=item.replace(/^\d+\s+[A-Z0-9._/-]+\s+/i,'').trim();
+        if(item && qty>0 && !/total|subtotal|vat|invoice|page/i.test(item)) out.push({item:item,qty:qty});
+      });
+    }
+    if(!out.length) throw new Error('Could not identify item quantities in this PDF. Excel/CSV is more reliable.');
+    return out;
+  }
+  throw new Error('Use CSV, Excel (.xlsx/.xls) or PDF.');
+}
+function buildStockPreview_(){
+  var by={}; ST.items.forEach(function(it){by[stockNormClient_(it.item)]=it;});
+  var rows=[], notFound=[];
+  SU_ROWS.forEach(function(x){var it=by[stockNormClient_(x.item)];if(!it){notFound.push(x);return;}rows.push({incoming:x,current:it,old:Number(it[SU_PLACE])||0,newQty:(Number(it[SU_PLACE])||0)+Number(x.qty)});});
+  return {rows:rows,notFound:notFound,total:SU_ROWS.length};
+}
+function renderStockUploader_(){
+  var box=document.getElementById('stUploader');if(!box)return;
+  if(!SU_FILE){box.innerHTML='';return;}
+  var p=SU_PREVIEW;
+  if(!p){box.innerHTML='<div class="pubox"><b>Reading…</b> '+esc(SU_FILE.name)+'</div>';return;}
+  var h='<div class="pubox"><h3>Upload Stock</h3><p class="sub"><b>'+esc(SU_FILE.name)+'</b> · '+p.total+' rows · Destination: <b>'+esc(SU_PLACE)+'</b></p>';
+  h+='<div class="pustats"><div class="pustat"><b>'+p.rows.length+'</b><span>Matched</span></div><div class="pustat"><b>'+p.notFound.length+'</b><span>Not matched</span></div></div>';
+  if(p.notFound.length) h+='<div class="puwarn">'+p.notFound.length+' items were not matched and will not be added.</div>';
+  if(p.rows.length){h+='<div class="pupreview"><table><thead><tr><th>Item</th><th>Old</th><th>Add</th><th>New</th></tr></thead><tbody>';p.rows.slice(0,200).forEach(function(x){h+='<tr><td>'+esc(x.current.item)+'</td><td class="num">'+x.old+'</td><td class="num">+'+x.incoming.qty+'</td><td class="num"><b>'+x.newQty+'</b></td></tr>';});h+='</tbody></table></div>';}
+  h+='<div class="puactions"><button class="btn ghost" type="button" id="suCancel">Cancel</button><button class="btn" type="button" id="suApply" '+(p.rows.length?'':'disabled')+'>Add to Stock</button></div></div>';
+  box.innerHTML=h;
+  document.getElementById('suCancel').addEventListener('click',function(){SU_FILE=null;SU_ROWS=[];SU_PREVIEW=null;renderStockUploader_();});
+  document.getElementById('suApply').addEventListener('click',applyStockUpload_);
+}
+function openStockUploader_(){
+  if(!(ME&&ME.role==='Admin')) return;
+  var dest=prompt('Where must the stock be added? Enter Store, GWM or NP200:',ST.place||'Store');
+  if(!dest)return;
+  dest=dest.trim(); if(ST.places.indexOf(dest)<0){alert('Choose exactly: Store, GWM or NP200.');return;}
+  SU_PLACE=dest;
+  var box=document.getElementById('stUploader');
+  box.innerHTML='<div class="pubox"><h3>Upload Stock</h3><p class="sub">Destination: <b>'+esc(SU_PLACE)+'</b>. Quantities will be added to existing stock.</p><input class="pufile" id="suFile" type="file" accept=".csv,.xlsx,.xls,.pdf,text/csv,application/pdf"><div id="suMsg"></div></div>';
+  document.getElementById('suFile').addEventListener('change',function(e){var file=e.target.files&&e.target.files[0];if(!file)return;SU_FILE=file;SU_ROWS=[];SU_PREVIEW=null;document.getElementById('suMsg').innerHTML='<div class="queued">Reading '+esc(file.name)+'…</div>';readStockFile_(file).then(function(rows){SU_ROWS=rows;SU_PREVIEW=buildStockPreview_();renderStockUploader_();}).catch(function(err){document.getElementById('suMsg').innerHTML='<div class="puerr">'+esc(String(err.message||err))+'</div>';});});
+  box.scrollIntoView({block:'start',behavior:'smooth'});
+}
+function applyStockUpload_(){
+  if(!SU_PREVIEW||!SU_PREVIEW.rows.length)return;
+  if(!confirm('Add '+SU_PREVIEW.rows.length+' matched item quantities to '+SU_PLACE+'?\n\nExisting quantities will increase; they will not be replaced.'))return;
+  var b=document.getElementById('suApply');b.disabled=true;b.textContent='Adding…';
+  api({action:'stockUpload',place:SU_PLACE,rows:SU_PREVIEW.rows.map(function(x){return {item:x.current.item,qty:x.incoming.qty};}),source:SU_FILE?SU_FILE.name:''}).then(function(j){alert('Stock upload complete.\n\nItems updated: '+(j.added||0)+'\nNot matched: '+((j.notFound||[]).length));SU_FILE=null;SU_ROWS=[];SU_PREVIEW=null;loadStock();renderStockUploader_();}).catch(function(e){b.disabled=false;b.textContent='Add to Stock';alert('Could not upload stock: '+String(e.message||e));});
+}
+
+
 function showStock(){
   backTo='screenHome';
   document.getElementById('savedTag').textContent='stock';
@@ -4020,6 +4132,8 @@ function renderStock(){
 function stockBar(){
   document.getElementById('stCount').textContent=Object.keys(ST.counts).length;
 }
+
+document.getElementById('stUpload').addEventListener('click',openStockUploader_);
 
 document.getElementById('stQ').addEventListener('input',function(){
   ST.q=this.value; renderStock();
@@ -4635,6 +4749,8 @@ function stockShowAdminTools_(){
   if(!tools) return;
   var role=String((ME&&ME.role)||'').toLowerCase();
   tools.style.display=(role==='admin'||role==='technician')?'block':'none';
+  var up=document.getElementById('stUpload');
+  if(up) up.style.display=(role==='admin')?'':'none';
 }
 
 function stockForm_(){
