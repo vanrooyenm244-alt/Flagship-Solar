@@ -2234,14 +2234,15 @@ function clearSession(){ ME=null; return del('cfg','session').catch(function(){}
 document.getElementById('setTest').addEventListener('click',function(){
   CFG.url=document.getElementById('setUrl').value.trim();
   var box=document.getElementById('setResult');
-  saveCfg();
   if(!CFG.url){ box.innerHTML='<div class="queued">Paste the web app URL first.</div>'; return; }
-  box.innerHTML='<div class="queued">Testing…</div>';
-  fetch(CFG.url+'?action=ping').then(function(r){ return r.json(); }).then(function(j){
-    box.innerHTML = j.ok
-      ? '<div class="calc">Connected to the sheet.</div>'
-      : '<div class="calc bad">Reached it, but it answered: '+esc(j.error||'?')+'</div>';
-    renderShare();
+  box.innerHTML='<div class="queued">Saving and testing…</div>';
+  saveCfg().then(function(){
+    return fetch(CFG.url+'?action=ping').then(sheetJson_).then(function(j){
+      box.innerHTML = j.ok
+        ? '<div class="calc">Connected to the sheet.</div>'
+        : '<div class="calc bad">Reached it, but it answered: '+esc(j.error||'?')+'</div>';
+      renderShare();
+    });
   }).catch(function(e){
     box.innerHTML='<div class="calc bad">Could not reach the sheet: '+esc(String(e.message||e))+
       '<br>Check the URL and that the deployment is set to "Anyone".</div>';
@@ -2261,15 +2262,66 @@ function api(payload){
     return j;
   });
 }
+/* ---- sheet request helpers ----
+   A failed connection is not the same thing as an invalid login. Apps Script
+   can temporarily fail, time out, return a server error, or wake slowly after
+   a long idle period. Keep those failures separate from real auth failures so
+   boot() never destroys a valid local session just because the first request
+   could not be completed.
+*/
+function sheetError_(message, opts){
+  var e=new Error(message||'Sheet request failed.');
+  opts=opts||{};
+  if(opts.status!==undefined) e.sheetStatus=opts.status;
+  if(opts.auth===true) e.sheetAuth=true;
+  if(opts.transient===true) e.sheetTransient=true;
+  return e;
+}
+
+function sheetJson_(response){
+  return response.text().then(function(text){
+    var body=null;
+    try{ body=text?JSON.parse(text):{}; }
+    catch(err){
+      throw sheetError_('The sheet returned an invalid response.',{
+        status:response.status,
+        transient:response.status>=500||response.status===429
+      });
+    }
+
+    if(!response.ok){
+      throw sheetError_(body.error||('Sheet request failed ('+response.status+').'),{
+        status:response.status,
+        transient:response.status===408||response.status===425||response.status===429||response.status>=500
+      });
+    }
+
+    return body;
+  });
+}
+
+function sheetResult_(j){
+  if(!j || !j.ok){
+    var msg=String(j&&j.error||'Sheet request was rejected.');
+    var low=msg.toLowerCase();
+    var auth=/invalid (username|password|credentials)|incorrect (username|password)|wrong password|user not found|account (is )?(inactive|disabled|suspended)|not active|missing (username|password)|username and password.*required|unauthori[sz]ed/.test(low);
+    var transient=/busy|try again|timeout|timed out|temporar|unavailable|service error|internal error|server error|failed to fetch|network/.test(low);
+    throw sheetError_(msg,{auth:auth,transient:transient});
+  }
+  return j;
+}
+
 function apiGet(params){
-  if(!CFG.url) return Promise.reject(new Error('No sheet connected. Open Settings.'));
+  if(!CFG.url) return Promise.reject(sheetError_('No sheet connected. Open Settings.'));
   var q=Object.keys(params).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
   var auth = ME ? '&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass) : '';
-  return fetch(CFG.url+'?'+q+auth).then(function(r){ return r.json(); }).then(function(j){
-    if(!j.ok) throw new Error(j.error||'rejected');
-    return j;
+  return fetch(CFG.url+'?'+q+auth).then(sheetJson_).then(sheetResult_).catch(function(e){
+    if(e && (e.name==='TypeError' || /failed to fetch|network/i.test(String(e.message||e)))){
+      throw sheetError_('Could not reach the sheet.',{transient:true});
+    }
+    throw e;
   });
 }
 var post=api;   // timesheet code calls post()
@@ -4688,12 +4740,23 @@ function boot(){
     return;
   }
 
-  // Show the app immediately using the locally saved session.
+  // Show the app immediately using the locally saved session. A temporary
+  // sheet failure must never throw the user out of a session that is still
+  // stored locally.
   showHome();
 
-  // Validate the session in the background.
-  apiGet({action:'me'})
-    .then(function(j){
+  var attempts=0;
+  var delays=[0,3000,10000,30000];
+
+  function validateSession(){
+    var wait=delays[Math.min(attempts,delays.length-1)];
+    attempts++;
+
+    return new Promise(function(resolve){
+      setTimeout(resolve,wait);
+    }).then(function(){
+      return apiGet({action:'me'});
+    }).then(function(j){
       ME.name = j.user.name;
       ME.role = j.user.role;
       saveSession();
@@ -4703,16 +4766,38 @@ function boot(){
         history.replaceState(null,'',location.pathname);
         alert('Xero connected.');
       }
-    })
-    .catch(function(e){
-      if(navigator.onLine){
-        clearSession().then(function(){
+      return true;
+    }).catch(function(e){
+      // Only a confirmed authentication rejection may clear the local session.
+      if(e && e.sheetAuth){
+        return clearSession().then(function(){
           showAuth();
           authMsg('bad',String(e.message||e));
+          return false;
         });
       }
-      // Offline: keep the locally cached session and app usable.
+
+      // Offline or temporarily unavailable: keep the session and retry. The
+      // app remains usable with its local cache while the sheet is unavailable.
+      console.warn('Sheet session validation failed; keeping local session:',e);
+      if(attempts < delays.length && navigator.onLine){
+        return validateSession();
+      }
+
+      // If the device is offline, wait for the browser to report that it is
+      // back online instead of looping forever in the background.
+      return false;
     });
+  }
+
+  window.addEventListener('online',function(){
+    if(ME && CFG.url){
+      attempts=0;
+      validateSession();
+    }
+  });
+
+  validateSession();
 }
 
 open()
