@@ -960,10 +960,6 @@ table.page{border-collapse:collapse}
       <button class="btn" type="button" id="stAddItem" style="width:100%">
         + Add New Item
       </button>
-      <button class="btn ghost" type="button" id="stUpload" style="width:100%;margin-top:8px">
-        Upload Stock
-      </button>
-      <div id="stUploader"></div>
     </div>
 
     <div id="stBody" class="hidden">
@@ -2234,15 +2230,14 @@ function clearSession(){ ME=null; return del('cfg','session').catch(function(){}
 document.getElementById('setTest').addEventListener('click',function(){
   CFG.url=document.getElementById('setUrl').value.trim();
   var box=document.getElementById('setResult');
+  saveCfg();
   if(!CFG.url){ box.innerHTML='<div class="queued">Paste the web app URL first.</div>'; return; }
-  box.innerHTML='<div class="queued">Saving and testing…</div>';
-  saveCfg().then(function(){
-    return fetch(CFG.url+'?action=ping').then(sheetJson_).then(function(j){
-      box.innerHTML = j.ok
-        ? '<div class="calc">Connected to the sheet.</div>'
-        : '<div class="calc bad">Reached it, but it answered: '+esc(j.error||'?')+'</div>';
-      renderShare();
-    });
+  box.innerHTML='<div class="queued">Testing…</div>';
+  fetch(CFG.url+'?action=ping').then(function(r){ return r.json(); }).then(function(j){
+    box.innerHTML = j.ok
+      ? '<div class="calc">Connected to the sheet.</div>'
+      : '<div class="calc bad">Reached it, but it answered: '+esc(j.error||'?')+'</div>';
+    renderShare();
   }).catch(function(e){
     box.innerHTML='<div class="calc bad">Could not reach the sheet: '+esc(String(e.message||e))+
       '<br>Check the URL and that the deployment is set to "Anyone".</div>';
@@ -2262,66 +2257,15 @@ function api(payload){
     return j;
   });
 }
-/* ---- sheet request helpers ----
-   A failed connection is not the same thing as an invalid login. Apps Script
-   can temporarily fail, time out, return a server error, or wake slowly after
-   a long idle period. Keep those failures separate from real auth failures so
-   boot() never destroys a valid local session just because the first request
-   could not be completed.
-*/
-function sheetError_(message, opts){
-  var e=new Error(message||'Sheet request failed.');
-  opts=opts||{};
-  if(opts.status!==undefined) e.sheetStatus=opts.status;
-  if(opts.auth===true) e.sheetAuth=true;
-  if(opts.transient===true) e.sheetTransient=true;
-  return e;
-}
-
-function sheetJson_(response){
-  return response.text().then(function(text){
-    var body=null;
-    try{ body=text?JSON.parse(text):{}; }
-    catch(err){
-      throw sheetError_('The sheet returned an invalid response.',{
-        status:response.status,
-        transient:response.status>=500||response.status===429
-      });
-    }
-
-    if(!response.ok){
-      throw sheetError_(body.error||('Sheet request failed ('+response.status+').'),{
-        status:response.status,
-        transient:response.status===408||response.status===425||response.status===429||response.status>=500
-      });
-    }
-
-    return body;
-  });
-}
-
-function sheetResult_(j){
-  if(!j || !j.ok){
-    var msg=String(j&&j.error||'Sheet request was rejected.');
-    var low=msg.toLowerCase();
-    var auth=/invalid (username|password|credentials)|incorrect (username|password)|wrong password|user not found|account (is )?(inactive|disabled|suspended)|not active|missing (username|password)|username and password.*required|unauthori[sz]ed/.test(low);
-    var transient=/busy|try again|timeout|timed out|temporar|unavailable|service error|internal error|server error|failed to fetch|network/.test(low);
-    throw sheetError_(msg,{auth:auth,transient:transient});
-  }
-  return j;
-}
-
 function apiGet(params){
-  if(!CFG.url) return Promise.reject(sheetError_('No sheet connected. Open Settings.'));
+  if(!CFG.url) return Promise.reject(new Error('No sheet connected. Open Settings.'));
   var q=Object.keys(params).map(function(k){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
   var auth = ME ? '&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass) : '';
-  return fetch(CFG.url+'?'+q+auth).then(sheetJson_).then(sheetResult_).catch(function(e){
-    if(e && (e.name==='TypeError' || /failed to fetch|network/i.test(String(e.message||e)))){
-      throw sheetError_('Could not reach the sheet.',{transient:true});
-    }
-    throw e;
+  return fetch(CFG.url+'?'+q+auth).then(function(r){ return r.json(); }).then(function(j){
+    if(!j.ok) throw new Error(j.error||'rejected');
+    return j;
   });
 }
 var post=api;   // timesheet code calls post()
@@ -3905,114 +3849,6 @@ document.getElementById('xeroSyncItems').addEventListener('click',xeroSyncItems_
    write over each other. Numbers live on the phone until they go. */
 var ST={place:'', items:[], cats:[], places:[], counts:{}, cat:'', q:''};
 
-/* ============ stock upload ============ */
-var SU_FILE=null, SU_ROWS=[], SU_PREVIEW=null, SU_PLACE='';
-function stockNormClient_(s){
-  return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
-}
-function stockHeaderIndex_(h, words){
-  h=String(h||'').toLowerCase().replace(/[^a-z0-9]+/g,' ');
-  for(var i=0;i<words.length;i++) if(h.indexOf(words[i])>=0) return true;
-  return false;
-}
-function stockRowsFromMatrix_(matrix){
-  var rows=(matrix||[]).filter(function(r){return r&&r.some(function(x){return String(x||'').trim()!=='';});});
-  if(!rows.length) throw new Error('No readable rows found.');
-  var hi=0, best=-1;
-  rows.slice(0,12).forEach(function(r,i){
-    var score=r.reduce(function(n,x){var z=String(x||''); return n+(stockHeaderIndex_(z,['item','description','product','stock','code','sku'])?2:0)+(stockHeaderIndex_(z,['qty','quantity','units','ordered'])?3:0);},0);
-    if(score>best){best=score;hi=i;}
-  });
-  var head=rows[hi].map(function(x){return String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();});
-  var itemCol=-1, qtyCol=-1;
-  head.forEach(function(h,i){
-    if(itemCol<0 && /item|description|product|stock name|details|code|sku/.test(h)) itemCol=i;
-    if(qtyCol<0 && /qty|quantity|units|ordered|amount/.test(h)) qtyCol=i;
-  });
-  if(itemCol<0) itemCol=0;
-  if(qtyCol<0) qtyCol=Math.min(2, Math.max(1, rows[hi].length-1));
-  var out=[];
-  rows.slice(hi+1).forEach(function(r){
-    var item=String(r[itemCol]||'').trim();
-    var q=String(r[qtyCol]||'').replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
-    var qty=q?Number(q[0]):NaN;
-    if(item && isFinite(qty) && qty>0 && !/total|subtotal|vat|invoice|page/i.test(item)) out.push({item:item,qty:qty});
-  });
-  if(!out.length) throw new Error('No item + quantity rows found. The file must contain an item/description column and a quantity column.');
-  return out;
-}
-async function readStockFile_(file){
-  var name=(file.name||'').toLowerCase(), ext=name.split('.').pop();
-  if(ext==='csv' || file.type==='text/csv') return stockRowsFromMatrix_(csvRows_(await file.text()));
-  if(ext==='xlsx' || ext==='xls'){
-    var XLSX=await loadScript_('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','XLSX');
-    var wb=XLSX.read(await file.arrayBuffer(),{type:'array'}), ws=wb.Sheets[wb.SheetNames[0]];
-    return stockRowsFromMatrix_(XLSX.utils.sheet_to_json(ws,{header:1,defval:''}));
-  }
-  if(ext==='pdf' || file.type==='application/pdf'){
-    var pdfjs=await loadScript_('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','pdfjsLib');
-    pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    var pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise, out=[];
-    for(var pg=1;pg<=pdf.numPages;pg++){
-      var page=await pdf.getPage(pg), tc=await page.getTextContent(), toks=(tc.items||[]).map(function(x){var t=String(x.str||'').trim(),tr=x.transform||[];return t?{t:t,x:Number(tr[4])||0,y:Number(tr[5])||0}:null;}).filter(Boolean);
-      toks.sort(function(a,b){return b.y-a.y||a.x-b.x;});
-      var groups=[];
-      toks.forEach(function(z){var g=groups.length?groups[groups.length-1]:null;if(!g||Math.abs(g.y-z.y)>2){g={y:z.y,a:[]};groups.push(g);}g.a.push(z);});
-      groups.forEach(function(g){
-        var text=g.a.map(function(z){return z.t;}).join(' ');
-        if(/description|quantity|qty|invoice|subtotal|total/i.test(text)) return;
-        var nums=text.match(/(?:^|\s)(\d+(?:\.\d+)?)\s*$/);
-        if(!nums) nums=text.match(/\bqty\s*[:x-]?\s*(\d+(?:\.\d+)?)/i);
-        if(!nums) return;
-        var qty=Number(nums[1]), item=text.replace(nums[0],'').replace(/\s{2,}/g,' ').trim();
-        item=item.replace(/^\d+\s+[A-Z0-9._/-]+\s+/i,'').trim();
-        if(item && qty>0 && !/total|subtotal|vat|invoice|page/i.test(item)) out.push({item:item,qty:qty});
-      });
-    }
-    if(!out.length) throw new Error('Could not identify item quantities in this PDF. Excel/CSV is more reliable.');
-    return out;
-  }
-  throw new Error('Use CSV, Excel (.xlsx/.xls) or PDF.');
-}
-function buildStockPreview_(){
-  var by={}; ST.items.forEach(function(it){by[stockNormClient_(it.item)]=it;});
-  var rows=[], notFound=[];
-  SU_ROWS.forEach(function(x){var it=by[stockNormClient_(x.item)];if(!it){notFound.push(x);return;}rows.push({incoming:x,current:it,old:Number(it[SU_PLACE])||0,newQty:(Number(it[SU_PLACE])||0)+Number(x.qty)});});
-  return {rows:rows,notFound:notFound,total:SU_ROWS.length};
-}
-function renderStockUploader_(){
-  var box=document.getElementById('stUploader');if(!box)return;
-  if(!SU_FILE){box.innerHTML='';return;}
-  var p=SU_PREVIEW;
-  if(!p){box.innerHTML='<div class="pubox"><b>Reading…</b> '+esc(SU_FILE.name)+'</div>';return;}
-  var h='<div class="pubox"><h3>Upload Stock</h3><p class="sub"><b>'+esc(SU_FILE.name)+'</b> · '+p.total+' rows · Destination: <b>'+esc(SU_PLACE)+'</b></p>';
-  h+='<div class="pustats"><div class="pustat"><b>'+p.rows.length+'</b><span>Matched</span></div><div class="pustat"><b>'+p.notFound.length+'</b><span>Not matched</span></div></div>';
-  if(p.notFound.length) h+='<div class="puwarn">'+p.notFound.length+' items were not matched and will not be added.</div>';
-  if(p.rows.length){h+='<div class="pupreview"><table><thead><tr><th>Item</th><th>Old</th><th>Add</th><th>New</th></tr></thead><tbody>';p.rows.slice(0,200).forEach(function(x){h+='<tr><td>'+esc(x.current.item)+'</td><td class="num">'+x.old+'</td><td class="num">+'+x.incoming.qty+'</td><td class="num"><b>'+x.newQty+'</b></td></tr>';});h+='</tbody></table></div>';}
-  h+='<div class="puactions"><button class="btn ghost" type="button" id="suCancel">Cancel</button><button class="btn" type="button" id="suApply" '+(p.rows.length?'':'disabled')+'>Add to Stock</button></div></div>';
-  box.innerHTML=h;
-  document.getElementById('suCancel').addEventListener('click',function(){SU_FILE=null;SU_ROWS=[];SU_PREVIEW=null;renderStockUploader_();});
-  document.getElementById('suApply').addEventListener('click',applyStockUpload_);
-}
-function openStockUploader_(){
-  if(!(ME&&ME.role==='Admin')) return;
-  var dest=prompt('Where must the stock be added? Enter Store, GWM or NP200:',ST.place||'Store');
-  if(!dest)return;
-  dest=dest.trim(); if(ST.places.indexOf(dest)<0){alert('Choose exactly: Store, GWM or NP200.');return;}
-  SU_PLACE=dest;
-  var box=document.getElementById('stUploader');
-  box.innerHTML='<div class="pubox"><h3>Upload Stock</h3><p class="sub">Destination: <b>'+esc(SU_PLACE)+'</b>. Quantities will be added to existing stock.</p><input class="pufile" id="suFile" type="file" accept=".csv,.xlsx,.xls,.pdf,text/csv,application/pdf"><div id="suMsg"></div></div>';
-  document.getElementById('suFile').addEventListener('change',function(e){var file=e.target.files&&e.target.files[0];if(!file)return;SU_FILE=file;SU_ROWS=[];SU_PREVIEW=null;document.getElementById('suMsg').innerHTML='<div class="queued">Reading '+esc(file.name)+'…</div>';readStockFile_(file).then(function(rows){SU_ROWS=rows;SU_PREVIEW=buildStockPreview_();renderStockUploader_();}).catch(function(err){document.getElementById('suMsg').innerHTML='<div class="puerr">'+esc(String(err.message||err))+'</div>';});});
-  box.scrollIntoView({block:'start',behavior:'smooth'});
-}
-function applyStockUpload_(){
-  if(!SU_PREVIEW||!SU_PREVIEW.rows.length)return;
-  if(!confirm('Add '+SU_PREVIEW.rows.length+' matched item quantities to '+SU_PLACE+'?\n\nExisting quantities will increase; they will not be replaced.'))return;
-  var b=document.getElementById('suApply');b.disabled=true;b.textContent='Adding…';
-  api({action:'stockUpload',place:SU_PLACE,rows:SU_PREVIEW.rows.map(function(x){return {item:x.current.item,qty:x.incoming.qty};}),source:SU_FILE?SU_FILE.name:''}).then(function(j){alert('Stock upload complete.\n\nItems updated: '+(j.added||0)+'\nNot matched: '+((j.notFound||[]).length));SU_FILE=null;SU_ROWS=[];SU_PREVIEW=null;loadStock();renderStockUploader_();}).catch(function(e){b.disabled=false;b.textContent='Add to Stock';alert('Could not upload stock: '+String(e.message||e));});
-}
-
-
 function showStock(){
   backTo='screenHome';
   document.getElementById('savedTag').textContent='stock';
@@ -4184,8 +4020,6 @@ function renderStock(){
 function stockBar(){
   document.getElementById('stCount').textContent=Object.keys(ST.counts).length;
 }
-
-document.getElementById('stUpload').addEventListener('click',openStockUploader_);
 
 document.getElementById('stQ').addEventListener('input',function(){
   ST.q=this.value; renderStock();
@@ -4365,7 +4199,7 @@ function calcShift(dateStr,inStr,outStr,lunchMin){
   var a=mins(inStr), b=mins(outStr);
   if(a===null||b===null) return null;
   if(b<a) b+=1440;
-  var lunch=Number(lunchMin); if(isNaN(lunch)||lunch<0) lunch=30;
+  var lunch=(lunchMin==='' || lunchMin==null)?30:Number(lunchMin); if(isNaN(lunch)||lunch<0) lunch=30;
   var normal=0, ot=0;
   if(dayType==='Weekday'){
     ot=((a<360)?(360-a):0)+((b>1020)?(b-1020):0);
@@ -4661,12 +4495,23 @@ function collectUnsent(){ return collectAll(true); }
 
 /* Days stay on the screen after they go through — the flag is what stops
    them being sent twice, not wiping them. */
-function markSent(rows){
-  rows.forEach(function(r){
+function markSent(rows, result){
+  /* Only mark rows as sent when the server actually accepted them.
+     Older versions marked every row sent even when the server rejected
+     part of a batch (closed cycle / wrong worker), which made the phone
+     and the sheet disagree. */
+  var results=(result&&Array.isArray(result.results))?result.results:null;
+  rows.forEach(function(r,i){
+    var ok=false;
+    if(results && results[i]) ok=['added','updated','unchanged'].indexOf(results[i].status)!==-1;
     var e=ENTRIES[r.worker];
-    if(e && e[r.date]) e[r.date].sent=true;
+    if(e && e[r.date]) e[r.date].sent=ok;
   });
   saveEntries();
+}
+
+function queueKey_(r){
+  return String(r.worker||'').trim().toLowerCase()+'||'+String(r.date||'').trim();
 }
 
 document.getElementById('tsSend').addEventListener('click',function(){
@@ -4685,18 +4530,24 @@ document.getElementById('tsSend').addEventListener('click',function(){
 
   post({action:'timesheets',rows:rows}).then(function(j){
     btn.disabled=false; btn.textContent='Send to sheet';
-    markSent(rows);
+    markSent(rows,j);
     var msg=[];
     if(j.written) msg.push(j.written+' added');
     if(j.updated) msg.push(j.updated+' updated');
     if(j.closed)  msg.push(j.closed+' skipped — closed cycle');
     if(j.blocked) msg.push(j.blocked+' refused — not yours to file');
+    if(j.skipped) msg.push(j.skipped+' skipped — invalid/empty');
     alert(msg.length?msg.join(', ')+'.':'Nothing changed — those entries were already in the sheet.');
     renderPeople(); flushQueue();
   }).catch(function(){
     queue(rows).then(function(){
       btn.disabled=false; btn.textContent='Send to sheet';
-      markSent(rows);
+      /* Queued is NOT the same as sent. Keep the entries visibly pending. */
+      rows.forEach(function(r){
+        var e=ENTRIES[r.worker];
+        if(e && e[r.date]) e[r.date].sent=false;
+      });
+      saveEntries();
       alert('No connection — '+rows.length+' days saved on this phone. Open this again with signal and they will go through.');
       renderPeople(); renderQueue();
     });
@@ -4704,9 +4555,13 @@ document.getElementById('tsSend').addEventListener('click',function(){
 });
 
 function queue(rows){
+  /* Keep only the newest queued version of a worker/day. This prevents an
+     offline edit from sending an old version and then a newer version. */
   return get1('cfg','queue').then(function(q){
     var all=(q&&q.rows)||[];
-    return put('cfg',{id:'queue',rows:all.concat(rows)});
+    var map={};
+    all.concat(rows).forEach(function(r){ map[queueKey_(r)]=r; });
+    return put('cfg',{id:'queue',rows:Object.keys(map).map(function(k){return map[k];})});
   }).catch(function(){ return put('cfg',{id:'queue',rows:rows}); });
 }
 
@@ -4726,8 +4581,24 @@ function flushQueue(){
   get1('cfg','queue').then(function(q){
     var rows=(q&&q.rows)||[];
     if(!rows.length) return;
-    post({action:'timesheets',rows:rows}).then(function(){
-      put('cfg',{id:'queue',rows:[]}).then(renderQueue);
+    post({action:'timesheets',rows:rows}).then(function(j){
+      var results=Array.isArray(j.results)?j.results:[];
+      var keep=[];
+      rows.forEach(function(r,i){
+        var res=results[i];
+        var ok=!!(res && ['added','updated','unchanged'].indexOf(res.status)!==-1);
+        var e=ENTRIES[r.worker];
+        if(ok){
+          if(e && e[r.date]) e[r.date].sent=true;
+        }else{
+          keep.push(r);
+          if(e && e[r.date]) e[r.date].sent=false;
+        }
+      });
+      saveEntries();
+      put('cfg',{id:'queue',rows:keep}).then(function(){
+        renderQueue(); renderPeople();
+      });
     }).catch(function(){});
   }).catch(function(){});
 }
@@ -4740,23 +4611,12 @@ function boot(){
     return;
   }
 
-  // Show the app immediately using the locally saved session. A temporary
-  // sheet failure must never throw the user out of a session that is still
-  // stored locally.
+  // Show the app immediately using the locally saved session.
   showHome();
 
-  var attempts=0;
-  var delays=[0,3000,10000,30000];
-
-  function validateSession(){
-    var wait=delays[Math.min(attempts,delays.length-1)];
-    attempts++;
-
-    return new Promise(function(resolve){
-      setTimeout(resolve,wait);
-    }).then(function(){
-      return apiGet({action:'me'});
-    }).then(function(j){
+  // Validate the session in the background.
+  apiGet({action:'me'})
+    .then(function(j){
       ME.name = j.user.name;
       ME.role = j.user.role;
       saveSession();
@@ -4766,38 +4626,16 @@ function boot(){
         history.replaceState(null,'',location.pathname);
         alert('Xero connected.');
       }
-      return true;
-    }).catch(function(e){
-      // Only a confirmed authentication rejection may clear the local session.
-      if(e && e.sheetAuth){
-        return clearSession().then(function(){
+    })
+    .catch(function(e){
+      if(navigator.onLine){
+        clearSession().then(function(){
           showAuth();
           authMsg('bad',String(e.message||e));
-          return false;
         });
       }
-
-      // Offline or temporarily unavailable: keep the session and retry. The
-      // app remains usable with its local cache while the sheet is unavailable.
-      console.warn('Sheet session validation failed; keeping local session:',e);
-      if(attempts < delays.length && navigator.onLine){
-        return validateSession();
-      }
-
-      // If the device is offline, wait for the browser to report that it is
-      // back online instead of looping forever in the background.
-      return false;
+      // Offline: keep the locally cached session and app usable.
     });
-  }
-
-  window.addEventListener('online',function(){
-    if(ME && CFG.url){
-      attempts=0;
-      validateSession();
-    }
-  });
-
-  validateSession();
 }
 
 open()
@@ -4834,8 +4672,6 @@ function stockShowAdminTools_(){
   if(!tools) return;
   var role=String((ME&&ME.role)||'').toLowerCase();
   tools.style.display=(role==='admin'||role==='technician')?'block':'none';
-  var up=document.getElementById('stUpload');
-  if(up) up.style.display=(role==='admin')?'':'none';
 }
 
 function stockForm_(){
