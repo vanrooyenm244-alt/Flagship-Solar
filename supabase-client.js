@@ -37,10 +37,10 @@
       .then(function (rows) { return rows[0] || { id: user.id, full_name: user.email, preferred_language: 'en' }; });
   }
   function toLegacyCard(row) {
-    var card = row.data || {};
+    var card = JSON.parse(JSON.stringify(row.data || {}));
     card.id = row.client_id || card.id;
     card.status = row.status || card.status || 'DRAFT';
-    card.updated = new Date(row.updated_at || Date.now()).getTime();
+    card.updated = card.updated || new Date(row.updated_at || Date.now()).getTime();
     card.company_id = row.company_id;
     card.remote_id = row.id;
     return card;
@@ -71,10 +71,19 @@
       session = null;
       return end;
     },
-    memberships: function () {
-      if (!session || !session.user) return Promise.resolve([]);
-      return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=company_id,role:roles(name),companies(name,slug)', { method: 'GET' });
-    },
+memberships: function () {
+  if (!session || !session.user) return Promise.resolve([]);
+  return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=company_id,role:roles(name),companies(name,slug)', { method: 'GET' });
+},
+
+listPrices: function () {
+  return rest(
+    'price_items',
+    'select=*&active=eq.true&order=category.asc,description.asc',
+    { method: 'GET' }
+  );
+},
+
     listJobCards: function () {
       return rest('job_cards', 'select=*&order=updated_at.desc', { method: 'GET' }).then(function (rows) { return rows.map(toLegacyCard); });
     },
@@ -87,11 +96,11 @@
         data: card,
         updated_at: new Date().toISOString()
       };
-      return request('/rest/v1/job_cards?on_conflict=client_id&select=representation', {
+      return request('/rest/v1/job_cards?on_conflict=client_id&select=*', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=representation' },
         body: JSON.stringify(payload)
-      }).then(function (rows) { return rows && rows[0] ? toLegacyCard(rows[0]) : card; });
+      }).then(function (rows) { if(!rows||!rows[0]||rows[0].client_id!==card.id)throw new Error('Missing Job Card acknowledgement.');return toLegacyCard(rows[0]); });
     },
     uploadJobCardPhoto: function (jobCardId, file, contentType) {
       if (!session || !session.user) return Promise.reject(new Error('Sign in to upload photos.'));

@@ -1,0 +1,244 @@
+✔ explicit credential rejection: unknown user or password (5.1964ms)
+✔ explicit credential rejection: account not approved yet (1.7865ms)
+✔ temporary/authorization error does not invalidate session: not allowed (1.9943ms)
+✔ temporary/authorization error does not invalidate session: Lock timed out (1.4363ms)
+✔ temporary/authorization error does not invalidate session: Service unavailable (1.3347ms)
+✔ HTTP error is identified as server error, not offline or invalid credentials (1.5106ms)
+✔ malformed JSON envelope is not accepted (1.5753ms)
+✔ startup retains cached session after network failure (18.1823ms)
+✔ startup clears only explicitly rejected credentials (3.7272ms)
+✔ late startup answer cannot modify another login (5.0663ms)
+✔ late startup rejection cannot log out another account (3.773ms)
+✔ put waits for transaction commit and captures the input (3.6268ms)
+✔ transaction abort rejects save (2.3494ms)
+✔ configured Supabase without session does not intercept Sheets (2.7721ms)
+✔ save stays bound to original card while another is opened (55.1045ms)
+✔ failed local save prevents Job Card submission (3.1489ms)
+✔ rejected Job Card stays draft with reason (2.8931ms)
+✔ success envelope without exact card acknowledgement stays draft (2.8034ms)
+✔ matching acknowledgement accepts submitted card (2.6921ms)
+✔ older Job Card response does not accept newer edits (6.1601ms)
+✔ duplicate submit clicks issue one request (3.3161ms)
+✔ remote autosaves are serialized, not last-network-response wins (7.3339ms)
+✔ queued remote save is not replayed under a different account (9.1518ms)
+✔ save captures document before navigation without delayed writes (2.6688ms)
+✔ vpSave captures document before navigation without delayed writes (6.121ms)
+✔ quote zero quantity is blocked before any Xero write (3.376ms)
+✔ calendar membership is exact rather than substring (2.3095ms)
+✔ all application and backend JavaScript parses (15.4185ms)
+✔ backend rejects invalid quote quantity 0 (3.0139ms)
+✔ backend rejects invalid quote quantity -1 (1.5973ms)
+✔ backend rejects invalid quote quantity  (1.6495ms)
+✔ backend rejects invalid quote quantity null (1.579ms)
+✔ backend rejects invalid quote quantity not a number (1.3555ms)
+✔ backend rejects invalid quote quantity Infinity (1.336ms)
+✔ backend preserves explicit zero price and negative adjustment price (1.5995ms)
+✔ backend quote validation happens before Xero requests (2.5063ms)
+✔ worker assignment cannot match another name or empty name (1.4918ms)
+✔ worker cannot take ownership of another existing Job Card by changing technician (2.0928ms)
+✔ Job Card write lock releases even when validation fails (2.031ms)
+✔ Job Card acknowledgement transaction: newer revision (2.7119ms)
+✔ Job Card acknowledgement transaction: hidden record (1.7374ms)
+✔ Job Card acknowledgement transaction: same revision (1.9476ms)
+✔ remote refresh never overwrites an existing local photo or tombstone (7.8694ms)
+✔ unavailable persistent storage cannot report successful save (1.8328ms)
+✔ stock mixed response retains unknown items and newer edits (15.45ms)
+✔ stock accepted snapshot removes only its matching count (3.1006ms)
+✔ stock reply after place change cannot clear the new place counts (2.5037ms)
+✔ malformed stock reply retains all input (2.4783ms)
+✔ service worker excludes credentials/API traffic and preserves other applications caches (3.5135ms)
+✔ actual me/login reject wrong credentials and accept an active user (12.5311ms)
+✔ actual Timesheet handlers accept, reject, read and retry without duplicates (12.9495ms)
+✔ actual Timesheet endpoint refuses worker impersonation (3.845ms)
+✔ actual Job Card endpoints save, edit, list, reject unauthorized delete and delete (5.1744ms)
+✔ actual stock endpoint changes only selected location and returns unknown rows (4.4167ms)
+✔ actual proposal publish, view and accept persist the expected state (46.9392ms)
+✔ missing Xero credentials fail closed without external financial writes (6.9321ms)
+✔ missing Supabase server config is an explicit price integration blocker (3.6113ms)
+✔ public proposal escapes quotes in customer-controlled HTML attributes (3.1427ms)
+✔ deployed calendar, bilingual proposal and PDF modules remain present (16.3674ms)
+✔ Supabase adapter has one Job Card list handler and valid returning select (1.5311ms)
+✔ customer helper uses the explicit quote bridge (0.5464ms)
+✔ database still opens v5 and retains calendar store (14.7922ms)
+✔ release shell and HTML contain both helpers with existing assets (10.3904ms)
+✔ ordinary day (5.6064ms)
+✔ before-boundary failure (0.4735ms)
+✔ after-boundary failure (0.393ms)
+✔ overnight failure (0.4084ms)
+✔ early to normal (0.421ms)
+✔ normal to late (0.3251ms)
+✔ all three bands (0.3627ms)
+✔ overnight with next-day normal (0.3543ms)
+✔ explicit thirty-minute lunch (0.4097ms)
+✔ explicit string zero (0.5818ms)
+✔ explicit lunch in mixed shift (0.2721ms)
+✔ documented early normal hour (0.2378ms)
+✔ exact normal boundaries (0.1924ms)
+✔ one minute across start (0.2424ms)
+✔ one minute across end (0.2661ms)
+✔ before normal ends exactly (0.3284ms)
+✔ normal starts exactly (0.7108ms)
+✔ normal ends exactly (0.195ms)
+✔ overtime starts exactly (0.1519ms)
+✔ midnight boundary (0.2074ms)
+✔ end at midnight (0.1674ms)
+✔ start at midnight (0.1821ms)
+✔ equal times means zero elapsed (0.2893ms)
+✔ Saturday daytime (0.1936ms)
+✔ Sunday daytime (0.1673ms)
+✔ weekend overnight (0.1548ms)
+✔ month rollover on weekdays (0.1903ms)
+✔ year rollover on weekdays (0.2061ms)
+✔ valid leap date (0.197ms)
+✔ invalid/ambiguous lunch  (0.3259ms)
+✔ invalid/ambiguous lunch null (0.176ms)
+✔ invalid/ambiguous lunch undefined (0.162ms)
+✔ invalid/ambiguous lunch -1 (0.1678ms)
+✔ invalid/ambiguous lunch Infinity (0.2385ms)
+✔ invalid/ambiguous lunch NaN (0.2644ms)
+✔ invalid/ambiguous lunch invalid (0.2515ms)
+✔ invalid/ambiguous lunch 601 (0.2521ms)
+✔ invalid date/time 2026-02-30 07:00 17:00 (0.2482ms)
+✔ invalid date/time 2025-02-29 07:00 17:00 (0.1572ms)
+✔ invalid date/time bad 07:00 17:00 (0.1124ms)
+✔ invalid date/time 2026-09-23 24:00 17:00 (0.1711ms)
+✔ invalid date/time 2026-09-23 07:60 17:00 (0.1515ms)
+✔ invalid date/time 2026-09-23 07:00 25:00 (0.1682ms)
+✔ invalid date/time 2026-09-23 07:00junk 17:00 (0.4291ms)
+✔ invalid date/time 2026-09-23  17:00 (0.3752ms)
+✔ all minute-band sample intervals conserve actual elapsed minutes before rounding (13.4708ms)
+✔ approved starting-day classification crosses Friday and Sunday boundaries (0.3396ms)
+✔ weekday excess lunch requires review, including overtime-only shifts (0.8633ms)
+✔ lunch exactly normal minutes is deducted without assigning any to overtime (0.3164ms)
+✔ calculation cores are identical and all application JavaScript parses (18.4691ms)
+✔ Apps Script Date time inputs retain compatibility (0.4553ms)
+✔ backend write path persists corrected amounts and skips review rows with a reason (5.1781ms)
+✔ explicit added accepts only submitted revision (6.6406ms)
+✔ explicit updated accepts only submitted revision (0.736ms)
+✔ explicit unchanged accepts only submitted revision (2.1473ms)
+✔ blocked stays recoverable and unsent (1.0477ms)
+✔ closed stays recoverable and unsent (0.7174ms)
+✔ skipped stays recoverable and unsent (0.6423ms)
+✔ failed stays recoverable and unsent (0.5309ms)
+✔ unexpected stays recoverable and unsent (0.5351ms)
+✔ mixed results remove only accepted rows and preserve server reason (1.202ms)
+✔ offline is queued, never sent, reconnect drains (1.0227ms)
+✔ API authorization error is retained, not called a network error or auto-retried (1.5323ms)
+✔ network failure retained; explicit retry succeeds (1.0402ms)
+✔ missing acknowledgement never accepts (0.6236ms)
+✔ wrong date acknowledgement never accepts (0.4612ms)
+✔ wrong worker acknowledgement never accepts (0.4273ms)
+✔ duplicate index acknowledgement never accepts (0.6933ms)
+✔ aggregate only acknowledgement never accepts (0.4676ms)
+✔ concurrent drain calls share one request (0.7951ms)
+✔ persistent batch guard blocks a second engine/tab (0.6642ms)
+✔ rows queued during a drain survive old acknowledgement (0.986ms)
+✔ new edit supersedes old queued snapshot; stale data is never sent (0.6662ms)
+✔ old in-flight acknowledgement cannot accept newer edit (0.7895ms)
+✔ deleting a draft prevents its queued replay (0.4588ms)
+✔ different logged-in user or endpoint cannot drain original queue (0.5161ms)
+✔ account switch during request preserves original acknowledgement scope (0.696ms)
+✔ account changes after claiming batch but before fetch do not send (0.5911ms)
+✔ ambiguous/invalid lunch  is never submitted (1.0389ms)
+✔ ambiguous/invalid lunch null is never submitted (0.344ms)
+✔ ambiguous/invalid lunch undefined is never submitted (0.3528ms)
+✔ ambiguous/invalid lunch -1 is never submitted (0.2139ms)
+✔ ambiguous/invalid lunch bad is never submitted (0.2705ms)
+✔ explicit lunch zero reaches server as zero (0.5219ms)
+✔ blank lunch in mixed queue request prevents partial enqueue (4.0601ms)
+✔ stale second-tab cycle save cannot replace newer edits (1.6464ms)
+✔ same revision cannot disguise changed payload (0.7273ms)
+✔ cycle isolation and caller snapshot mutation (0.4163ms)
+✔ interrupted request stays held until explicit recovery then retry (2.7998ms)
+✔ persistent storage failure never submits (0.6152ms)
+✔ credentials never enter persisted queue state (0.5126ms)
+✔ frontend scripts parse and storage protections remain intact (16.1626ms)
+✔ frontend pending save remains bound to original cycle and captured values (12.592ms)
+✔ cycle navigation waits for save commit before loading next cycle (14.0478ms)
+✔ failed draft persistence blocks cycle change and queue drain (8.2824ms)
+✔ frontend never writes legacy queue and only imports legacy drafts after confirmation (7.074ms)
+✔ Timesheet storage resolves only after transaction commit, not request success (35.9807ms)
+✔ transaction abort never reports save success (8.5725ms)
+✔ HTTP server errors are not described as offline (7.3492ms)
+✔ invalid JSON response remains unconfirmed (10.9227ms)
+✔ transport uses captured credentials rather than newly logged-in user (7.7712ms)
+✔ server import records existing work without accepting or queueing a submission (1.4605ms)
+✔ server import never overwrites draft or accepted local revisions (1.0244ms)
+✔ server import ignores stale cycle versions and other accounts (0.5944ms)
+✔ server import rejects wrong-cycle and invalid dates and retains held queue evidence (0.7281ms)
+✔ editing a server-recorded row creates a draft requiring its own acknowledgement (0.6263ms)
+✔ frontend server read captures cycle and credentials and discards late cycle response (11.1001ms)
+✔ frontend server read discards response after account switch (9.5163ms)
+✔ frontend server read rejects mismatched response cycle (4.8788ms)
+✔ frontend server read does not replace in-memory edits saved during import (6.1942ms)
+PASS reserved "Users"
+PASS reserved "users"
+PASS reserved "USERS"
+PASS reserved "  Users  "
+PASS reserved "Timesheets"
+PASS reserved "timesheets"
+PASS reserved "TIMESHEETS"
+PASS reserved "  Timesheets  "
+PASS reserved "Workers"
+PASS reserved "workers"
+PASS reserved "WORKERS"
+PASS reserved "  Workers  "
+PASS reserved "Prices"
+PASS reserved "prices"
+PASS reserved "PRICES"
+PASS reserved "  Prices  "
+PASS reserved "Log"
+PASS reserved "log"
+PASS reserved "LOG"
+PASS reserved "  Log  "
+PASS reserved "Proposals"
+PASS reserved "proposals"
+PASS reserved "PROPOSALS"
+PASS reserved "  Proposals  "
+PASS reserved "JobCards"
+PASS reserved "jobcards"
+PASS reserved "JOBCARDS"
+PASS reserved "  JobCards  "
+PASS reserved "Summary"
+PASS reserved "summary"
+PASS reserved "SUMMARY"
+PASS reserved "  Summary  "
+PASS reserved "Sheet1"
+PASS reserved "sheet1"
+PASS reserved "SHEET1"
+PASS reserved "  Sheet1  "
+PASS reserved "Stock"
+PASS reserved "stock"
+PASS reserved "STOCK"
+PASS reserved "  Stock  "
+PASS reserved list derives from all backend business constants
+PASS direct workerSheet cannot bypass reserved check
+PASS direct master write blocked before any write
+PASS unrelated existing sheet preserved
+PASS unowned header-only template is not adopted
+PASS unowned worker-shaped unrelated data is preserved
+PASS new normal worker rebuild
+PASS normal whitespace is trimmed
+PASS verified legacy worker retains behavior and gains ownership
+PASS owned normal worker rebuild
+PASS ownership mismatch blocks
+PASS batch preflight prevents earlier valid destination mutations
+PASS sanitized system name blocked
+PASS sanitized worker collision blocked
+PASS case-only worker collision blocked
+PASS truncated worker collision blocked
+PASS POST entire batch rejected before master write
+PASS addWorker rejects reserved before directory write
+PASS time repair rejects collision before formatting
+PASS legacy ownership not changed when later destination fails
+PASS legacy preflight permits later legitimate master update
+61 tests passed; no Google services called.
+✔ tests\worker-tabs.test.cjs (318.665ms)
+ℹ tests 174
+ℹ suites 0
+ℹ pass 174
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 446.8477

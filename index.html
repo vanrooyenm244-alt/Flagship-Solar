@@ -7,10 +7,21 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,">
 <meta name="apple-mobile-web-app-title" content="Flagship">
 <meta name="application-name" content="Flagship">
 <title>Flagship</title>
 <style>
+.st-admin-form{border:1px solid var(--navy);border-radius:11px;padding:14px;margin:0 0 12px;background:#FBFDFF}
+.st-admin-form h3{margin:0 0 10px;font-size:15px;color:var(--navy)}
+.st-admin-form label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:9px 0 3px}
+.st-admin-form input,.st-admin-form select{width:100%;border:1px solid var(--rule);border-radius:8px;padding:10px 9px;font:inherit;font-size:15px;outline:none;background:#fff}
+.st-admin-form input:focus,.st-admin-form select:focus{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.st-admin-form .row{display:flex;gap:8px;margin-top:14px}
+.st-admin-form .row .btn{flex:1}
+.st-admin-form .msg{margin-top:10px}
+.st-edit{border:0;background:transparent;color:var(--navy);font:inherit;font-size:11px;font-weight:700;cursor:pointer;padding:3px 0 0}
 :root{
   --navy:#1F4E79; --navy-deep:#143352; --red:#C0392B;
   --slate:#1B2430; --slate-2:#26313F; --edge:#3A4756;
@@ -721,6 +732,7 @@ table.page{border-collapse:collapse}
        intentionally not committed; without it existing offline/Sheets flows remain available. -->
   <script src="./supabase-config.js"></script>
   <script src="./supabase-client.js"></script>
+  <script src="./timesheet-sync.js"></script>
 </head>
 <body>
 
@@ -768,6 +780,10 @@ table.page{border-collapse:collapse}
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5h14v15H5z"/><path d="M8 8h8M8 11.5h8M8 15h5"/><path d="M17 18.5v2"/></svg></span>
       <span class="tx"><b>Job Cards</b><span>Record work, photos and inspections</span></span><span class="go">›</span>
     </button>
+    <button class="tile" data-go="calendar" data-role="Admin,Technician,Worker" type="button">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M7 3.5v3M17 3.5v3M3.5 9h17M7 12.5h.01M12 12.5h.01M17 12.5h.01M7 16h.01M12 16h.01"/></svg></span>
+      <span class="tx"><b>Calendar</b><span>Schedule jobs and view your work</span></span><span class="go">›</span>
+    </button>
     <button class="tile" data-go="stock" type="button">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5 12 3.6l8.5 3.9v9L12 20.4 3.5 16.5z"/><path d="M3.5 7.5 12 11.4l8.5-3.9M12 11.4v9"/></svg></span>
       <span class="tx"><b>Stock</b><span>Count the store or a bakkie</span></span><span class="go">›</span>
@@ -811,12 +827,41 @@ table.page{border-collapse:collapse}
 </div>
 
 
+<!-- ================= CALENDAR ================= -->
+<div class="wrap hidden" id="screenCalendar">
+  <section class="sheet">
+    <div class="sheet-head"><h2>Calendar</h2><span class="tag" id="calModeTag">My jobs</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn ghost" id="calPrev" type="button">‹</button><button class="btn ghost" id="calToday" type="button">Today</button><button class="btn ghost" id="calNext" type="button">›</button>
+      <button class="btn ghost" id="calToggleMode" type="button">All jobs</button><button class="btn" id="calNew" type="button">+ Schedule job</button>
+    </div>
+    <h3 id="calTitle" style="margin:8px 0"></h3>
+    <div id="calGrid"></div>
+    <div id="calForm" class="hidden" style="margin-top:15px;border-top:1px solid #ddd;padding-top:15px">
+      <h3>Schedule Job</h3>
+      <div class="jc-grid2">
+        <div class="jc-field"><label>Customer</label><input id="calCustomer" placeholder="Customer name"></div>
+        <div class="jc-field"><label>Site / Address</label><input id="calSite" placeholder="Site or address"></div>
+        <div class="jc-field"><label>Date</label><input id="calDate" type="date"></div>
+        <div class="jc-field"><label>Start time</label><input id="calStart" type="time"></div>
+        <div class="jc-field"><label>End time</label><input id="calEnd" type="time"></div>
+        <div class="jc-field"><label>Technician</label><input id="calTech" placeholder="Technician name"></div>
+        <div class="jc-field"><label>Company</label><input id="calCompany" placeholder="Flagship Solar / Hi Service Gas"></div>
+        <div class="jc-field"><label>Job type</label><input id="calType" placeholder="Installation, repair, inspection..."></div>
+      </div>
+      <div class="jc-field"><label>Notes</label><textarea id="calNotes" rows="3" placeholder="Job notes"></textarea></div>
+      <div class="jc-row-actions"><button class="btn" id="calSave" type="button">Save job</button><button class="btn ghost" id="calCancel" type="button">Cancel</button></div>
+      <div id="calMsg" class="hint"></div>
+    </div>
+  </section>
+</div>
+
 <!-- ================= JOB CARDS ================= -->
 <div class="wrap hidden" id="screenJobCards">
   <section class="sheet">
     <div class="sheet-head"><h2>Job Cards</h2><span class="tag">Saved on this phone</span></div>
     <p class="hint">Create one job card for the day's work. Pick only the work types you actually did; the relevant sections open automatically.</p>
-    <button class="btn" type="button" id="jcNew" style="width:100%;padding:15px">+ Start a new job card</button>
+    <button class="btn" type="button" id="jcNew" onclick="jcNew_()" style="width:100%;padding:15px">+ Start a new job card</button>
     <div id="jcList"></div>
   </section>
 </div>
@@ -911,6 +956,13 @@ table.page{border-collapse:collapse}
     <p class="hint" id="stHint">Which one are you counting? You only count the place you pick,
       so somebody else can count another one at the same time.</p>
     <div class="stplace" id="stPlaces"></div>
+
+    <div id="stAdminTools" style="display:none;margin:0 0 12px">
+      <button class="btn" type="button" id="stAddItem" style="width:100%">
+        + Add New Item
+      </button>
+    </div>
+
     <div id="stBody" class="hidden">
       <input class="search" id="stQ" placeholder="Type to find an item" autocomplete="off">
       <div class="cats" id="stCats"></div>
@@ -1312,10 +1364,10 @@ var PRESETS = {
 };
 
 /* ============ storage ============ */
-var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], MEMJOBCARDS=[], DBNAME='flagship-inspections';
+var DB=null, MEM=false, MEMJOBS=[], MEMCFG={}, MEMQUOTES=[], MEMJOBCARDS=[], MEMCALENDAR=[], DBNAME='flagship-inspections';
 function open(){
   return new Promise(function(res,rej){
-    var r = indexedDB.open(DBNAME,4);
+    var r = indexedDB.open(DBNAME,5);
     r.onupgradeneeded=function(e){
       var d=e.target.result;
       if(!d.objectStoreNames.contains('jobs')) d.createObjectStore('jobs',{keyPath:'id'});
@@ -1324,6 +1376,7 @@ function open(){
       if(!d.objectStoreNames.contains('props')) d.createObjectStore('props',{keyPath:'id'});
       if(!d.objectStoreNames.contains('quotes')) d.createObjectStore('quotes',{keyPath:'id'});
       if(!d.objectStoreNames.contains('jobcards')) d.createObjectStore('jobcards',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('calendar')) d.createObjectStore('calendar',{keyPath:'id'});
     };
     r.onsuccess=function(){DB=r.result;res(DB)};
     r.onerror=function(){rej(r.error)};
@@ -1332,20 +1385,15 @@ function open(){
 function tx(store,mode){ return DB.transaction(store,mode).objectStore(store); }
 function memJob(id){ for(var i=0;i<MEMJOBS.length;i++) if(MEMJOBS[i].id===id) return MEMJOBS[i]; return null; }
 function put(store,val){
-  if(MEM){
-    if(store==='jobs'){ var e=memJob(val.id); if(e){ Object.assign(e,val); } else MEMJOBS.push(val); }
-    else if(store==='jobcards'){ var je=MEMJOBCARDS.find(function(x){return x.id===val.id}); if(je) Object.assign(je,val); else MEMJOBCARDS.push(val); }
-    else if(store==='cfg'){ MEMCFG[val.id]=val; }
-    else if(store==='quotes'){ var qe=MEMQUOTES.find(function(x){return x.id===val.id}); if(qe) Object.assign(qe,val); else MEMQUOTES.push(val); }
-    return Promise.resolve();
-  }
-  return new Promise(function(res,rej){var q=tx(store,'readwrite').put(val);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
-function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='jobcards'?MEMJOBCARDS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():CLAUSES.slice()))));
+  val=JSON.parse(JSON.stringify(val));
+  if(MEM)return Promise.reject(new Error('Persistent browser storage is unavailable. Export your work before closing.'));
+  return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');t.oncomplete=function(){res()};t.onabort=t.onerror=function(){rej(t.error||new Error('Local save failed'))};t.objectStore(store).put(val);}); }
+function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='jobcards'?MEMJOBCARDS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():(store==='calendar'?MEMCALENDAR.slice():CLAUSES.slice())))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').getAll();q.onsuccess=function(){res(q.result||[])};q.onerror=function(){rej(q.error)}}); }
-function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='jobcards'?(MEMJOBCARDS.find(function(x){return x.id===id})||null):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null))));
+function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='jobcards'?(MEMJOBCARDS.find(function(x){return x.id===id})||null):(store==='calendar'?(MEMCALENDAR.find(function(x){return x.id===id})||null):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null)))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').get(id);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}}); }
-function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else if(store==='jobcards') MEMJOBCARDS=MEMJOBCARDS.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
-  return new Promise(function(res,rej){var q=tx(store,'readwrite').delete(id);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
+function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else if(store==='jobcards') MEMJOBCARDS=MEMJOBCARDS.filter(function(j){return j.id!==id}); else if(store==='calendar') MEMCALENDAR=MEMCALENDAR.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
+  return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');t.oncomplete=function(){res()};t.onabort=t.onerror=function(){rej(t.error||new Error('Local delete failed'))};t.objectStore(store).delete(id);}); }
 
 /* ============ slots ============ */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -1402,7 +1450,9 @@ function makeSlot(cap,sans,img){
       input.value = '';
       return;
     }
+    var photoJob=currentId;
     shrink(f, function(url){
+      if(currentId!==photoJob||!slot.isConnected){alert('The inspection changed before the photo finished. Reopen the original inspection and add the photo again.');return;}
       var shot = slot.querySelector('.shot');
       var im = shot.querySelector('img');
       if(!im){
@@ -1510,24 +1560,55 @@ function defaultsFor(grid){
 }
 
 function save(){
-  if(!currentId) return;
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(function(){
-    var addr=(document.getElementById('fAddr').textContent||'').trim();
-    put('jobs',{id:currentId, title:addr||'Untitled inspection', updated:Date.now(), data:collect()})
-      .then(function(){
-        var tag=document.getElementById('savedTag');
-        tag.textContent='saved'; tag.className='saved';
-        setTimeout(function(){tag.textContent='inspection';tag.className=''},1400);
-      })
-      .catch(function(){ alert('Could not save — the phone may be out of storage. Export to PDF now.'); });
-  },700);
+  if(!currentId)return;
+  var id=currentId,addr=(document.getElementById('fAddr').textContent||'').trim();
+  return put('jobs',{id:id,title:addr||'Untitled inspection',updated:Date.now(),data:collect()}).then(function(){
+    if(currentId!==id)return;var tag=document.getElementById('savedTag');tag.textContent=MEM?'temporary only':'saved';tag.className='saved';
+  }).catch(function(){alert('Could not save — export to PDF now.');});
 }
 
 document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')) save(); });
 
+
+/* ============ calendar ============ */
+var CAL_DATE=new Date(), CAL_ALL=false;
+function calPad_(n){return String(n).padStart(2,'0');}
+function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
+function calEsc_(x){return esc(x||'');}
+function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !!n && String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
+function showCalendar(){backTo='screenHome';show('screenCalendar');calRender_();}
+function calRender_(){
+  getAll('calendar').then(function(items){
+    items=items.filter(calIsMine_).sort(function(a,b){return (a.date+a.startTime).localeCompare(b.date+b.startTime);});
+    var y=CAL_DATE.getFullYear(),m=CAL_DATE.getMonth();
+    document.getElementById('calTitle').textContent=CAL_DATE.toLocaleString(undefined,{month:'long',year:'numeric'});
+    document.getElementById('calModeTag').textContent=CAL_ALL?'All jobs':'My jobs';
+    document.getElementById('calToggleMode').textContent=CAL_ALL?'My jobs':'All jobs';
+    var first=new Date(y,m,1), start=new Date(y,m,1-first.getDay()), html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:12px">';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(x){html+='<b style="padding:5px;text-align:center">'+x+'</b>';});
+    for(var i=0;i<42;i++){var d=new Date(start);d.setDate(start.getDate()+i);var key=calDateKey_(d), day=items.filter(function(e){return e.date===key;});html+='<div style="min-height:82px;border:1px solid #ddd;border-radius:6px;padding:4px;background:'+(d.getMonth()===m?'#fff':'#f5f5f5')+'"><b>'+d.getDate()+'</b>'+day.map(function(e){return '<div data-cal-open="'+calEsc_(e.id)+'" style="cursor:pointer;margin-top:4px;padding:4px;border-radius:4px;background:#e8f0ff;overflow:hidden"><b>'+calEsc_(e.startTime||'')+'</b> '+calEsc_(e.customer||'Job')+'<br><small>'+calEsc_(e.technician||'')+'</small></div>';}).join('')+'</div>';}
+    html+='</div>';document.getElementById('calGrid').innerHTML=html;
+    document.querySelectorAll('[data-cal-open]').forEach(function(el){el.onclick=function(){calOpen_(el.getAttribute('data-cal-open'));};});
+  });
+}
+function calOpen_(id){get1('calendar',id).then(function(e){
+  if(!e)return;
+  if(!confirm('Open Job Card for '+(e.customer||'')+' at '+(e.site||'')+'?'))return;
+  if(e.jobCardId)return jcOpen_(e.jobCardId);
+  var card=jcBlank();card.customer=e.customer||'';card.site=e.site||'';card.date=e.date||'';card.technicians=e.technician||'';
+  var type=JC_TYPES.find(function(t){return t.id===e.jobType||t.name===e.jobType;});card.types=type?[type.id]:[];card.calendarEventId=e.id;
+  return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id);});
+}).catch(function(e){alert('Could not open calendar job: '+e.message);});}
+document.getElementById('calNew').addEventListener('click',function(){document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);});
+document.getElementById('calCancel').addEventListener('click',function(){document.getElementById('calForm').classList.add('hidden');});
+document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
+document.getElementById('calPrev').addEventListener('click',function(){CAL_DATE.setMonth(CAL_DATE.getMonth()-1);calRender_();});
+document.getElementById('calNext').addEventListener('click',function(){CAL_DATE.setMonth(CAL_DATE.getMonth()+1);calRender_();});
+document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();calRender_();});
+document.getElementById('calSave').addEventListener('click',function(){var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:document.getElementById('calCompany').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled.';document.getElementById('calForm').classList.add('hidden');calRender_();});});
+
 /* ============ screens ============ */
-var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
+var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenCalendar','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
 var backTo='screenHome';
 
 function show(id){
@@ -1568,7 +1649,9 @@ var JC=null, jcSaveTimer=null, JC_TYPES=[
   {id:'coc',name:'COC Inspection Work'},
   {id:'custom',name:'Custom Jobs'}
 ];
-
+function pad2_(n){
+  return String(n).padStart(2,'0');
+}
 function jcBlank(){
   var d=new Date(), ds=d.getFullYear()+'-'+pad2_(d.getMonth()+1)+'-'+pad2_(d.getDate());
   return {id:'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),number:'JC-'+ds.replace(/-/g,'')+'-'+String(Date.now()).slice(-4),customer:'',site:'',date:ds,technicians:ME?ME.name:'',types:[],status:'DRAFT',signature:'',signatureName:'',signedAt:'',created:Date.now(),updated:Date.now(),sections:{descale:{},plug:{},firmware:{},coc:{},fullsolar:{},panels:{},custom:{items:[]}}};
@@ -1618,20 +1701,41 @@ function jcCustomPhoto_(i,val){val=val||{};var id='jcc-'+i+'-'+Math.random().toS
 function jcBindFields_(){
   document.querySelectorAll('#screenJobCard [data-jc-field]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-field').split('|');if(!JC.sections[p[0]])JC.sections[p[0]]={};JC.sections[p[0]][p[1]]=el.value;jcScheduleSave_();});});
   document.querySelectorAll('#screenJobCard [data-jc-coc]').forEach(function(el){el.addEventListener('input',function(){JC.sections.coc[el.getAttribute('data-jc-coc')]=el.value;jcScheduleSave_();});});
-  document.querySelectorAll('#screenJobCard [data-jc-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}shrink(f,function(url){var p=input.getAttribute('data-jc-photo').split('|');if(!JC.sections[p[0]])JC.sections[p[0]]={};JC.sections[p[0]][p[1]]={img:url,cap:(JC.sections[p[0]][p[1]]||{}).cap||''};jcRenderSections_();jcScheduleSave_();});});});
+  document.querySelectorAll('#screenJobCard [data-jc-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}var card=JC,p=input.getAttribute('data-jc-photo').split('|');shrink(f,function(url){if(!card.sections[p[0]])card.sections[p[0]]={};card.sections[p[0]][p[1]]={img:url,cap:(card.sections[p[0]][p[1]]||{}).cap||''};card.status='DRAFT';if(JC===card)jcRenderSections_();jcSaveLocal_(card);});});});
   document.querySelectorAll('#screenJobCard [data-jc-cap]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-cap').split('|'),v=JC.sections[p[0]][p[1]]||{};if(typeof v==='string')v={img:v};v.cap=el.value;JC.sections[p[0]][p[1]]=v;jcScheduleSave_();});});
   document.querySelectorAll('#screenJobCard [data-jc-custom-desc]').forEach(function(el){el.addEventListener('input',function(){JC.sections.custom.items[Number(el.getAttribute('data-jc-custom-desc'))].description=el.value;jcScheduleSave_();});});
   document.querySelectorAll('#screenJobCard [data-jc-custom-cap]').forEach(function(el){el.addEventListener('input',function(){var i=Number(el.getAttribute('data-jc-custom-cap')),v=JC.sections.custom.items[i].photo||{};v.cap=el.value;JC.sections.custom.items[i].photo=v;jcScheduleSave_();});});
-  document.querySelectorAll('#screenJobCard [data-jc-custom-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}shrink(f,function(url){var i=Number(input.getAttribute('data-jc-custom-photo'));JC.sections.custom.items[i].photo={img:url,cap:(JC.sections.custom.items[i].photo||{}).cap||''};jcRenderSections_();jcScheduleSave_();});});});
+  document.querySelectorAll('#screenJobCard [data-jc-custom-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}var card=JC,item=card.sections.custom.items[Number(input.getAttribute('data-jc-custom-photo'))];shrink(f,function(url){if(card.sections.custom.items.indexOf(item)<0)return;item.photo={img:url,cap:(item.photo||{}).cap||''};card.status='DRAFT';if(JC===card)jcRenderSections_();jcSaveLocal_(card);});});});
   document.querySelectorAll('#screenJobCard [data-jc-remove-item]').forEach(function(b){b.addEventListener('click',function(){JC.sections.custom.items.splice(Number(b.getAttribute('data-jc-remove-item')),1);jcRenderSections_();jcScheduleSave_();});});
   var add=document.getElementById('jcAddCustom');if(add)add.addEventListener('click',function(){JC.sections.custom.items.push({description:'',photo:{img:'',cap:''}});jcRenderSections_();jcScheduleSave_();});
 }
-function jcScheduleSave_(){clearTimeout(jcSaveTimer);jcSaveTimer=setTimeout(jcSaveLocal_,350);}
-function jcSupabaseEnabled_(){return !!(window.FlagshipSupabase&&window.FlagshipSupabase.enabled&&window.FlagshipSupabase.enabled());}
-function jcSync_(){if(!JC||!jcSupabaseEnabled_())return;window.FlagshipSupabase.saveJobCard(JC).then(function(remote){if(remote&&remote.remote_id)JC.remote_id=remote.remote_id;var m=document.getElementById('jcMsg');if(m)m.textContent='Saved to Supabase · '+new Date().toLocaleTimeString();}).catch(function(e){var m=document.getElementById('jcMsg');if(m)m.textContent='Saved on this phone; Supabase sync is waiting: '+String(e.message||e);});}
-function jcSaveLocal_(){if(!JC)return;JC.updated=Date.now();put('jobcards',JC).then(function(){var h=document.getElementById('jcStatusHead');if(h){h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();}var m=document.getElementById('jcMsg');if(m)m.textContent='Saved on this phone · '+new Date(JC.updated).toLocaleTimeString();jcSync_();}).catch(function(){alert('Could not save this job card on the phone.');});}
+var jcRemoteChain=Promise.resolve();
+function jcScheduleSave_(){if(JC)JC.status='DRAFT';return jcSaveLocal_();}
+function jcSupabaseEnabled_(){var a=window.FlagshipSupabase;return !!(a&&a.enabled&&a.enabled()&&a.getSession&&a.getSession());}
+function jcMessage_(card,text){if(JC&&JC.id===card.id&&(!card.revision||JC.revision===card.revision)){var m=document.getElementById('jcMsg');if(m)m.textContent=text;}}
+function jcSync_(card){
+  if(!jcSupabaseEnabled_())return Promise.resolve(null);
+  var owner=ME,endpoint=CFG.url,session=window.FlagshipSupabase.getSession();
+  var run=jcRemoteChain.catch(function(){}).then(function(){
+    if(ME!==owner||CFG.url!==endpoint||window.FlagshipSupabase.getSession()!==session)throw new Error('Session changed; submit under the original account.');
+    return window.FlagshipSupabase.saveJobCard(card);
+  });
+  jcRemoteChain=run;return run;
+}
+function jcSaveLocal_(card,noSync){
+  card=card||JC;if(!card)return Promise.resolve(false);
+  card.updated=Date.now();card.revision=String(card.updated)+'-'+Math.random().toString(36).slice(2);
+  var snapshot=JSON.parse(JSON.stringify(card));
+  if(MEM){jcMessage_(card,'NOT SAVED: browser storage unavailable. Export a PDF.');return Promise.resolve(false);}
+  return put('jobcards',snapshot).then(function(){
+    if(JC&&JC.id===snapshot.id&&JC.revision===snapshot.revision){var h=document.getElementById('jcStatusHead');if(h){h.textContent=snapshot.status==='SUBMITTED'?'Submitted':'Draft';h.className='jc-status '+String(snapshot.status||'DRAFT').toLowerCase();}}
+    jcMessage_(snapshot,'Saved on this phone · '+new Date(snapshot.updated).toLocaleTimeString());
+    if(!noSync&&jcSupabaseEnabled_())jcSync_(snapshot).then(function(){jcMessage_(snapshot,'Saved to Supabase.');}).catch(function(e){jcMessage_(snapshot,'Saved on this phone; remote save failed: '+String(e.message||e));});
+    return true;
+  }).catch(function(e){jcMessage_(snapshot,'NOT SAVED: '+String(e.message||e)+'. Export a PDF.');return false;});
+}
 function jcRenderAll_(){if(!JC)return;document.getElementById('jcNoHead').textContent=JC.number||'';document.getElementById('jcCustomer').value=JC.customer||'';document.getElementById('jcSite').value=JC.site||'';document.getElementById('jcDate').value=JC.date||'';document.getElementById('jcTechs').value=JC.technicians||'';jcRenderTypes_();jcRenderSections_();jcInitSignature_();var h=document.getElementById('jcStatusHead');h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();h.className='jc-status '+JC.status.toLowerCase();jcRenderReport_();}
-function jcBindCommon_(){['jcCustomer','jcSite','jcDate','jcTechs'].forEach(function(id){var e=document.getElementById(id);e.addEventListener('input',function(){JC.customer=document.getElementById('jcCustomer').value;JC.site=document.getElementById('jcSite').value;JC.date=document.getElementById('jcDate').value;JC.technicians=document.getElementById('jcTechs').value;jcRenderReport_();jcScheduleSave_();});});}
+function jcBindCommon_(){['jcCustomer','jcSite','jcDate','jcTechs'].forEach(function(id){var e=document.getElementById(id);e.oninput=function(){JC.customer=document.getElementById('jcCustomer').value;JC.site=document.getElementById('jcSite').value;JC.date=document.getElementById('jcDate').value;JC.technicians=document.getElementById('jcTechs').value;jcRenderReport_();jcScheduleSave_();};});}
 
 function jcInitSignature_(){
   var c=document.getElementById('jcSignature');if(!c)return;var ctx=c.getContext('2d');ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
@@ -1645,13 +1749,63 @@ function jcInitSignature_(){
   var cl=document.getElementById('jcSigClear');if(cl)cl.onclick=function(){ctx.clearRect(0,0,c.width,c.height);JC.signature='';JC.signedAt='';jcRenderReport_();jcScheduleSave_();};
   var done=document.getElementById('jcSigDone');if(done)done.onclick=function(){JC.signature=c.toDataURL('image/png');JC.signedAt=JC.signedAt||new Date().toISOString();jcRenderReport_();jcScheduleSave_();alert('Signature saved.');};
 }
-function jcNew_(){JC=jcBlank();backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();jcSaveLocal_();}
-function jcRefreshFromSupabase_(){if(!jcSupabaseEnabled_())return Promise.resolve();return window.FlagshipSupabase.listJobCards().then(function(cards){return Promise.all(cards.map(function(card){return put('jobcards',card);}));}).catch(function(){/* Offline cache remains usable. */});}
+function jcNew_(){
+  JC=jcBlank();
+  backTo='screenJobCards';
+  show('screenJobCard');
+  jcRenderAll_();
+  jcBindCommon_();
+  jcSaveLocal_();
+}
+
+window.jcNew_=jcNew_;
+function jcImportMissing_(card){
+  if(MEM)return Promise.resolve();
+  return new Promise(function(resolve,reject){var t=DB.transaction('jobcards','readwrite'),store=t.objectStore('jobcards');t.oncomplete=resolve;t.onabort=t.onerror=function(){reject(t.error||new Error('Import failed'));};var q=store.get(card.id);q.onsuccess=function(){if(!q.result)store.put(card);};});
+}
+function jcAcknowledge_(snapshot){
+  return new Promise(function(resolve,reject){
+    var matched=false,t=DB.transaction('jobcards','readwrite'),store=t.objectStore('jobcards');
+    t.oncomplete=function(){resolve(matched);};t.onabort=t.onerror=function(){reject(t.error||new Error('Could not save acknowledgement'));};
+    var q=store.get(snapshot.id);q.onsuccess=function(){var local=q.result;if(local&&!local.deleted&&local.revision===snapshot.revision){local.status='SUBMITTED';store.put(local);matched=true;}};
+  });
+}
+function jcRefreshFromSupabase_(){
+  var owner=ME,endpoint=CFG.url;
+  var request=jcSupabaseEnabled_()?window.FlagshipSupabase.listJobCards():
+    (CFG.url&&ME?apiGet({action:'jobCards'}).then(function(j){
+      if(!Array.isArray(j.jobCards))throw new Error('Invalid Job Card list response.');
+      return j.jobCards.filter(function(row){return row.data&&row.data.id===row.id&&Array.isArray(row.data.types)&&row.data.sections;}).map(function(row){var card=row.data;card.updated=Number(card.updated)||Date.parse(row.updated)||0;return card;});
+    }):Promise.resolve([]));
+  return request.then(function(cards){if(ME!==owner||CFG.url!==endpoint)return;return Promise.all(cards.map(jcImportMissing_));}).catch(function(e){var list=document.getElementById('jcList');if(list)list.title='Central refresh failed; showing this phone\'s records: '+String(e.message||e);});
+}
 function showJobCards(){currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRefreshFromSupabase_().then(jcRenderList_);}
-function jcRenderList_(){getAll('jobcards').then(function(list){list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+st.toLowerCase()+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+j.id+'">Open</button><button type="button" data-jc-pdf="'+j.id+'">PDF</button><button type="button" data-jc-del="'+j.id+'">Delete</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Delete this job card?'))del('jobcards',b.getAttribute('data-jc-del')).then(jcRenderList_);});});});}
+function jcRenderList_(){getAll('jobcards').then(function(list){list=list.filter(function(j){return !j.deleted;});list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+esc(st.toLowerCase())+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+esc(j.id)+'">Open</button><button type="button" data-jc-pdf="'+esc(j.id)+'">PDF</button><button type="button" data-jc-del="'+esc(j.id)+'">Hide locally</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Hide this job card on this phone? The central record is retained.'))get1('jobcards',b.getAttribute('data-jc-del')).then(function(card){if(card){card.deleted=true;return put('jobcards',card);}}).then(jcRenderList_).catch(function(e){alert('Could not hide job card: '+e.message);});});});});}
 function jcPhotoCount_(j){var n=0;function walk(x){if(!x)return;if(typeof x==='object'){if(x.img)n++;Object.keys(x).forEach(function(k){if(k!=='img')walk(x[k]);});}}walk(j.sections);return n;}
 function jcOpen_(id,pdf){get1('jobcards',id).then(function(j){if(!j)return;JC=j;backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();if(pdf)setTimeout(jcGeneratePdf_,50);});}
-function jcSubmit_(){if(!JC)return;var missing=[];if(!JC.customer.trim())missing.push('Customer');if(!JC.site.trim())missing.push('Site / Job');if(!JC.types.length)missing.push('at least one job type');if(missing.length){alert('Please fill in: '+missing.join(', '));return;}JC.status='SUBMITTED';jcSaveLocal_();if(jcSupabaseEnabled_()){document.getElementById('jcMsg').textContent='Submitting to Supabase…';jcSync_();}else if(CFG.url&&ME){var b=document.getElementById('jcSubmit');b.disabled=true;api({action:'jobCardSave',jobCard:jcMetaOnly_(JC)}).then(function(){document.getElementById('jcMsg').textContent='Submitted to the Google Sheet.';}).catch(function(e){document.getElementById('jcMsg').textContent='Saved locally, but sheet sync failed: '+String(e.message||e);}).finally(function(){b.disabled=false;});}else document.getElementById('jcMsg').textContent='Saved locally. Configure Supabase to sync centrally.';}
+function jcSubmit_(){
+  if(!JC)return;var card=JC,missing=[];
+  if(!card.customer.trim())missing.push('Customer');if(!card.site.trim())missing.push('Site / Job');if(!card.date)missing.push('Date');if(!card.types.length)missing.push('at least one job type');
+  if(missing.length){alert('Please fill in: '+missing.join(', '));return;}
+  var btn=document.getElementById('jcSubmit');if(btn.disabled)return;btn.disabled=true;
+  var owner=ME,endpoint=CFG.url,snapshot,revision;
+  return jcSaveLocal_(card,true).then(function(saved){
+    if(!saved)throw new Error('Local save failed; nothing was submitted.');
+    snapshot=JSON.parse(JSON.stringify(card));revision=snapshot.revision;snapshot.status='SUBMITTED';
+    if(ME!==owner||CFG.url!==endpoint)throw new Error('Session changed; nothing was submitted.');
+    if(jcSupabaseEnabled_())return jcSync_(snapshot).then(function(remote){if(!remote||remote.id!==snapshot.id)throw new Error('No matching Job Card acknowledgement.');return 'Supabase';});
+    if(!CFG.url||!ME)throw new Error('No signed-in Sheet connection.');
+    return api({action:'jobCardSave',jobCard:jcMetaOnly_(snapshot)}).then(function(j){if(j.id!==snapshot.id||j.status!=='SUBMITTED')throw new Error('No matching Job Card acknowledgement.');return 'Google Sheet (photos remain on this phone)';});
+  }).then(function(destination){
+    if(card.revision!==revision){jcMessage_(card,'Earlier version submitted; newer edits still need submission.');return;}
+    return jcAcknowledge_(snapshot).then(function(saved){
+      if(!saved){jcMessage_(card,'Earlier version submitted; local changes were retained.');return;}
+      if(card.revision===revision)card.status='SUBMITTED';
+      if(JC&&JC.id===snapshot.id&&JC.revision===revision){JC.status='SUBMITTED';document.getElementById('jcStatusHead').textContent='Submitted';}
+      jcMessage_(card,'Submitted to '+destination+'.');
+    });
+  }).catch(function(e){jcMessage_(card,'Not confirmed as submitted: '+String(e.message||e));}).finally(function(){btn.disabled=false;});
+}
 function jcMetaOnly_(j){var x=JSON.parse(JSON.stringify(j));function strip(v){if(!v||typeof v!=='object')return v;if(Array.isArray(v))return v.map(strip);var o={};Object.keys(v).forEach(function(k){if(k==='img')return;o[k]=strip(v[k]);});return o;}x.sections=strip(x.sections);return x;}
 function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appbar img')||{}).src||'';var html='<div class="rhead"><img src="'+logo+'"><div class="rhinfo"><h1>JOB CARD</h1><div>'+esc(JC.number||'')+'</div><div>'+esc(JC.status||'DRAFT')+'</div></div></div><div class="rmeta"><div><b>Customer</b><br>'+esc(JC.customer||'—')+'</div><div><b>Site / Job</b><br>'+esc(JC.site||'—')+'</div><div><b>Date</b><br>'+esc(JC.date||'—')+'</div><div><b>Technician(s)</b><br>'+esc(JC.technicians||'—')+'</div></div>';
   JC.types.forEach(function(t){var s=JC.sections[t]||{};var title=(JC_TYPES.find(function(x){return x.id===t})||{name:t}).name;html+='<h2>'+esc(title)+'</h2>';
@@ -1665,10 +1819,88 @@ function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appb
   if(JC.signature)html+='<h2>Client sign-off</h2><div class="rblock">Signed electronically'+(JC.signedAt?' · '+esc(new Date(JC.signedAt).toLocaleString()):'')+'</div><div style="margin-top:6px"><img src="'+JC.signature+'" style="max-width:420px;width:100%;height:100px;object-fit:contain;border-bottom:1px solid #667085"></div>';document.getElementById('jcReport').innerHTML=html;}
 function jcReportPhotos_(arr){var a=arr.filter(function(x){return x&&x.img;});if(!a.length)return '';return '<div class="rphotos">'+a.map(function(x){return '<div class="rphoto"><img src="'+x.img+'"><div class="cap">'+esc(x.cap||'')+'</div></div>';}).join('')+'</div>';}
 function jcLoadPdfLibs_(){if(window.jspdf&&window.html2canvas)return Promise.resolve();function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}return load('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').then(function(){return load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');});}
-function jcBuildPdf_(){jcRenderReport_();return jcLoadPdfLibs_().then(function(){var el=document.getElementById('jcReport'),J=window.jspdf.jsPDF;return new Promise(function(resolve,reject){var doc=new J({orientation:'p',unit:'mm',format:'a4'});doc.html(el,{x:8,y:8,width:194,windowWidth:820,autoPaging:'text',margin:[8,8,8,8],html2canvas:{scale:1.25,useCORS:false},callback:function(d){resolve(d);}});});});}
+function jcBuildPdf_(){
+  jcRenderReport_();
+  return jcLoadPdfLibs_().then(function(){
+    var source=document.getElementById('jcReport');
+    if(!source)throw new Error('Job Card report was not found.');
+
+    /* Render a visible off-screen copy. The on-screen report is hidden. */
+    var holder=document.createElement('div');
+    holder.style.position='fixed';
+    holder.style.left='-100000px';
+    holder.style.top='0';
+    holder.style.width='820px';
+    holder.style.display='block';
+    holder.style.background='#fff';
+    holder.style.zIndex='-1';
+
+    var el=source.cloneNode(true);
+    el.style.display='block';
+    el.style.width='820px';
+    el.style.maxWidth='820px';
+    el.style.margin='0';
+    holder.appendChild(el);
+    document.body.appendChild(holder);
+
+    return html2canvas(el,{
+      scale:1.5,
+      useCORS:true,
+      allowTaint:false,
+      backgroundColor:'#ffffff',
+      windowWidth:820
+    }).then(function(canvas){
+      var J=window.jspdf.jsPDF;
+      var doc=new J({orientation:'p',unit:'mm',format:'a4'});
+      var margin=8;
+      var pdfWidth=210;
+      var pdfHeight=297;
+      var usableWidth=pdfWidth-(margin*2);
+      var usableHeight=pdfHeight-(margin*2);
+      var pixelsPerMm=canvas.width/usableWidth;
+      var pagePixels=Math.floor(usableHeight*pixelsPerMm);
+      var y=0;
+      var pageNo=0;
+
+      while(y<canvas.height){
+        var sliceHeight=Math.min(pagePixels,canvas.height-y);
+        var slice=document.createElement('canvas');
+        slice.width=canvas.width;
+        slice.height=sliceHeight;
+        var ctx=slice.getContext('2d');
+        ctx.fillStyle='#ffffff';
+        ctx.fillRect(0,0,slice.width,slice.height);
+        ctx.drawImage(
+          canvas,
+          0,y,canvas.width,sliceHeight,
+          0,0,canvas.width,sliceHeight
+        );
+
+        if(pageNo>0)doc.addPage();
+        doc.addImage(
+          slice.toDataURL('image/jpeg',0.92),
+          'JPEG',
+          margin,
+          margin,
+          usableWidth,
+          sliceHeight/pixelsPerMm
+        );
+
+        y+=sliceHeight;
+        pageNo++;
+      }
+
+      holder.remove();
+      return doc;
+    }).catch(function(e){
+      holder.remove();
+      throw e;
+    });
+  });
+}
 function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
 function jcSharePdf_(){if(!JC)return;var b=document.getElementById('jcShare');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var blob=doc.output('blob'),name=(JC.number||'Job-Card')+'.pdf',file=new File([blob],name,{type:'application/pdf'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]})))return navigator.share({title:'Flagship Job Card '+(JC.number||''),text:(JC.customer||'')+' — '+(JC.site||''),files:[file]});var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u);},2000);alert('Your browser cannot share PDF files directly, so the PDF was saved instead.');}).catch(function(e){if(e&&e.name==='AbortError')return;alert('PDF share failed: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
-document.getElementById('jcNew').addEventListener('click',jcNew_);document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
+document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
 
 function showJobs(){
   currentId=null;
@@ -1722,6 +1954,7 @@ document.getElementById('btnNew').addEventListener('click',function(){
 document.getElementById('btnBack').addEventListener('click',function(){
   if(backTo==='screenJobs') showJobs();
   else if(backTo==='screenJobCards') showJobCards();
+  else if(backTo==='screenCalendar') showCalendar();
   else if(backTo==='screenAuth') showAuth();
   else showHome();
 });
@@ -1736,8 +1969,10 @@ document.querySelectorAll('[data-go]').forEach(function(b){
     else if(t==='quote') showQuote();
     else if(t==='stock') showStock();
     else if(t==='jobcards') showJobCards();
+    else if(t==='calendar') showCalendar();
   });
 });
+
 document.getElementById('btnSettings').addEventListener('click',function(){
   backTo='screenHome';
   document.getElementById('setUrl').value=CFG.url||'';
@@ -2069,17 +2304,23 @@ document.getElementById('setTest').addEventListener('click',function(){
 });
 
 /* ---- talking to the script ---- */
+function apiResponse_(r){
+  if(!r.ok) throw new Error('Server request failed (HTTP '+r.status+'). Please retry.');
+  return r.json().then(function(j){
+    if(!j || typeof j.ok!=='boolean') throw new Error('Invalid server response. Please retry.');
+    if(!j.ok){var e=new Error(j.error||'Request rejected');e.authInvalid=/^(unknown user or password|account not approved yet)\.?$/i.test(e.message.trim());throw e;}
+    return j;
+  });
+}
 function api(payload){
   if(!CFG.url) return Promise.reject(new Error('No sheet connected. Open Settings.'));
+  payload=Object.assign({},payload);
   if(ME){ payload.user=ME.username; payload.pass=ME.pass; }
   return fetch(CFG.url,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},  // avoids the CORS preflight Apps Script rejects
     body:JSON.stringify(payload)
-  }).then(function(r){ return r.json(); }).then(function(j){
-    if(!j.ok) throw new Error(j.error||'rejected');
-    return j;
-  });
+  }).then(apiResponse_);
 }
 function apiGet(params){
   if(!CFG.url) return Promise.reject(new Error('No sheet connected. Open Settings.'));
@@ -2087,10 +2328,7 @@ function apiGet(params){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
   var auth = ME ? '&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass) : '';
-  return fetch(CFG.url+'?'+q+auth).then(function(r){ return r.json(); }).then(function(j){
-    if(!j.ok) throw new Error(j.error||'rejected');
-    return j;
-  });
+  return fetch(CFG.url+'?'+q+auth).then(apiResponse_);
 }
 var post=api;   // timesheet code calls post()
 
@@ -2529,22 +2767,57 @@ function applyPriceUpdate_(){
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
 
+var PRICES_LOADING=false;
+
 function loadPrices(){
   var box=document.getElementById('prList');
-  box.innerHTML='<div class="queued">Loading…</div>';
-  apiGet({action:'prices'}).then(function(j){
-    PRICES=j.prices||[];
-    PCACHE=PRICES;                       /* one list, not two */
-    put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
-    PCATS=j.categories||[];
-    PTYPES=j.types||PTYPES;
-    PDEF=j.defaultMarkup||20;
-    renderCats();
-    renderPrices();
-  }).catch(function(e){
-    box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
+
+  get1('cfg','pricecache').then(function(c){
+
+    if(c && c.list && c.list.length){
+      PRICES=c.list;
+      PCACHE=PRICES;
+      renderCats();
+      renderPrices();
+    } else {
+      box.innerHTML='<div class="queued">Loading…</div>';
+    }
+
+    if(PRICES_LOADING) return;
+    PRICES_LOADING=true;
+
+    apiGet({action:'prices'}).then(function(j){
+      PRICES=j.prices||[];
+      PCACHE=PRICES;
+      PCATS=j.categories||[];
+      PTYPES=j.types||PTYPES;
+      PDEF=j.defaultMarkup||20;
+
+      put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
+
+      renderCats();
+      renderPrices();
+
+    }).catch(function(e){
+
+      if(!PRICES.length){
+        box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
+      }
+
+    }).finally(function(){
+      PRICES_LOADING=false;
+    });
+
+  }).catch(function(){
+
+    if(PRICES.length){
+      renderCats();
+      renderPrices();
+    }
+
   });
 }
+
 
 function renderCats(){
   var box=document.getElementById('prCats');
@@ -2844,6 +3117,9 @@ var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter
 
 var AF_LABELS=null;   /* filled from the markup the first time we swap */
 
+function vpItemDesc_(it){ return VP && VP.lang==='en' ? (it.descEn || it.desc || '') : (it.desc || it.descEn || ''); }
+function vpPriceDesc_(p){ return VP && VP.lang==='en' ? (p.descriptionEn || p.description || '') : (p.description || p.descriptionEn || ''); }
+
 function applyLang(lang){
   var els=document.querySelectorAll('#screenProp [data-t]');
   if(!AF_LABELS){
@@ -2858,7 +3134,11 @@ function applyLang(lang){
   var t=document.querySelector('#screenProp .vpsrc');
   if(t) t.lastChild.textContent=(lang==='en')?' Show prices on the PDF':' Wys pryse op die PDF';
   var add=document.getElementById('vpAdd');
-  if(add) add.textContent=(lang==='en')?'+ Add from price list':'+ Add from price list';
+  if(add) add.textContent=(lang==='en')?'+ Add from price list':'+ Voeg uit pryslys';
+  var add2=document.getElementById('vpAdd2');
+  if(add2) add2.textContent=(lang==='en')?'+ Add from price list':'+ Voeg uit pryslys';
+  if(VP && VP.items){ VP.items.forEach(function(it){ if(!it.descEn && it.descriptionEn) it.descEn=it.descriptionEn; }); }
+  if(typeof vpLines==='function') vpLines();
 }
 
 function vpBlank(lang){
@@ -3172,16 +3452,10 @@ document.getElementById('vpShow').addEventListener('change',function(){
 });
 
 function vpSave(){
-  if(!VPID) return;
-  clearTimeout(VPTIMER);
-  VPTIMER=setTimeout(function(){
-    var t=(VP.client||'').trim()||(VP.address||'').trim()||'Untitled proposal';
-    put('props',{id:VPID,title:t,updated:Date.now(),data:VP}).then(function(){
-      var tag=document.getElementById('savedTag');
-      tag.textContent='saved'; tag.className='saved';
-      setTimeout(function(){ tag.textContent='proposal'; tag.className='' },1400);
-    }).catch(function(){ alert('Could not save — the phone may be out of storage.') });
-  },600);
+  if(!VPID)return;var id=VPID,t=(VP.client||'').trim()||(VP.address||'').trim()||'Untitled proposal';
+  return put('props',{id:id,title:t,updated:Date.now(),data:VP}).then(function(){
+    if(VPID!==id)return;var tag=document.getElementById('savedTag');tag.textContent=MEM?'temporary only':'saved';tag.className='saved';
+  }).catch(function(){alert('Could not save the proposal — export to PDF now.');});
 }
 
 function vpNum(k){
@@ -3299,13 +3573,13 @@ function vpLines(){
   VP.items.forEach(function(it,i){
     var row=document.createElement('div');
     row.className='pline'+(it.role?' auto':'')+(it.custom?' edited':'');
-    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(it.desc)+'</b>'+
+    row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(vpItemDesc_(it))+'</b>'+
       (it.spec?'<span>'+esc(it.spec)+'</span>':'')+'</div>'+
-      '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty||1)+'"></div>'+
+      '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty==null?1:it.qty)+'"></div>'+
       '<div class="amt"></div><button type="button" class="x" aria-label="Remove">\u00d7</button>';
     var nm=row.querySelector('.d b');
     nm.addEventListener('input',function(){
-      it.desc=nm.textContent.replace(/\s+/g,' ').trim();
+      if(VP.lang==='en') it.descEn=nm.textContent.replace(/\s+/g,' ').trim(); else it.desc=nm.textContent.replace(/\s+/g,' ').trim();
       if(it.role){ it.custom=true; row.classList.add('edited'); }
       vpSave();
     });
@@ -3420,7 +3694,7 @@ function vpAddItem(p){
   /* install cost comes back from the script as a separate figure and never
      carries markup. It belongs in the line, not left behind. */
   var unit=(Number(p.sell)||0)+(Number(p.install)||0);
-  VP.items.push({desc:p.description, unit:p.unit||'', sell:unit, spec:p.spec||'', qty:1});
+  VP.items.push({desc:p.description||'', descEn:p.descriptionEn||p.description||'', unit:p.unit||'', sell:unit, spec:p.spec||'', qty:1});
   vpLines(); vpSave();
 }
 
@@ -3468,12 +3742,14 @@ function vpXeroFind_(){
 }
 function vpPublish_(){
   vpMirrorAll(); vpCalc(); vpLines();
-  if(!VP.xeroContact||!VP.xeroContact.contactID){alert('First select the customer in Xero.');return;}
-  if(!VP.client.trim()){alert('Customer name is required.');return;}
+    if(!VP.client.trim()){alert('Customer name is required.');return;}
   if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
   VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
   var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Sending…';}});
+  var publishing=VP,publishingId=VPID;
   api({action:'proposalPublish',proposal:VP}).then(function(j){
+    if(!j.token||!j.url)throw new Error('Missing proposal acknowledgement. Check the server before sending again.');
+    if(VP!==publishing||VPID!==publishingId){alert('Proposal published: '+j.url+'. The current proposal was left unchanged.');return;}
     VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
     var st=document.getElementById('vpPublishStatus'); if(st)st.innerHTML='<b>Sent.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open customer link</a>';
     alert('Value Proposal sent. The customer can now accept it.');
@@ -3493,8 +3769,9 @@ function showQuote(){
   xeroStatus_();
 }
 function qbSave(){
-  put('cfg',{id:'quoteDraft',client:QB.client,title:QB.title,ref:QB.ref,expiry:QB.expiry,xeroContact:QB.xeroContact,xeroQuote:QB.xeroQuote||null,items:QB.items}).catch(function(){});
+  put('cfg',{id:'quoteDraft',client:QB.client,title:QB.title,ref:QB.ref,expiry:QB.expiry,xeroContact:QB.xeroContact,xeroQuote:QB.xeroQuote||null,items:QB.items}).catch(function(){alert('Quote draft could not be saved on this phone.');});
 }
+window.FlagshipQuoteBridge={request:api,getQuote:function(){return QB;},save:qbSave};
 function qbLoadPrices(){
   if(PRICES&&PRICES.length){ QB.prices=PRICES; qbRenderResults(); return; }
   apiGet({action:'prices'}).then(function(j){ QB.prices=j.prices||[]; qbRenderResults(); put('cfg',{id:'pricecache',list:QB.prices}).catch(function(){}); }).catch(function(){
@@ -3535,7 +3812,7 @@ function qbAddCustom(){
 function qbRenderLines(){
   var box=document.getElementById('qbLines'), sub=0; box.innerHTML='';
   QB.items.forEach(function(it,i){var row=document.createElement('div');row.className='qbline';
-    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
+    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty==null?1:it.qty)+'"><div class="amount">'+money((it.qty==null?1:it.qty)*it.sell)+'</div><button class="x" type="button">×</button>';
     var q=row.querySelector('input');q.addEventListener('input',function(){it.qty=Math.max(0,Number(q.value)||0);qbSave();qbRenderLines();});
     row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
   var vat=sub*.15,total=sub+vat;document.getElementById('qbCount').textContent=QB.items.length+(QB.items.length===1?' line':' lines');
@@ -3556,13 +3833,18 @@ function xeroFind_(){
 function xeroCreateQuote_(){
   if(!QB.xeroContact||!QB.xeroContact.contactID){alert('First find and select the customer in Xero.');return;}
   if(!QB.items.length){alert('Add at least one quote line.');return;}
+  if(QB.items.some(function(it){return !Number.isFinite(Number(it.qty))||Number(it.qty)<=0||!Number.isFinite(Number(it.sell));})){alert('Each quote line needs a positive quantity and an explicit numeric price.');return;}
+  if(QB.xeroQuote&&QB.xeroQuote.quoteID){alert('This draft already has a Xero quote. Open it in Xero or start a new draft.');return;}
+  var submittedQuote=QB;
   var btn=document.getElementById('qbXeroCreate');btn.disabled=true;btn.textContent='Creating…';
-  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',xeroItemCode:it.xeroItemCode||'',description:it.desc,quantity:Number(it.qty)||1,unitAmount:Number(it.sell)||0};})};
+  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',xeroItemCode:it.xeroItemCode||'',description:it.desc,quantity:Number(it.qty),unitAmount:Number(it.sell)||0};})};
   api({action:'xeroCreateQuote',quote:payload}).then(function(j){
     btn.disabled=false;btn.textContent='Create quote in Xero';
+    if(!j.quoteID)throw new Error('Missing quote acknowledgement. Check Xero before retrying.');
+    if(QB!==submittedQuote){alert('Quote created in Xero: '+(j.quoteNumber||j.quoteID)+'. The newer local draft was left unchanged.');return;}
     QB.xeroQuote={quoteID:j.quoteID,quoteNumber:j.quoteNumber};qbSave();
     document.getElementById('qbStatus').innerHTML='<div class="calc"><b>Xero quote created:</b> '+esc(j.quoteNumber||'')+'<br><span class="qbmeta">Xero Quote ID: '+esc(j.quoteID||'')+'</span></div>';
-  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e));});
+  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e)+'\nCheck Xero before retrying: the quote may have been created even if the response was lost.');});
 }
 ['qbClient','qbTitle','qbRef','qbExpiry'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){QB[{qbClient:'client',qbTitle:'title',qbRef:'ref',qbExpiry:'expiry'}[id]]=this.value;qbSave();});});
 document.getElementById('qbSearch').addEventListener('input',qbRenderResults);
@@ -3615,6 +3897,7 @@ function showStock(){
   document.getElementById('stQ').value='';
   show('screenStock');
   loadStock();
+  stockShowAdminTools_();
   get1('cfg','stockdraft').then(function(d){
     if(d && d.place && d.counts && Object.keys(d.counts).length){
       setTimeout(function(){
@@ -3631,25 +3914,66 @@ function showStock(){
 
 function loadStock(){
   var box=document.getElementById('stPlaces');
-  box.innerHTML='<div class="queued">Loading\u2026</div>';
-  apiGet({action:'stock'}).then(function(j){
-    ST.items=j.stock||[]; ST.places=j.places||['Store','GWM','NP200'];
-    ST.cats=j.categories||[];
-    put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
-    renderPlaces();
-  }).catch(function(e){
-    get1('cfg','stockcache').then(function(c){
-      if(c&&c.list&&c.list.length){
-        ST.items=c.list; ST.places=c.places||['Store','GWM','NP200']; ST.cats=c.cats||[];
+
+  get1('cfg','stockcache').then(function(c){
+
+    var have=c && c.list && c.list.length;
+
+    if(have){
+      ST.items=c.list;
+      ST.places=c.places||['Store','GWM','NP200'];
+      ST.cats=c.cats||[];
+      renderPlaces();
+
+      if(ST.place){
+        renderCatsStock();
+        renderStock();
+      }
+    } else {
+      box.innerHTML='<div class="queued">First load — getting stock list…</div>';
+    }
+
+    apiGet({action:'stock'}).then(function(j){
+
+      ST.items=j.stock||[];
+      ST.places=j.places||['Store','GWM','NP200'];
+      ST.cats=j.categories||[];
+
+      put('cfg',{
+        id:'stockcache',
+        list:ST.items,
+        places:ST.places,
+        cats:ST.cats,
+        savedAt:Date.now()
+      }).catch(function(){});
+
+      renderPlaces();
+
+      if(ST.place){
+        renderCatsStock();
+        renderStock();
+      }
+
+      document.getElementById('stWarn').innerHTML='';
+
+    }).catch(function(e){
+
+      if(have){
         document.getElementById('stWarn').innerHTML=
-          '<div class="queued"><b>No signal.</b> Counting from the list saved on this phone. '+
-          'What you count is kept here until you send it.</div>';
-        renderPlaces();
+          '<div class="queued"><b>Offline copy.</b> Showing the stock list saved on this phone.</div>';
       } else {
-        box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+
+        box.innerHTML=
+          '<div class="calc bad">'+
+          esc(String(e.message||e))+
           '<br>Open this once with signal to load the list.</div>';
       }
+
     });
+
+  }).catch(function(e){
+    box.innerHTML=
+      '<div class="calc bad">Could not open saved stock list.<br>'+
+      esc(String(e.message||e))+'</div>';
   });
 }
 
@@ -3741,12 +4065,7 @@ document.getElementById('stQ').addEventListener('input',function(){
 });
 
 var stDraft=null;
-function saveStockDraft(){
-  clearTimeout(stDraft);
-  stDraft=setTimeout(function(){
-    put('cfg',{id:'stockdraft',place:ST.place,counts:ST.counts}).catch(function(){});
-  },500);
-}
+function saveStockDraft(){return put('cfg',{id:'stockdraft',place:ST.place,counts:ST.counts}).catch(function(){alert('Stock draft could not be saved on this phone.');});}
 
 document.getElementById('stClear').addEventListener('click',function(){
   var n=Object.keys(ST.counts).length;
@@ -3764,15 +4083,16 @@ document.getElementById('stSend').addEventListener('click',function(){
   var btn=document.getElementById('stSend');
   btn.disabled=true; btn.textContent='Sending\u2026';
 
-  api({action:'stockCount',place:ST.place,counts:ST.counts}).then(function(j){
+  var sentPlace=ST.place,sentCounts=JSON.parse(JSON.stringify(ST.counts)),owner=ME;
+  api({action:'stockCount',place:sentPlace,counts:sentCounts}).then(function(j){
+    if(!Array.isArray(j.unknown)||typeof j.changed!=='number')throw new Error('Invalid stock acknowledgement; counts retained.');
     btn.disabled=false; btn.textContent='Send count';
     /* keep the screen honest: the numbers just sent are now the last count */
-    Object.keys(ST.counts).forEach(function(name){
-      for(var i=0;i<ST.items.length;i++){
-        if(ST.items[i].item===name){ ST.items[i][ST.place]=ST.counts[name]; break; }
-      }
+    Object.keys(sentCounts).forEach(function(name){
+      if(j.unknown.indexOf(name)>=0)return;
+      for(var i=0;i<ST.items.length;i++){if(ST.items[i].item===name){ST.items[i][sentPlace]=sentCounts[name];break;}}
+      if(ME===owner&&ST.place===sentPlace&&ST.counts[name]===sentCounts[name])delete ST.counts[name];
     });
-    ST.counts={};
     put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
     saveStockDraft();
     var msg=j.changed+(j.changed===1?' item updated':' items updated');
@@ -3832,7 +4152,7 @@ function userCard(u,roles){
   el.querySelectorAll('[data-role]').forEach(function(b){
     b.addEventListener('click',function(){
       api({action:'setUser',target:u.username,role:b.getAttribute('data-role'),
-           status:u.status.toLowerCase()==='active'?'Active':'Pending'})
+           status:'Active'})
         .then(loadUsers).catch(function(e){ alert(e.message) });
     });
   });
@@ -3864,6 +4184,43 @@ function userCard(u,roles){
    in over several sittings, then sent in one go. */
 
 var WORKERS=[], CYCLE=null, ENTRIES={}, OPEN=null;
+var TSOWNER=null, TSCYCLE=null, TSLOAD=0, TSSAVE=Promise.resolve(), TSFLUSH=null, TSBASE={}, TSFAILED={};
+function tsOwner_(){return ME&&CFG.url?FlagshipTimesheetSync.owner(ME.username,CFG.url):null;}
+function tsRecord_(account){return 'timesheet-v2:'+account;}
+function tsChange_(account,change){
+  if(MEM||!DB)return Promise.reject(new Error('Durable Timesheet storage is unavailable. Nothing was submitted.'));
+  return new Promise(function(resolve,reject){
+    var transaction=DB.transaction('cfg','readwrite'),store=transaction.objectStore('cfg'),value;
+    var q=store.get(tsRecord_(account));
+    q.onsuccess=function(){try{value=change(q.result&&q.result.state);store.put({id:tsRecord_(account),state:value});}catch(e){reject(e);transaction.abort();}};
+    transaction.oncomplete=function(){resolve(value);};
+    transaction.onerror=transaction.onabort=function(){reject(transaction.error||new Error('Timesheet storage transaction failed.'));};
+  });
+}
+var TSSYNC=FlagshipTimesheetSync.create({
+  read:function(account){return get1('cfg',tsRecord_(account)).then(function(v){return v&&v.state;});},
+  change:tsChange_,currentOwner:tsOwner_,online:function(){return navigator.onLine;},
+  send:async function(identity,rows){
+    var r;
+    try{r=await fetch(identity.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'timesheets',user:identity.user,pass:identity.pass,rows:rows})});}
+    catch(e){throw new Error('Network request failed; delivery is unconfirmed. Review before retrying. '+String(e.message||e));}
+    if(!r.ok)throw new Error('Server HTTP '+r.status+'; delivery is unconfirmed.');
+    try{return await r.json();}catch(e){throw new Error('Invalid server response; delivery is unconfirmed.');}
+  },notify:function(){tsRefresh_().catch(tsError_);}
+});
+function tsError_(e){var el=document.getElementById('tsQueue');if(el)el.textContent='Timesheet error: '+String(e.message||e);}
+function tsStamp_(){Object.keys(ENTRIES).forEach(function(w){Object.keys(ENTRIES[w]).forEach(function(d){
+  var r=ENTRIES[w][d],fp=FlagshipTimesheetSync.fingerprint(w,d,r);
+  if(r._fingerprint!==fp){r.revision=FlagshipTimesheetSync.id();r._fingerprint=fp;r.sent=false;r.syncState='draft';r.syncReason='';}
+});});}
+function tsMerge_(s,account,cycle){
+  if(TSOWNER!==account||TSCYCLE!==cycle||tsOwner_()!==account)return;
+  var saved=s.cycles[cycle]||{};
+  Object.keys(ENTRIES).forEach(function(w){Object.keys(ENTRIES[w]).forEach(function(d){var r=ENTRIES[w][d],v=saved[w]&&saved[w][d];
+    if(v&&v.revision===r.revision){r.syncState=v.syncState;r.syncReason=v.syncReason;r.sent=v.syncState==='accepted';}
+  });});
+}
+function tsRefresh_(){var account=TSOWNER,cycle=TSCYCLE;if(!account)return Promise.resolve();return TSSYNC.read(account).then(function(s){tsMerge_(s,account,cycle);if(tsOwner_()===account){renderPeople();return renderQueue();}});}
 
 var DAYNAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -3897,35 +4254,52 @@ function shiftCycle(c,n){
   return {y:y,m:m};
 }
 
-function mins(hhmm){
-  if(!hhmm) return null;
-  var p=String(hhmm).split(':');
-  var a=parseInt(p[0],10), b=parseInt(p[1],10);
-  if(isNaN(a)||isNaN(b)) return null;
-  return a*60+b;
+/* Repair 3: keep this calculation core identical in index.html and Code.gs.
+ * Wall-clock minutes; an earlier end means the following day, equal times
+ * mean zero duration. The starting date classifies the entire shift.
+ * Weekday lunch comes only from normal time; excess requires review. */
+function shiftMinutes_(value) {
+  if (typeof value !== 'string' || !/^\d{1,2}:\d{2}$/.test(value)) return null;
+  var p=value.split(':'), h=Number(p[0]), m=Number(p[1]);
+  return h<24 && m<60 ? h*60+m : null;
 }
-
-/* Mirrors calc_() in Code.gs — shown on screen so a mistyped time is
-   caught before it reaches the sheet. The sheet recalculates anyway. */
-function calcShift(dateStr,inStr,outStr,lunchMin){
-  var d=new Date(dateStr+'T00:00:00');
-  if(isNaN(d)) return null;
-  var dayType=d.getDay()===0?'Sunday':(d.getDay()===6?'Saturday':'Weekday');
-  var a=mins(inStr), b=mins(outStr);
-  if(a===null||b===null) return null;
-  if(b<a) b+=1440;
-  var lunch=Number(lunchMin); if(isNaN(lunch)||lunch<0) lunch=30;
-  var normal=0, ot=0;
+function shiftCalculation_(dateStr,inStr,outStr,lunchMin,dayNames,normalStart,normalEnd) {
+  function invalid(message){return {error:message};}
+  if(typeof dateStr!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(dateStr))return invalid('Enter a valid shift date.');
+  // UTC is used only for calendar validation/day-of-week, not elapsed time.
+  var date=new Date(dateStr+'T00:00:00Z');
+  if(isNaN(date.getTime())||date.toISOString().slice(0,10)!==dateStr)return invalid('Enter a valid shift date.');
+  var a=shiftMinutes_(inStr), b=shiftMinutes_(outStr);
+  if(a===null||b===null)return invalid('Enter valid start and end times (00:00 to 23:59).');
+  if(b<a)b+=1440;
+  if((typeof lunchMin!=='number'&&typeof lunchMin!=='string')||String(lunchMin).trim()===''||!isFinite(Number(lunchMin))||Number(lunchMin)<0)
+    return invalid('Enter explicit lunch minutes (0 is valid).');
+  var lunch=Number(lunchMin), elapsed=b-a;
+  if(lunch>elapsed)return invalid('Review required: lunch exceeds the actual shift duration.');
+  var day=date.getUTCDay(), dayType=day===0?'Sunday':(day===6?'Saturday':'Weekday');
+  var normal=0, overtime=0;
   if(dayType==='Weekday'){
-    ot=((a<360)?(360-a):0)+((b>1020)?(b-1020):0);
-    normal=Math.max(0, Math.min(b,1020)-Math.max(a,360))-lunch;
-    if(normal<0) normal=0;
-  } else {
-    ot=(b-a)-lunch; if(ot<0) ot=0;
+    // Intersect [start,end) with each day's [06:00,17:00) window.
+    for(var offset=0;offset<b;offset+=1440){
+      normal+=Math.max(0,Math.min(b,offset+normalEnd)-Math.max(a,offset+normalStart));
+    }
+    overtime=elapsed-normal;
+    if(lunch>normal)return invalid('Review required: weekday lunch exceeds normal-time minutes. No excess has been assigned to overtime.');
+    normal-=lunch;
+  }else{
+    overtime=elapsed-lunch;
   }
-  var r2=function(m){ return Math.round((m/60)*100)/100; };
-  return {day:DAYNAMES[d.getDay()], dayType:dayType, lunch:lunch,
-          normal:r2(normal), overtime:r2(ot), total:r2(normal+ot)};
+  var hours=function(minutes){return Math.round(minutes/60*100)/100;};
+  return {day:dayNames[day],dayType:dayType,lunch:lunch,
+          normal:hours(normal),overtime:hours(overtime),total:hours(elapsed-lunch)};
+}
+function mins(hhmm){return shiftMinutes_(hhmm);}
+function calcShift(dateStr,inStr,outStr,lunchMin){
+  var result=shiftCalculation_(dateStr,inStr,outStr,lunchMin,DAYNAMES,360,1020);
+  return result.error?null:result;
+}
+function shiftReviewReason(dateStr,inStr,outStr,lunchMin){
+  return shiftCalculation_(dateStr,inStr,outStr,lunchMin,DAYNAMES,360,1020).error||'';
 }
 
 function hm(h){
@@ -3937,15 +4311,57 @@ function hm(h){
 /* ---- storage of in-progress entries ---- */
 function entKey(){ return 'ts-'+cycleKey(CYCLE); }
 function loadEntries(){
-  return get1('cfg',entKey()).then(function(e){ ENTRIES=(e&&e.data)||{}; })
-    .catch(function(){ ENTRIES={}; });
+  var ticket=++TSLOAD,account=tsOwner_(),cycle=entKey();
+  if(!account)return Promise.reject(new Error('Sign in and configure the Sheet before editing Timesheets.'));
+  document.getElementById('screenTime').inert=true;
+  return TSSAVE.then(function(){if(TSFAILED[account])throw new Error('Draft was not saved. Keep this screen open and retry saving before changing cycles.');return TSSYNC.read(account);}).then(function(s){
+    if(ticket!==TSLOAD||tsOwner_()!==account)return;
+    TSOWNER=account;TSCYCLE=cycle;ENTRIES={};
+    TSBASE[account+'|'+cycle]=(s.versions&&s.versions[cycle])||0;
+    ENTRIES=s.cycles[cycle]||{};tsStamp_();
+    return get1('cfg',cycle).then(function(legacy){
+      if(ticket!==TSLOAD||tsOwner_()!==account)return;
+      if(!s.cycles[cycle]&&legacy&&legacy.data&&Object.keys(legacy.data).length&&confirm('Legacy Timesheets have no recorded account owner or reliable acceptance status. Copy this cycle into '+ME.username+' as drafts for review? The original records will be kept.')){
+        ENTRIES=JSON.parse(JSON.stringify(legacy.data));Object.keys(ENTRIES).forEach(function(w){Object.keys(ENTRIES[w]).forEach(function(d){delete ENTRIES[w][d]._fingerprint;});});tsStamp_();return saveEntries();
+      }
+    });
+  }).catch(function(e){tsError_(e);throw e;}).finally(function(){if(ticket===TSLOAD)document.getElementById('screenTime').inert=false;});
 }
-var entTimer=null;
 function saveEntries(){
-  clearTimeout(entTimer);
-  entTimer=setTimeout(function(){
-    put('cfg',{id:entKey(),data:ENTRIES}).catch(function(){});
-  },500);
+  var account=TSOWNER,cycle=TSCYCLE;
+  if(!account||account!==tsOwner_())return Promise.reject(new Error('Account changed; reopen Timesheets.'));
+  tsStamp_();var snapshot=JSON.parse(JSON.stringify(ENTRIES));
+  var task=TSSAVE.then(function(){return TSSYNC.saveCycle(account,cycle,snapshot,TSBASE[account+'|'+cycle]||0);}).then(function(s){TSBASE[account+'|'+cycle]=s.versions[cycle];delete TSFAILED[account];return s;});
+  TSSAVE=task.catch(function(e){TSFAILED[account]=e;tsError_(e);});
+  return task.then(function(s){tsMerge_(s,account,cycle);return s;});
+}
+
+function fetchTimesheetAll(){
+  var account=TSOWNER,cycle=TSCYCLE,ticket=TSLOAD;
+  if(!account||account!==tsOwner_()||ME.role==='Worker')return Promise.resolve();
+  var identity={url:CFG.url,user:ME.username,pass:ME.pass};
+  var active=function(){return account===tsOwner_()&&account===TSOWNER&&cycle===TSCYCLE&&ticket===TSLOAD;};
+  return TSSAVE.then(async function(){
+    if(!active()||TSFAILED[account])return;
+    var baseline=await TSSYNC.read(account),version=(baseline.versions||{})[cycle]||0;
+    var url=identity.url+'?action=timesheetAll&cycle='+encodeURIComponent(cycle.slice(3))+'&user='+encodeURIComponent(identity.user)+'&pass='+encodeURIComponent(identity.pass);
+    var response=await fetch(url);
+    if(!response.ok)throw new Error('Server HTTP '+response.status+' while reading Timesheets.');
+    var body=await response.json();
+    if(!body||body.ok!==true)throw new Error(body&&body.error||'Timesheet read was not confirmed.');
+    if(body.cycle!==cycle.slice(3)||!body.entries||typeof body.entries!=='object'||Array.isArray(body.entries))throw new Error('Mismatched Timesheet cycle response.');
+    if(!active())return;
+    // Serialize import with local saves; an intervening edit cancels this read.
+    var task=TSSAVE.then(async function(){
+      if(!active()||TSFAILED[account])return;
+      var state=await TSSYNC.importServer(account,cycle,body.entries,version);
+      if(!active())return;
+      TSBASE[account+'|'+cycle]=(state.versions||{})[cycle]||0;
+      if(TSSAVE!==pending)return;
+      ENTRIES=state.cycles[cycle]||{};tsStamp_();renderPeople();
+    });
+    var pending=task.catch(tsError_);TSSAVE=pending;return task;
+  });
 }
 
 /* ---- screen ---- */
@@ -3976,12 +4392,13 @@ function showTime(){
       return;
     }
     renderCycle();
-    if(CFG.url) fetchWorkers().then(function(){
+    if(CFG.url) Promise.all([fetchWorkers(),fetchTimesheetAll()]).then(function(){
       if(ME && ME.role==='Worker') WORKERS=[ME.name];
       renderCycle();
     }).catch(function(){});
-  });
-  renderQueue();
+  }).catch(tsError_);
+  renderQueue().catch(tsError_);
+  flushQueue().catch(tsError_);
 }
 
 function cycleOpen(){
@@ -4001,22 +4418,21 @@ function renderCycle(){
   renderPeople();
 }
 
-document.getElementById('cycPrev').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,-1); OPEN=null; loadEntries().then(renderCycle);
-});
-document.getElementById('cycNext').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,1); OPEN=null; loadEntries().then(renderCycle);
-});
+async function tsMoveCycle_(delta){
+  try{await TSSAVE;if(TSFAILED[tsOwner_()])throw new Error('Draft was not saved. Keep this cycle open and retry saving.');CYCLE=shiftCycle(CYCLE,delta);OPEN=null;await loadEntries();renderCycle();await fetchTimesheetAll();}catch(e){tsError_(e);}
+}
+document.getElementById('cycPrev').addEventListener('click',function(){tsMoveCycle_(-1);});
+document.getElementById('cycNext').addEventListener('click',function(){tsMoveCycle_(1);});
 
 function workerTotals(name){
   var e=ENTRIES[name]||{}, n=0, ot=0, days=0, unsent=0;
   Object.keys(e).forEach(function(dk){
     var r=e[dk];
-    if(!r||!r.on) return;
+    if(!r||!r.on||!FlagshipTimesheetSync.validLunch(r.lu)) return;
     var c=calcShift(dk,r.ti,r.to,r.lu);
     if(!c) return;
     n+=c.normal; ot+=c.overtime; days++;
-    if(!r.sent) unsent++;
+    if(!r.sent&&r.syncState!=='recorded') unsent++;
   });
   return {normal:Math.round(n*100)/100, ot:Math.round(ot*100)/100,
           days:days, unsent:unsent};
@@ -4071,11 +4487,11 @@ function fillDays(bd,name){
       if(!ENTRIES[name][k] || !ENTRIES[name][k].on)
         ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:30,job:'',note:''};
     });
-    saveEntries(); renderPeople();
+    saveEntries().catch(tsError_); renderPeople();
   });
   bar.querySelector('[data-clear]').addEventListener('click',function(){
     if(!confirm('Clear every day for '+name+' in this cycle?')) return;
-    ENTRIES[name]={}; saveEntries(); renderPeople();
+    ENTRIES[name]={}; saveEntries().catch(tsError_); renderPeople();
   });
   bd.appendChild(bar);
 
@@ -4094,7 +4510,7 @@ function fillDays(bd,name){
         (we?' — weekend, all overtime':'')+'</button></div>';
       row.querySelector('.add2').addEventListener('click',function(){
         ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:30,job:'',note:''};
-        saveEntries(); renderPeople();
+        saveEntries().catch(tsError_); renderPeople();
       });
     } else {
       row.innerHTML=left+
@@ -4102,7 +4518,7 @@ function fillDays(bd,name){
           '<div class="on2">'+
             '<input type="time" class="ti" value="'+esc(r.ti||'')+'">'+
             '<input type="time" class="to" value="'+esc(r.to||'')+'">'+
-            '<input type="number" class="lu" value="'+(r.lu===undefined?30:r.lu)+'" min="0" step="5" inputmode="numeric" title="Lunch minutes">'+
+            '<input type="number" class="lu" value="'+esc(r.lu==null?'':r.lu)+'" min="0" step="5" inputmode="numeric" title="Lunch minutes (explicit value required; 0 is valid)">'+
           '</div>'+
           '<div class="ln2">'+
             '<input class="jn" placeholder="Job / site" value="'+esc(r.job||'')+'">'+
@@ -4120,25 +4536,26 @@ function fillDays(bd,name){
         /* Changed after it went through, so it must go again. The script
            updates the existing row rather than adding a duplicate. */
         r.sent=false;
+        r.syncState='draft';r.syncReason='';
         paint();
-        saveEntries();
+        saveEntries().catch(tsError_);
       };
       var paint=function(){
         var c=calcShift(k,r.ti,r.to,r.lu);
         var s=row.querySelector('.sum');
-        if(!c){ s.className='sum bad'; s.textContent='Both times needed.'; return; }
+        if(!c){ s.className='sum bad'; s.textContent=shiftReviewReason(k,r.ti,r.to,r.lu); return; }
+        if(!FlagshipTimesheetSync.validLunch(r.lu)){s.className='sum bad';s.textContent='Enter lunch minutes explicitly (0 is valid); this row cannot be sent yet.';return;}
         s.className='sum';
         var txt='normal <b>'+hm(c.normal)+'</b>';
         if(c.overtime>0) txt+=' · overtime <b class="ot">'+hm(c.overtime)+'</b>';
         if(c.dayType!=='Weekday') txt=c.dayType+' — overtime <b class="ot">'+hm(c.overtime)+'</b>';
-        s.innerHTML=txt+(r.sent?'<span class="st ok">sent</span>'
-                               :'<span class="st wait">not sent</span>')+
+        s.innerHTML=txt+'<span class="st '+(r.syncState==='accepted'?'ok':'wait')+'">'+esc(r.syncState==='recorded'?'on Sheet':(r.syncState||'draft'))+(r.syncReason?' — '+esc(r.syncReason):'')+'</span>'+
           '<button class="clr" type="button">Remove</button>';
         row.classList[r.sent?'add':'remove']('sent');
         s.querySelector('.clr').addEventListener('click',function(){
-          if(r.sent && !confirm('That day has already gone to the sheet. '+
+          if((r.sent||r.syncState==='recorded') && !confirm('That day has already gone to the sheet. '+
              'Removing it here takes it off this phone only — the row stays in the sheet.')) return;
-          delete ENTRIES[name][k]; saveEntries(); renderPeople();
+          delete ENTRIES[name][k]; saveEntries().catch(tsError_); renderPeople();
         });
       };
       row.querySelectorAll('input').forEach(function(i){ i.addEventListener('input',upd) });
@@ -4176,133 +4593,225 @@ document.getElementById('tsClearAll').addEventListener('click',function(){
   if(!n){ alert('Nothing filled in for this cycle.'); return; }
   if(!confirm('Clear all '+n+' entries for '+cycleLabel(CYCLE)+'?\n\nThis only clears what is on this phone. Anything already sent stays in the sheet.')) return;
   ENTRIES={};
-  put('cfg',{id:entKey(),data:{}});
+  saveEntries().catch(tsError_);
   OPEN=null;
   renderPeople();
 });
 
-/* ---- sending ---- */
+/* ---- sending: durable account-scoped snapshots ---- */
 function collectAll(onlyUnsent){
   var rows=[];
   Object.keys(ENTRIES).forEach(function(name){
-    var e=ENTRIES[name]||{};
-    Object.keys(e).sort().forEach(function(k){
-      var r=e[k];
-      if(!r||!r.on) return;
-      if(onlyUnsent && r.sent) return;
-      if(!calcShift(k,r.ti,r.to,r.lu)) return;
-      rows.push({date:k,worker:name,job:r.job||'',timeIn:r.ti,timeOut:r.to,
-                 lunch:r.lu,note:r.note||''});
+    if(ME&&ME.role==='Worker'&&name.trim().toLowerCase()!==ME.name.trim().toLowerCase())return;
+    Object.keys(ENTRIES[name]).sort().forEach(function(k){
+      var r=ENTRIES[name][k];if(!r||!r.on||onlyUnsent&&['accepted','recorded'].indexOf(r.syncState)>=0)return;
+      rows.push({worker:name,date:k,revision:r.revision});
     });
-  });
-  return rows;
+  });return rows;
 }
-
-function collectUnsent(){ return collectAll(true); }
-
-/* Days stay on the screen after they go through — the flag is what stops
-   them being sent twice, not wiping them. */
-function markSent(rows){
-  rows.forEach(function(r){
-    var e=ENTRIES[r.worker];
-    if(e && e[r.date]) e[r.date].sent=true;
-  });
-  saveEntries();
-}
-
-document.getElementById('tsSend').addEventListener('click',function(){
-  var rows=collectUnsent();
-  if(!rows.length){
-    alert(collectAll().length
-      ? 'Everything filled in has already been sent.'
-      : 'Nothing filled in yet for this cycle.');
-    return;
-  }
-  if(!confirm('Send '+rows.length+(rows.length===1?' day':' days')+' for '+cycleLabel(CYCLE)+'?'+
-    '\n\nWhat you have already sent stays on the screen and does not go again.')) return;
-
-  var btn=document.getElementById('tsSend');
-  btn.disabled=true; btn.textContent='Sending…';
-
-  post({action:'timesheets',rows:rows}).then(function(j){
-    btn.disabled=false; btn.textContent='Send to sheet';
-    markSent(rows);
-    var msg=[];
-    if(j.written) msg.push(j.written+' added');
-    if(j.updated) msg.push(j.updated+' updated');
-    if(j.closed)  msg.push(j.closed+' skipped — closed cycle');
-    if(j.blocked) msg.push(j.blocked+' refused — not yours to file');
-    alert(msg.length?msg.join(', ')+'.':'Nothing changed — those entries were already in the sheet.');
-    renderPeople(); flushQueue();
-  }).catch(function(){
-    queue(rows).then(function(){
-      btn.disabled=false; btn.textContent='Send to sheet';
-      markSent(rows);
-      alert('No connection — '+rows.length+' days saved on this phone. Open this again with signal and they will go through.');
-      renderPeople(); renderQueue();
-    });
-  });
+function collectUnsent(){return collectAll(true);}
+document.getElementById('tsSend').addEventListener('click',async function(){
+  var btn=document.getElementById('tsSend'),account=TSOWNER,cycle=TSCYCLE;
+  if(account!==tsOwner_()){tsError_(new Error('Account changed; reopen Timesheets.'));return;}
+  tsStamp_();var rows=collectUnsent();
+  if(!rows.length){alert('No drafts to submit.');return;}
+  var invalid=rows.map(function(x){var r=ENTRIES[x.worker][x.date];return shiftReviewReason(x.date,r.ti,r.to,r.lu);}).filter(Boolean)[0];
+  if(invalid){alert(invalid+' Nothing was submitted.');return;}
+  if(!confirm('Queue '+rows.length+' rows for '+cycleLabel(CYCLE)+' under '+ME.username+'? Rejected or failed rows remain available for review.'))return;
+  btn.disabled=true;
+  try{
+    await saveEntries();
+    if(account!==tsOwner_())throw new Error('Account changed; nothing was queued.');
+    await TSSYNC.enqueue(account,cycle,rows);
+    await tsRefresh_();await flushQueue();
+  }catch(e){tsError_(e);}finally{btn.disabled=false;}
 });
-
-function queue(rows){
-  return get1('cfg','queue').then(function(q){
-    var all=(q&&q.rows)||[];
-    return put('cfg',{id:'queue',rows:all.concat(rows)});
-  }).catch(function(){ return put('cfg',{id:'queue',rows:rows}); });
+async function renderQueue(){
+  var account=tsOwner_(),box=document.getElementById('tsQueue');if(!account){box.textContent='Sign in to review this account’s Timesheet queue.';return;}
+  var s=await TSSYNC.read(account),legacy=await get1('cfg','queue');if(account!==tsOwner_())return;
+  var html=s.queue.length?'<div class="queued"><b>Timesheet submissions for '+esc(ME.username)+'</b><ul>'+s.queue.map(function(q){return '<li>'+esc(q.row.worker)+' '+esc(q.row.date)+' — '+esc(q.status)+(q.reason?': '+esc(q.reason):'')+'</li>';}).join('')+'</ul><button type="button" id="tsRetry">Send queued / retry current rejected or failed rows</button></div>':'';
+  if(s.busy)html+='<div class="queued">Submission in flight or interrupted. <button type="button" id="tsRecover">Check interrupted submission</button></div>';
+  if(legacy&&legacy.rows&&legacy.rows.length)html+='<details class="queued"><summary>'+legacy.rows.length+' legacy queued rows held for review — account owner is unknown; never replayed automatically</summary><p>Compare these rows with the Sheet and enter any missing work as drafts under the correct account. The original queue is retained.</p><pre style="white-space:pre-wrap">'+esc(JSON.stringify(legacy.rows,null,2))+'</pre></details>';
+  box.innerHTML=html;
+  var retry=document.getElementById('tsRetry');if(retry)retry.onclick=async function(){
+    if(account!==tsOwner_())return;
+    if(!confirm('For failed or interrupted requests, check the Sheet first: delivery may have succeeded. Retry only current local revisions?'))return;
+    try{
+      await TSSAVE;if(TSFAILED[account])throw TSFAILED[account];var latest=await TSSYNC.read(account),byCycle={};
+      latest.queue.forEach(function(q){var r=latest.cycles[q.cycle]&&latest.cycles[q.cycle][q.row.worker]&&latest.cycles[q.cycle][q.row.worker][q.row.date];if(['rejected','failed'].indexOf(q.status)>=0&&r&&r.on&&r.revision===q.revision){(byCycle[q.cycle]||(byCycle[q.cycle]=[])).push({worker:q.row.worker,date:q.row.date,revision:q.revision});}});
+      for(var c of Object.keys(byCycle))await TSSYNC.enqueue(account,c,byCycle[c]);
+      await tsRefresh_();await flushQueue();
+    }catch(e){tsError_(e);}
+  };
+  var recover=document.getElementById('tsRecover');if(recover)recover.onclick=async function(){
+    if(account!==tsOwner_())return;
+    if(!navigator.locks){tsError_(new Error('This browser cannot safely recover an interrupted cross-tab submission. Keep this browser’s site data and reconcile the held records with the Sheet; do not reinstall or clear storage.'));return;}
+    try{await navigator.locks.request('flagship-timesheet-drain',{ifAvailable:true},async function(lock){if(!lock)throw new Error('Another tab is still submitting; wait for its acknowledgement.');if(account!==tsOwner_())return;await TSSYNC.recover(account);});await tsRefresh_();}catch(e){tsError_(e);}
+  };
 }
-
-function renderQueue(){
-  get1('cfg','queue').then(function(q){
-    var n=(q&&q.rows&&q.rows.length)||0;
-    var box=document.getElementById('tsQueue');
-    if(!n){ box.innerHTML=''; return; }
-    box.innerHTML='<div class="queued"><b>'+n+(n===1?' entry':' entries')+' waiting to send.</b> '+
-      'They go through automatically next time you open this with signal.</div>';
-    if(CFG.url&&navigator.onLine) flushQueue();
-  }).catch(function(){});
-}
-
 function flushQueue(){
-  if(!CFG.url) return;
-  get1('cfg','queue').then(function(q){
-    var rows=(q&&q.rows)||[];
-    if(!rows.length) return;
-    post({action:'timesheets',rows:rows}).then(function(){
-      put('cfg',{id:'queue',rows:[]}).then(renderQueue);
-    }).catch(function(){});
-  }).catch(function(){});
+  if(TSFLUSH)return TSFLUSH;
+  var account=tsOwner_();if(!account||!navigator.onLine)return Promise.resolve();
+  var identity={url:CFG.url,user:ME.username,pass:ME.pass};
+  var run=async function(){await TSSAVE;if(TSFAILED[account])throw TSFAILED[account];if(account!==tsOwner_())return;await TSSYNC.drain(account,identity);await tsRefresh_();};
+  TSFLUSH=(navigator.locks?navigator.locks.request('flagship-timesheet-drain',run):Promise.resolve().then(run)).finally(function(){TSFLUSH=null;});
+  return TSFLUSH;
 }
-window.addEventListener('online',flushQueue);
+window.addEventListener('online',function(){flushQueue().catch(tsError_);});
 
 /* ============ boot ============ */
 function boot(){
-  if(!CFG.url){ showAuth(); return; }
-  if(!ME){ showAuth(); return; }
-  // confirm the account is still valid and the role hasn't changed
-  apiGet({action:'me'}).then(function(j){
-    ME.name=j.user.name; ME.role=j.user.role;
-    saveSession(); showHome(); xeroStatus_(); if(location.hash.indexOf('xero=connected')>=0){ history.replaceState(null,'',location.pathname); alert('Xero connected.'); }
-  }).catch(function(e){
-    if(navigator.onLine){ clearSession().then(function(){ showAuth(); authMsg('bad',String(e.message||e)); }); }
-    else { showHome(); }   // offline: trust the stored session
-  });
+  if(!CFG.url || !ME){
+    showAuth();
+    return;
+  }
+
+  // Show the app immediately using the locally saved session.
+  showHome();
+
+  // Validate the session in the background.
+  var checking=ME, endpoint=CFG.url;
+  apiGet({action:'me'})
+    .then(function(j){
+      if(ME!==checking || CFG.url!==endpoint)return;
+      if(!j.user || !j.user.name || !j.user.role)throw new Error('Invalid session response; retry later.');
+      ME.name = j.user.name;
+      ME.role = j.user.role;
+      document.querySelectorAll('.tile[data-role]').forEach(function(t){t.classList.toggle('hidden',t.getAttribute('data-role').split(',').indexOf(ME.role)<0);});
+      saveSession();
+      xeroStatus_();
+
+      if(location.hash.indexOf('xero=connected')>=0){
+        history.replaceState(null,'',location.pathname);
+        alert('Xero connected.');
+      }
+    })
+    .catch(function(e){
+      if(ME!==checking || CFG.url!==endpoint)return;
+      if(e.authInvalid){
+        clearSession().then(function(){
+          showAuth();
+          authMsg('bad',String(e.message||e));
+        });
+      }
+      // Offline: keep the locally cached session and app usable.
+    });
 }
 
-open().then(seedClauses).then(loadCfg).then(loadSession).then(boot).catch(function(err){
-  console.error('storage unavailable', err);
-  MEM = true;
-  CLAUSES = SEED.map(function(s,i){ return {id:'seed-'+i, std:s[0], clause:s[1], title:s[2], terms:s[3], own:false}; });
-  var n = document.createElement('div');
-  n.className = 'notice warn';
-  n.innerHTML = '<b>Nothing can be saved right now.</b> This browser is blocking local storage \u2014 usually because the file was opened straight from the phone (a <i>file://</i> address) or in a private window. The camera and PDF still work, but close the tab and you lose the job. Put the files on an https address to fix it.';
-  document.getElementById('screenHome').prepend(n);
-  showAuth();
-});
+open()
+  .then(loadCfg)
+  .then(loadSession)
+  .then(boot)
+  .then(function(){
+    return seedClauses();
+  })
+  .catch(function(err){
+    console.error('storage unavailable', err);
+    MEM = true;
+    CLAUSES = SEED.map(function(s,i){
+      return {
+        id:'seed-'+i,
+        std:s[0],
+        clause:s[1],
+        title:s[2],
+        terms:s[3],
+        own:false
+      };
+    });
+
+    var n = document.createElement('div');
+    n.className = 'notice warn';
+    n.innerHTML = '<b>Nothing can be saved right now.</b> This browser is blocking local storage \u2014 usually because the file was opened straight from the phone (a <i>file://</i> address)';
+    document.getElementById('screenHome').prepend(n);
+    showAuth();
+  });
+
+/* ============ stock: add new item ============ */
+function stockShowAdminTools_(){
+  var tools=document.getElementById('stAdminTools');
+  if(!tools) return;
+  var role=String((ME&&ME.role)||'').toLowerCase();
+  tools.style.display=(role==='admin'||role==='technician')?'block':'none';
+}
+
+function stockForm_(){
+  var tools=document.getElementById('stAdminTools');
+  if(!tools) return;
+
+  var old=document.getElementById('stItemForm');
+  if(old){ old.remove(); return; }
+
+  var cats=(ST.cats&&ST.cats.length)?ST.cats:[
+    'Wire & Cable','Conduit & Trunking','DB & Enclosures','Breakers',
+    'PV & DC','Lugs & Ferrules','Roof Structure','Plumbing',
+    'Consumable','Tools','Other'
+  ];
+
+  var form=document.createElement('div');
+  form.id='stItemForm';
+  form.className='st-admin-form';
+  form.innerHTML=
+    '<h3>Add New Stock Item</h3>'+
+    '<label>Item name</label>'+
+    '<input id="stNewItem" type="text" placeholder="e.g. 6mm Red PV Cable" autocomplete="off">'+
+    '<label>Category</label>'+
+    '<select id="stNewCategory"></select>'+
+    '<label>Unit</label>'+
+    '<input id="stNewUnit" type="text" placeholder="each or per meter" value="each">'+
+    '<label>Last price</label>'+
+    '<input id="stNewPrice" type="number" min="0" step="0.01" placeholder="0.00" inputmode="decimal">'+
+    '<div class="row">'+
+      '<button type="button" class="btn ghost" id="stCancelItem">Cancel</button>'+
+      '<button type="button" class="btn" id="stSaveItem">Add Item</button>'+
+    '</div>'+
+    '<div class="msg" id="stItemMsg"></div>';
+  tools.appendChild(form);
+
+  var sel=document.getElementById('stNewCategory');
+  cats.forEach(function(cat){
+    var o=document.createElement('option');
+    o.value=cat; o.textContent=cat; sel.appendChild(o);
+  });
+
+  document.getElementById('stCancelItem').addEventListener('click',function(){form.remove();});
+  document.getElementById('stSaveItem').addEventListener('click',stockSaveItem_);
+  document.getElementById('stNewItem').focus();
+}
+
+function stockSaveItem_(){
+  var name=document.getElementById('stNewItem').value.trim();
+  var category=document.getElementById('stNewCategory').value;
+  var unit=document.getElementById('stNewUnit').value.trim()||'each';
+  var price=Number(document.getElementById('stNewPrice').value)||0;
+  var msg=document.getElementById('stItemMsg');
+  var btn=document.getElementById('stSaveItem');
+
+  if(!name){ msg.innerHTML='<div class="calc bad">Enter an item name.</div>'; return; }
+  btn.disabled=true; btn.textContent='Adding…'; msg.innerHTML='';
+
+  api({action:'stockAdd',item:{item:name,category:category,unit:unit,price:price}})
+    .then(function(){
+      var form=document.getElementById('stItemForm');
+      if(form) form.remove();
+      loadStock();
+      alert('Item added successfully.');
+    })
+    .catch(function(e){
+      msg.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';
+      btn.disabled=false; btn.textContent='Add Item';
+    });
+}
+
+var stAddBtn=document.getElementById('stAddItem');
+if(stAddBtn){
+  stAddBtn.addEventListener('click',function(){ stockForm_(); });
+}
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}) });
 }
 })();
 </script>
+<script src="./xero-customer.js"></script>
 </body>
 </html>
