@@ -1052,6 +1052,11 @@ function jobCardSaveLocked_(body){
   var id=String(j.id||'').trim(); if(!id)throw new Error('Job Card ID is required.');
   var no=String(j.number||'').trim(),customer=String(j.customer||'').trim(),site=String(j.site||'').trim(),date=String(j.date||'').trim();
   if(!customer||!site||!date)throw new Error('Customer, site and date are required.');
+  if(!Array.isArray(j.types)||!j.types.length)throw new Error('At least one Job Card type is required.');
+  if(!j.sections||typeof j.sections!=='object'||Array.isArray(j.sections))throw new Error('Job Card sections are required.');
+  var status=String(j.status||'DRAFT').toUpperCase();
+  if(['DRAFT','SUBMITTED'].indexOf(status)===-1)throw new Error('Invalid Job Card status.');
+  j.status=status;
   if(u.role==='Worker' && !jobCardAssigned_(j.technicians,u.name))throw new Error('Worker may only submit a job card assigned to themselves.');
   var sh=jobCardsSheet_(),n=sh.getLastRow(),row=0,old=null;
   if(n>=2){var vals=sh.getRange(2,1,n-1,12).getValues();for(var i=0;i<vals.length;i++)if(String(vals[i][0])===id){row=i+2;old=vals[i];break;}}
