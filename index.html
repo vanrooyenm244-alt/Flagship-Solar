@@ -923,8 +923,7 @@ table.page{border-collapse:collapse}
 <div class="wrap hidden" id="screenAdmin">
   <section class="sheet">
     <div class="sheet-head"><h2>Users</h2><button class="btn ghost" type="button" id="usrRefresh" style="margin-left:auto">Refresh</button></div>
-    <p class="hint">Approve accounts, assign roles, or reset a password.</p>
-    <div id="usrList"></div>
+    <p class="hint">Approve accounts, assign roles, reset passwords, and choose exactly which app modules each user may access.</p>\n    <div id="usrPerms"></div>\n    <div id="usrList"></div>
   </section>
 </div>
 
@@ -4158,10 +4157,24 @@ function showAdmin(){if(!hasPermission_('users.manage')){showHome();return;}
   backTo='screenHome';
   document.getElementById('savedTag').textContent='users';
   show('screenAdmin');
-  loadUsers();
-}
-document.getElementById('usrRefresh').addEventListener('click',loadUsers);
+  loadUsers(); loadSupabasePermissionManager_();\n}\ndocument.getElementById('usrRefresh').addEventListener('click',function(){loadUsers();loadSupabasePermissionManager_();});
 
+var USER_PERM_LABELS={'inspections.view':'Inspections','job_cards.view':'Job Cards','calendar.view':'Calendar','stock.view':'Stock','timesheets.view_own':'Timesheets','prices.view':'Prices','quotes.view':'Quotes','proposals.view':'Value Proposals','users.manage':'Users / permissions'};
+function loadSupabasePermissionManager_(){
+  var box=document.getElementById('usrPerms'),a=window.FlagshipSupabase;
+  if(!box)return;
+  if(!(a&&a.getSession&&a.getSession()&&a.memberships&&a.listCompanyMemberships)){box.innerHTML='<div class="hint">Supabase permissions become available when signed in to Supabase.</div>';return;}
+  box.innerHTML='<div class="queued">Loading Supabase permissions…</div>';
+  a.memberships().then(function(ms){var own=ms&&ms[0];if(!own)throw new Error('No active Supabase company membership.');return a.listCompanyMemberships(own.company_id);}).then(function(ms){
+    box.innerHTML='<h3>Module permissions</h3><p class="hint">Tick the modules each user may access. Changes save immediately.</p>';
+    (ms||[]).forEach(function(m){a.permissionsForMembership(m.id).then(function(active){
+      var card=document.createElement('div');card.className='usr';var name=m.profile&&m.profile.full_name||m.user_id;
+      card.innerHTML='<div class="top"><b>'+esc(name)+'</b><span class="un">'+esc(m.role&&m.role.name||'No role')+'</span></div><div class="acts">'+Object.keys(USER_PERM_LABELS).map(function(k){return '<label style="display:inline-flex;gap:6px;align-items:center"><input type="checkbox" data-perm="'+esc(k)+'" '+(active.indexOf(k)>=0?'checked':'')+'> '+esc(USER_PERM_LABELS[k])+'</label>';}).join('')+'</div>';
+      card.querySelectorAll('[data-perm]').forEach(function(cb){cb.addEventListener('change',function(){var wanted=cb.checked;cb.disabled=true;a.setMembershipPermission(m.id,cb.getAttribute('data-perm'),wanted).then(function(){cb.disabled=false;}).catch(function(e){cb.checked=!wanted;cb.disabled=false;alert(e.message||e);});});});
+      box.appendChild(card);
+    }).catch(function(e){var er=document.createElement('div');er.className='calc bad';er.textContent=String(e.message||e);box.appendChild(er);});});
+  }).catch(function(e){box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';});
+}
 function loadUsers(){
   var box=document.getElementById('usrList');
   box.innerHTML='<div class="queued">Loading…</div>';
