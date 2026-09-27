@@ -1384,21 +1384,15 @@ function open(){
 function tx(store,mode){ return DB.transaction(store,mode).objectStore(store); }
 function memJob(id){ for(var i=0;i<MEMJOBS.length;i++) if(MEMJOBS[i].id===id) return MEMJOBS[i]; return null; }
 function put(store,val){
-  if(MEM){
-    if(store==='jobs'){ var e=memJob(val.id); if(e){ Object.assign(e,val); } else MEMJOBS.push(val); }
-    else if(store==='jobcards'){ var je=MEMJOBCARDS.find(function(x){return x.id===val.id}); if(je) Object.assign(je,val); else MEMJOBCARDS.push(val); }
-    else if(store==='cfg'){ MEMCFG[val.id]=val; }
-    else if(store==='calendar'){ var ce=MEMCALENDAR.find(function(x){return x.id===val.id}); if(ce) Object.assign(ce,val); else MEMCALENDAR.push(val); }
-    else if(store==='quotes'){ var qe=MEMQUOTES.find(function(x){return x.id===val.id}); if(qe) Object.assign(qe,val); else MEMQUOTES.push(val); }
-    return Promise.resolve();
-  }
-  return new Promise(function(res,rej){var q=tx(store,'readwrite').put(val);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
+  val=JSON.parse(JSON.stringify(val));
+  if(MEM)return Promise.reject(new Error('Persistent browser storage is unavailable. Export your work before closing.'));
+  return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');t.oncomplete=function(){res()};t.onabort=t.onerror=function(){rej(t.error||new Error('Local save failed'))};t.objectStore(store).put(val);}); }
 function getAll(store){ if(MEM) return Promise.resolve(store==='jobs'?MEMJOBS.slice():(store==='jobcards'?MEMJOBCARDS.slice():(store==='cfg'||store==='props'?[]:(store==='quotes'?MEMQUOTES.slice():(store==='calendar'?MEMCALENDAR.slice():CLAUSES.slice())))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').getAll();q.onsuccess=function(){res(q.result||[])};q.onerror=function(){rej(q.error)}}); }
 function get1(store,id){ if(MEM) return Promise.resolve(store==='jobs'?memJob(id):(store==='jobcards'?(MEMJOBCARDS.find(function(x){return x.id===id})||null):(store==='calendar'?(MEMCALENDAR.find(function(x){return x.id===id})||null):(store==='cfg'?(MEMCFG[id]||null):(store==='quotes'?(MEMQUOTES.find(function(x){return x.id===id})||null):null)))));
   return new Promise(function(res,rej){var q=tx(store,'readonly').get(id);q.onsuccess=function(){res(q.result)};q.onerror=function(){rej(q.error)}}); }
 function del(store,id){ if(MEM){ if(store==='cfg') delete MEMCFG[id]; else if(store==='quotes') MEMQUOTES=MEMQUOTES.filter(function(j){return j.id!==id}); else if(store==='jobcards') MEMJOBCARDS=MEMJOBCARDS.filter(function(j){return j.id!==id}); else if(store==='calendar') MEMCALENDAR=MEMCALENDAR.filter(function(j){return j.id!==id}); else MEMJOBS=MEMJOBS.filter(function(j){return j.id!==id}); return Promise.resolve(); }
-  return new Promise(function(res,rej){var q=tx(store,'readwrite').delete(id);q.onsuccess=function(){res()};q.onerror=function(){rej(q.error)}}); }
+  return new Promise(function(res,rej){var t=DB.transaction(store,'readwrite');t.oncomplete=function(){res()};t.onabort=t.onerror=function(){rej(t.error||new Error('Local delete failed'))};t.objectStore(store).delete(id);}); }
 
 /* ============ slots ============ */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -1455,7 +1449,9 @@ function makeSlot(cap,sans,img){
       input.value = '';
       return;
     }
+    var photoJob=currentId;
     shrink(f, function(url){
+      if(currentId!==photoJob||!slot.isConnected){alert('The inspection changed before the photo finished. Reopen the original inspection and add the photo again.');return;}
       var shot = slot.querySelector('.shot');
       var im = shot.querySelector('img');
       if(!im){
@@ -1563,18 +1559,11 @@ function defaultsFor(grid){
 }
 
 function save(){
-  if(!currentId) return;
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(function(){
-    var addr=(document.getElementById('fAddr').textContent||'').trim();
-    put('jobs',{id:currentId, title:addr||'Untitled inspection', updated:Date.now(), data:collect()})
-      .then(function(){
-        var tag=document.getElementById('savedTag');
-        tag.textContent='saved'; tag.className='saved';
-        setTimeout(function(){tag.textContent='inspection';tag.className=''},1400);
-      })
-      .catch(function(){ alert('Could not save — the phone may be out of storage. Export to PDF now.'); });
-  },700);
+  if(!currentId)return;
+  var id=currentId,addr=(document.getElementById('fAddr').textContent||'').trim();
+  return put('jobs',{id:id,title:addr||'Untitled inspection',updated:Date.now(),data:collect()}).then(function(){
+    if(currentId!==id)return;var tag=document.getElementById('savedTag');tag.textContent=MEM?'temporary only':'saved';tag.className='saved';
+  }).catch(function(){alert('Could not save — export to PDF now.');});
 }
 
 document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')) save(); });
@@ -2245,17 +2234,23 @@ document.getElementById('setTest').addEventListener('click',function(){
 });
 
 /* ---- talking to the script ---- */
+function apiResponse_(r){
+  if(!r.ok) throw new Error('Server request failed (HTTP '+r.status+'). Please retry.');
+  return r.json().then(function(j){
+    if(!j || typeof j.ok!=='boolean') throw new Error('Invalid server response. Please retry.');
+    if(!j.ok){var e=new Error(j.error||'Request rejected');e.authInvalid=/^(unknown user or password|account not approved yet)\.?$/i.test(e.message.trim());throw e;}
+    return j;
+  });
+}
 function api(payload){
   if(!CFG.url) return Promise.reject(new Error('No sheet connected. Open Settings.'));
+  payload=Object.assign({},payload);
   if(ME){ payload.user=ME.username; payload.pass=ME.pass; }
   return fetch(CFG.url,{
     method:'POST',
     headers:{'Content-Type':'text/plain;charset=utf-8'},  // avoids the CORS preflight Apps Script rejects
     body:JSON.stringify(payload)
-  }).then(function(r){ return r.json(); }).then(function(j){
-    if(!j.ok) throw new Error(j.error||'rejected');
-    return j;
-  });
+  }).then(apiResponse_);
 }
 function apiGet(params){
   if(!CFG.url) return Promise.reject(new Error('No sheet connected. Open Settings.'));
@@ -2263,10 +2258,7 @@ function apiGet(params){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
   var auth = ME ? '&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass) : '';
-  return fetch(CFG.url+'?'+q+auth).then(function(r){ return r.json(); }).then(function(j){
-    if(!j.ok) throw new Error(j.error||'rejected');
-    return j;
-  });
+  return fetch(CFG.url+'?'+q+auth).then(apiResponse_);
 }
 var post=api;   // timesheet code calls post()
 
@@ -4615,10 +4607,14 @@ function boot(){
   showHome();
 
   // Validate the session in the background.
+  var checking=ME, endpoint=CFG.url;
   apiGet({action:'me'})
     .then(function(j){
+      if(ME!==checking || CFG.url!==endpoint)return;
+      if(!j.user || !j.user.name || !j.user.role)throw new Error('Invalid session response; retry later.');
       ME.name = j.user.name;
       ME.role = j.user.role;
+      document.querySelectorAll('.tile[data-role]').forEach(function(t){t.classList.toggle('hidden',t.getAttribute('data-role').split(',').indexOf(ME.role)<0);});
       saveSession();
       xeroStatus_();
 
@@ -4628,7 +4624,8 @@ function boot(){
       }
     })
     .catch(function(e){
-      if(navigator.onLine){
+      if(ME!==checking || CFG.url!==endpoint)return;
+      if(e.authInvalid){
         clearSession().then(function(){
           showAuth();
           authMsg('bad',String(e.message||e));

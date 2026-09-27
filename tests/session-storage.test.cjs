@@ -1,0 +1,18 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync('index.html','utf8');
+const block=(a,b)=>html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)+a.length));
+const tick=()=>new Promise(r=>setImmediate(r));
+const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject};};
+function context(code,extras={}){const c={console,Promise,Date,Math,JSON,setTimeout,clearTimeout,...extras};vm.createContext(c);vm.runInContext(code,c);return c;}
+const responseCode=block('function apiResponse_','function api(payload)');
+for(const reason of ['unknown user or password','account not approved yet'])test('explicit credential rejection: '+reason,async()=>{const c=context(responseCode);await assert.rejects(c.apiResponse_({ok:true,json:async()=>({ok:false,error:reason})}),e=>e.authInvalid===true);});
+for(const reason of ['not allowed','Lock timed out','Service unavailable'])test('temporary/authorization error does not invalidate session: '+reason,async()=>{const c=context(responseCode);await assert.rejects(c.apiResponse_({ok:true,json:async()=>({ok:false,error:reason})}),e=>!e.authInvalid);});
+test('HTTP error is identified as server error, not offline or invalid credentials',()=>{const c=context(responseCode);assert.throws(()=>c.apiResponse_({ok:false,status:503}),/HTTP 503/);});
+test('malformed JSON envelope is not accepted',async()=>{const c=context(responseCode);await assert.rejects(c.apiResponse_({ok:true,json:async()=>({})}),/Invalid server response/);});
+function bootContext(result){return context(block('function boot(){','\nopen()'),{CFG:{url:'local'},ME:{username:'A',name:'A',role:'Worker'},showHome(){},showAuth(){this.shown=true;},saveSession(){},clearSession(){this.cleared=true;return Promise.resolve();},apiGet:()=>result,document:{querySelectorAll:()=>[]},xeroStatus_(){},location:{hash:''},authMsg(){}});}
+test('startup retains cached session after network failure',async()=>{const c=bootContext(Promise.reject(new Error('Failed to fetch')));c.boot();await tick();assert.ok(c.ME);assert.ok(!c.cleared);});
+test('startup clears only explicitly rejected credentials',async()=>{const c=bootContext(Promise.reject(Object.assign(new Error('unknown user or password'),{authInvalid:true})));c.clearSession=()=>{c.cleared=true;return Promise.resolve();};c.boot();await tick();assert.ok(c.cleared);});
+test('late startup answer cannot modify another login',async()=>{const d=deferred(),c=bootContext(d.promise);c.boot();c.ME={name:'B'};d.resolve({user:{name:'A',role:'Admin'}});await tick();assert.equal(c.ME.name,'B');});
+test('late startup rejection cannot log out another account',async()=>{const d=deferred(),c=bootContext(d.promise);c.boot();c.ME={name:'B'};d.reject(Object.assign(new Error('unknown user or password'),{authInvalid:true}));await tick();assert.ok(!c.cleared);});
+test('put waits for transaction commit and captures the input',async()=>{let t,written;const c=context(block('function put(store,val)','function getAll('),{MEM:false,DB:{transaction(){t={objectStore:()=>({put(v){written=v;}})};return t;}}});const row={id:'a',nested:{value:1}};let done=false;const p=c.put('jobs',row).then(()=>done=true);row.nested.value=2;await tick();assert.equal(done,false);assert.equal(written.nested.value,1);t.oncomplete();await p;assert.ok(done);});
+test('transaction abort rejects save',async()=>{let t;const c=context(block('function put(store,val)','function getAll('),{MEM:false,DB:{transaction(){return t={objectStore:()=>({put(){}})};}}});const p=c.put('jobs',{id:'a'});t.onabort();await assert.rejects(p,/Local save failed/);});
