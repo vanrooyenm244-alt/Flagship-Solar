@@ -1532,7 +1532,11 @@ function doPost(e) {
         if (body.role && ROLES.indexOf(body.role) === -1) return out_({ ok: false, error: 'bad role' });
         sh.getRange(t.row, 3).setValue(body.role);
       }
-      if (body.status) sh.getRange(t.row, 4).setValue(body.status);
+      if (body.status) {
+        if (['active','pending','suspended'].indexOf(String(body.status).toLowerCase()) === -1) return out_({ ok: false, error: 'bad status' });
+        if (t.username.toLowerCase() === admin.username.toLowerCase() && String(body.status).toLowerCase() !== 'active') return out_({ ok: false, error: 'you cannot suspend your own admin account' });
+        sh.getRange(t.row, 4).setValue(body.status);
+      }
       else if (body.role && String(t.status).toLowerCase() === 'pending') sh.getRange(t.row, 4).setValue('Active');
       var now = (body.role !== undefined && body.role !== null ? body.role : t.role) +
                 ' / ' + (body.status || t.status);
@@ -1557,7 +1561,7 @@ function doPost(e) {
       var t3 = findUser_(body.target || '');
       if (!t3) return out_({ ok: false, error: 'no such user' });
       var np = String(body.newPass || '');
-      if (np.length < 4) return out_({ ok: false, error: 'password must be at least 4 characters' });
+      if (np.length < 8) return out_({ ok: false, error: 'password must be at least 8 characters' });
       sheet_('Users').getRange(t3.row, 5).setValue(hash_(t3.username, np));
       log_(admin3.username, 'resetPassword', t3.username, '', '');
       return out_({ ok: true });
@@ -1566,7 +1570,7 @@ function doPost(e) {
     if (body.action === 'changePassword') {
       var me2 = auth_(body);
       var np2 = String(body.newPass || '');
-      if (np2.length < 4) return out_({ ok: false, error: 'password must be at least 4 characters' });
+      if (np2.length < 8) return out_({ ok: false, error: 'password must be at least 8 characters' });
       sheet_('Users').getRange(me2.row, 5).setValue(hash_(me2.username, np2));
       log_(me2.username, 'changePassword', '', '', '');
       return out_({ ok: true });
