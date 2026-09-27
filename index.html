@@ -1629,6 +1629,10 @@ function show(id){
   window.scrollTo(0,0);
 }
 
+function hasPermission_(key){return !EFFECTIVE_PERMISSIONS||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
+var TILE_PERMISSION_={jobs:'inspections.view',jobcards:'job_cards.view',calendar:'calendar.view',stock:'stock.view',time:'timesheets.view_own',prices:'prices.view',quote:'quotes.view',props:'proposals.view',admin:'users.manage'};
+function applyModulePermissions_(){document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
+function refreshSupabasePermissions_(){var a=window.FlagshipSupabase;if(!(a&&a.getSession&&a.getSession&&a.getSession()&&a.memberships&&a.permissionsForMembership))return Promise.resolve();return a.memberships().then(function(ms){var m=ms&&ms[0];if(!m)return;var id=m.id||m.membership_id;if(!id)return;return a.permissionsForMembership(id).then(function(p){EFFECTIVE_PERMISSIONS=p;});}).catch(function(){EFFECTIVE_PERMISSIONS=null;});}
 function showHome(){
   currentId=null;
   backTo='screenHome';
@@ -1640,6 +1644,7 @@ function showHome(){
     var ok = ME && t.getAttribute('data-role').split(',').indexOf(ME.role)>=0;
     t.classList[ok?'remove':'add']('hidden');
   });
+  applyModulePermissions_();
   show('screenHome');
 }
 
@@ -1809,7 +1814,7 @@ function jcRefreshFromSupabase_(){
     }):Promise.resolve([]));
   return request.then(function(cards){if(ME!==owner||CFG.url!==endpoint)return;return Promise.all(cards.map(jcImportMissing_));}).catch(function(e){var list=document.getElementById('jcList');if(list)list.title='Central refresh failed; showing this phone\'s records: '+String(e.message||e);});
 }
-function showJobCards(){currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRefreshFromSupabase_().then(jcRenderList_);}
+function showJobCards(){if(!hasPermission_('job_cards.view')){showHome();return;}currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRefreshFromSupabase_().then(jcRenderList_);}
 function jcRenderList_(){getAll('jobcards').then(function(list){list=list.filter(function(j){return !j.deleted;});list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+esc(st.toLowerCase())+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+esc(j.id)+'">Open</button><button type="button" data-jc-pdf="'+esc(j.id)+'">PDF</button><button type="button" data-jc-del="'+esc(j.id)+'">Hide locally</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Hide this job card on this phone? The central record is retained.'))get1('jobcards',b.getAttribute('data-jc-del')).then(function(card){if(card){card.deleted=true;return put('jobcards',card);}}).then(jcRenderList_).catch(function(e){alert('Could not hide job card: '+e.message);});});});});}
 function jcPhotoCount_(j){var n=0;function walk(x){if(!x)return;if(typeof x==='object'){if(x.img)n++;Object.keys(x).forEach(function(k){if(k!=='img')walk(x[k]);});}}walk(j.sections);return n;}
 function jcOpen_(id,pdf,returnTo){return get1('jobcards',id).then(function(j){if(!j)return;JC=j;backTo=returnTo||'screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();if(pdf)setTimeout(jcGeneratePdf_,50);});}
@@ -2451,7 +2456,7 @@ document.getElementById('auGo').addEventListener('click',function(){
       ME={username:j.user.username, pass:pass, name:j.user.name, role:j.user.role};
       saveSession();
       document.getElementById('auPass').value='';
-      showHome();
+      refreshSupabasePermissions_().then(showHome);
     })
     .catch(function(e){
       btn.disabled=false; setAuthMode(AUTHMODE);
