@@ -34,3 +34,5 @@ test('supplier update rejects missing or non-price values without overwriting ex
  const r=b.post({action:'updatePriceList',updates:[{code:'SKU',price:0}]});
  assert.equal(r.ok,true);assert.equal(r.updated,1);assert.equal(sh.rows[1][6],0);
 });
+
+test('proposal Xero handoff is serialized to protect against duplicate quote creation',()=>{const src=fs.readFileSync('apps-script/Code.gs','utf8');assert.match(src,/function proposalSendToXero_\(body\)\{[\s\S]{0,220}getScriptLock\(\)/);assert.match(src,/proposalSendToXeroLocked_\(body\)/);});

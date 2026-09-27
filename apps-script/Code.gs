@@ -1114,6 +1114,10 @@ function proposalAccept_(token,name){
 
 /* Create the Xero contact if needed, then create the quote for an ACCEPTED proposal. */
 function proposalSendToXero_(body){
+  var lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{return proposalSendToXeroLocked_(body);}finally{lock.releaseLock();}
+}
+function proposalSendToXeroLocked_(body){
   var u=auth_(body,['Admin','Technician']);
   var token=String(body.token||'').trim();
   if(!token) throw new Error('Proposal token is required.');
