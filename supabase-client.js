@@ -95,6 +95,8 @@ memberships: function () {
 
 listCompanyMemberships: function (companyId) { if (!session || !session.user || !companyId) return Promise.resolve([]); return rest('company_memberships','company_id=eq.'+encodeURIComponent(companyId)+'&select=id,user_id,active,role_id,role:roles(name),profile:profiles(full_name)',{method:'GET'}); },
 
+listCompanyMemberships: function (companyId) { if (!session || !session.user || !companyId) return Promise.resolve([]); return rest('company_memberships','company_id=eq.'+encodeURIComponent(companyId)+'&select=id,user_id,active,role_id,role:roles(name),profile:profiles(full_name)',{method:'GET'}); },
+
 listPrices: function () {
   return rest(
     'price_items',
