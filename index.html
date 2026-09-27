@@ -3837,7 +3837,7 @@ function xeroFind_(){
 function xeroCreateQuote_(){
   if(!QB.xeroContact||!QB.xeroContact.contactID){alert('First find and select the customer in Xero.');return;}
   if(!QB.items.length){alert('Add at least one quote line.');return;}
-  if(QB.items.some(function(it){return !Number.isFinite(Number(it.qty))||Number(it.qty)<=0||!Number.isFinite(Number(it.sell));})){alert('Each quote line needs a positive quantity and an explicit numeric price.');return;}
+  if(QB.items.some(function(it){return !Number.isFinite(Number(it.qty))||Number(it.qty)<=0||it.sell==null||String(it.sell).trim()===''||!Number.isFinite(Number(it.sell));})){alert('Each quote line needs a positive quantity and an explicit numeric price.');return;}
   if(QB.xeroQuote&&QB.xeroQuote.quoteID){alert('This draft already has a Xero quote. Open it in Xero or start a new draft.');return;}
   var submittedQuote=QB;
   var btn=document.getElementById('qbXeroCreate');btn.disabled=true;btn.textContent='Creating…';

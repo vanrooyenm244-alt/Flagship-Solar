@@ -1,6 +1,10 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),cp=require('node:child_process');
 const baseline='f987198';
 const original=p=>cp.execFileSync('git',['show',baseline+':'+p],{encoding:'utf8'});
+test('main HTML screens and styles are unchanged outside script code',()=>{
+ const markup=s=>s.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g,'').replace(/\s+/g,' ').trim();
+ assert.equal(markup(fs.readFileSync('index.html','utf8')),markup(original('index.html')));
+});
 test('main screens, navigation targets and runtime assets remain present',()=>{
  const current=fs.readFileSync('index.html','utf8'),main=original('index.html');
  const ids=s=>[...s.matchAll(/\bid=["']([^"']+)["']/g)].map(m=>m[1]);
