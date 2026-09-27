@@ -25,3 +25,20 @@ test('publishable API key is not sent as bearer; signed-in JWT still is',async()
  await ctx.window.FlagshipSupabase.listPrices();assert.equal(requests[0].apikey,'sb_publishable_testonly');assert.equal(requests[0].Authorization,undefined);
  await ctx.window.FlagshipSupabase.restore({access_token:'user-jwt',user:{id:'u'}});assert.equal(requests[1].Authorization,'Bearer user-jwt');
 });
+
+test('Supabase price rows map to the legacy price shape',async()=>{
+ const a=adapter([{id:'p1',company_id:'c1',category:'Solar',supplier:'S',code:'SKU',description:'Panel',description_en:'Panel EN',unit:'each',price_type:'Sell',cost:'100.50',markup:'20',install:'5',spec:'Spec',active:true}]);
+ const rows=await a.api.listPrices();
+ assert.equal(rows[0].type,'Sell');assert.equal(rows[0].cost,100.5);assert.equal(rows[0].markup,20);assert.equal(rows[0].install,5);assert.equal(rows[0].descriptionEn,'Panel EN');
+});
+test('Supabase photo uploads are scoped to the signed-in user folder',async()=>{
+ let uploaded;const ctx={window:{FLAGSHIP_SUPABASE_CONFIG:{url:'https://test.supabase.co',anonKey:'sb_publishable_testonly'}},fetch:async(url,options)=>{
+   if(url.endsWith('/auth/v1/user'))return {ok:true,status:200,json:async()=>({id:'user-1'})};
+   if(url.includes('/profiles?'))return {ok:true,status:200,json:async()=>[]};
+   uploaded={url,options};return {ok:true,status:200,json:async()=>({})};
+ }};
+ vm.runInNewContext(fs.readFileSync('supabase-client.js','utf8'),ctx);
+ await ctx.window.FlagshipSupabase.restore({access_token:'jwt',user:{id:'user-1'}});
+ await ctx.window.FlagshipSupabase.uploadJobCardPhoto('card-1','blob','image/jpeg');
+ assert.match(uploaded.url,/job-card-photos\/user-1\/job-cards\/card-1\//);
+});
