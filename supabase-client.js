@@ -75,6 +75,19 @@
       session = null;
       return end;
     },
+permissionsForMembership: function (membershipId) {
+  if (!session || !session.user || !membershipId) return Promise.resolve([]);
+  return Promise.all([
+    rest('company_memberships','id=eq.'+encodeURIComponent(membershipId)+'&select=id,company_id,role_id,role:roles(name)',{method:'GET'}),
+    rest('role_permissions','select=permission_key,role_id',{method:'GET'}),
+    rest('membership_permissions','membership_id=eq.'+encodeURIComponent(membershipId)+'&select=permission_key,allowed',{method:'GET'})
+  ]).then(function(parts){var membership=(parts[0]||[])[0];if(!membership)return [];var map={};(parts[1]||[]).forEach(function(x){if(x.role_id===membership.role_id)map[x.permission_key]=true;});(parts[2]||[]).forEach(function(x){map[x.permission_key]=!!x.allowed;});return Object.keys(map).filter(function(k){return map[k];}).sort();});
+},
+setMembershipPermission: function (membershipId, permissionKey, allowed) {
+  if (!session || !session.user) return Promise.reject(new Error('Sign in before changing permissions.'));
+  return request('/rest/v1/membership_permissions?on_conflict=membership_id,permission_key',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({membership_id:membershipId,permission_key:permissionKey,allowed:!!allowed})});
+},
+listPermissionCatalogue: function () { return rest('permissions','select=key,description&order=key.asc',{method:'GET'}); },
 memberships: function () {
   if (!session || !session.user) return Promise.resolve([]);
   return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=company_id,role:roles(name),companies(name,slug)', { method: 'GET' });
