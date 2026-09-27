@@ -1591,19 +1591,23 @@ function calRender_(){
     document.querySelectorAll('[data-cal-open]').forEach(function(el){el.onclick=function(){calOpen_(el.getAttribute('data-cal-open'));};});
   });
 }
-function calOpen_(id){get1('calendar',id).then(function(e){
+var calOpening_=Object.create(null);
+function calOpen_(id){
+  if(calOpening_[id])return calOpening_[id];
+  return calOpening_[id]=get1('calendar',id).then(function(e){
   if(!e)return;
   if(!confirm('Open Job Card for '+(e.customer||'')+' at '+(e.site||'')+'?'))return;
-  if(e.jobCardId)return jcOpen_(e.jobCardId);
+  if(e.jobCardId)return jcOpen_(e.jobCardId,false,'screenCalendar');
   var card=jcBlank();card.customer=e.customer||'';card.site=e.site||'';card.date=e.date||'';card.technicians=e.technician||'';
   var type=JC_TYPES.find(function(t){return t.id===e.jobType||t.name===e.jobType;});card.types=type?[type.id]:[];card.calendarEventId=e.id;
-  return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id);});
-}).catch(function(e){alert('Could not open calendar job: '+e.message);});}
+  return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id,false,'screenCalendar');});
+}).catch(function(e){alert('Could not open calendar job: '+e.message);}).finally(function(){delete calOpening_[id];});}
+function calShiftMonth_(delta){CAL_DATE.setDate(1);CAL_DATE.setMonth(CAL_DATE.getMonth()+delta);calRender_();}
 document.getElementById('calNew').addEventListener('click',function(){document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);});
 document.getElementById('calCancel').addEventListener('click',function(){document.getElementById('calForm').classList.add('hidden');});
 document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
-document.getElementById('calPrev').addEventListener('click',function(){CAL_DATE.setMonth(CAL_DATE.getMonth()-1);calRender_();});
-document.getElementById('calNext').addEventListener('click',function(){CAL_DATE.setMonth(CAL_DATE.getMonth()+1);calRender_();});
+document.getElementById('calPrev').addEventListener('click',function(){calShiftMonth_(-1);});
+document.getElementById('calNext').addEventListener('click',function(){calShiftMonth_(1);});
 document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();calRender_();});
 document.getElementById('calSave').addEventListener('click',function(){var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:document.getElementById('calCompany').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled.';document.getElementById('calForm').classList.add('hidden');calRender_();});});
 
@@ -1782,7 +1786,7 @@ function jcRefreshFromSupabase_(){
 function showJobCards(){currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRefreshFromSupabase_().then(jcRenderList_);}
 function jcRenderList_(){getAll('jobcards').then(function(list){list=list.filter(function(j){return !j.deleted;});list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+esc(st.toLowerCase())+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+esc(j.id)+'">Open</button><button type="button" data-jc-pdf="'+esc(j.id)+'">PDF</button><button type="button" data-jc-del="'+esc(j.id)+'">Hide locally</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Hide this job card on this phone? The central record is retained.'))get1('jobcards',b.getAttribute('data-jc-del')).then(function(card){if(card){card.deleted=true;return put('jobcards',card);}}).then(jcRenderList_).catch(function(e){alert('Could not hide job card: '+e.message);});});});});}
 function jcPhotoCount_(j){var n=0;function walk(x){if(!x)return;if(typeof x==='object'){if(x.img)n++;Object.keys(x).forEach(function(k){if(k!=='img')walk(x[k]);});}}walk(j.sections);return n;}
-function jcOpen_(id,pdf){get1('jobcards',id).then(function(j){if(!j)return;JC=j;backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();if(pdf)setTimeout(jcGeneratePdf_,50);});}
+function jcOpen_(id,pdf,returnTo){return get1('jobcards',id).then(function(j){if(!j)return;JC=j;backTo=returnTo||'screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();if(pdf)setTimeout(jcGeneratePdf_,50);});}
 function jcSubmit_(){
   if(!JC)return;var card=JC,missing=[];
   if(!card.customer.trim())missing.push('Customer');if(!card.site.trim())missing.push('Site / Job');if(!card.date)missing.push('Date');if(!card.types.length)missing.push('at least one job type');
