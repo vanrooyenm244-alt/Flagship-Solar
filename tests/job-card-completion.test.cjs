@@ -11,3 +11,5 @@ test('Job Cards upload photos before central Job Card save',()=>{const main=fs.r
 test('Job Cards hydrate secure central photos for field and PDF views',()=>{const main=fs.readFileSync('index.html','utf8'),client=fs.readFileSync('supabase-client.js','utf8');assert.match(client,/signedJobCardPhotoUrl:/);assert.match(client,/object\/sign\/job-card-photos/);assert.match(main,/function jcHydratePhotos_/);assert.match(main,/signedJobCardPhotoUrl\(v\.storage\.path,3600\)/);assert.match(main,/jcHydratePhotos_\(card\)\.then\(jcImportMissing_\)/);});
 
 test('Job Cards reconcile newer central cards without overwriting local drafts',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/remoteUpdated>localUpdated&&!localDraft/);assert.match(main,/if\(!local\)\{store\.put\(card\);return;\}/);});
+
+test('Job Card submit requires complete Supabase acknowledgement including photos',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/No matching submitted Job Card acknowledgement/);assert.match(main,/Job Card photo\(s\) were not uploaded/);assert.match(main,/String\(remote\.status\|\|''\)\.toUpperCase\(\)!=='SUBMITTED'/);});
