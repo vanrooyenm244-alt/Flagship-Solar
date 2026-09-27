@@ -1830,7 +1830,7 @@ function jcSubmit_(){
     if(!saved)throw new Error('Local save failed; nothing was submitted.');
     snapshot=JSON.parse(JSON.stringify(card));revision=snapshot.revision;snapshot.status='SUBMITTED';
     if(ME!==owner||CFG.url!==endpoint)throw new Error('Session changed; nothing was submitted.');
-    if(jcSupabaseEnabled_())return jcSync_(snapshot).then(function(remote){if(!remote||remote.id!==snapshot.id)throw new Error('No matching Job Card acknowledgement.');return 'Supabase';});
+    if(jcSupabaseEnabled_())return jcSync_(snapshot).then(function(remote){if(!remote||remote.id!==snapshot.id||String(remote.status||'').toUpperCase()!=='SUBMITTED')throw new Error('No matching submitted Job Card acknowledgement.');var pending=0;function walk(x){if(!x||typeof x!=='object')return;Object.keys(x).forEach(function(k){var v=x[k];if(v&&typeof v==='object'&&v.img&&String(v.img).indexOf('data:image/')===0)pending++;else walk(v);});}walk(remote.sections);if(pending)throw new Error(pending+' Job Card photo(s) were not uploaded.');return 'Supabase';});
     if(!CFG.url||!ME)throw new Error('No signed-in Sheet connection.');
     return api({action:'jobCardSave',jobCard:jcMetaOnly_(snapshot)}).then(function(j){if(j.id!==snapshot.id||j.status!=='SUBMITTED')throw new Error('No matching Job Card acknowledgement.');return 'Google Sheet (photos remain on this phone)';});
   }).then(function(destination){
