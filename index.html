@@ -732,6 +732,7 @@ table.page{border-collapse:collapse}
        intentionally not committed; without it existing offline/Sheets flows remain available. -->
   <script src="./supabase-config.js"></script>
   <script src="./supabase-client.js"></script>
+  <script src="./timesheet-sync.js"></script>
 </head>
 <body>
 
@@ -2335,32 +2336,6 @@ function fetchWorkers(){
   return apiGet({action:'workers'}).then(function(j){
     WORKERS=j.workers||[];
     return put('cfg',{id:'workers',list:WORKERS}).then(function(){ return WORKERS; });
-  });
-}
-
-function fetchTimesheetAll(){
-  return apiGet({
-    action:'timesheetAll',
-    cycle:cycleKey(CYCLE)
-  }).then(function(j){
-
-    var server=j.entries||{};
-
-    Object.keys(server).forEach(function(name){
-      if(!ENTRIES[name]) ENTRIES[name]={};
-
-      Object.keys(server[name]).forEach(function(ds){
-        var local=ENTRIES[name][ds];
-
-        if(!local || local.sent){
-          ENTRIES[name][ds]=server[name][ds];
-        }
-      });
-    });
-
-    put('cfg',{id:entKey(),data:ENTRIES}).catch(function(){});
-
-    return ENTRIES;
   });
 }
 
@@ -4209,6 +4184,43 @@ function userCard(u,roles){
    in over several sittings, then sent in one go. */
 
 var WORKERS=[], CYCLE=null, ENTRIES={}, OPEN=null;
+var TSOWNER=null, TSCYCLE=null, TSLOAD=0, TSSAVE=Promise.resolve(), TSFLUSH=null, TSBASE={}, TSFAILED={};
+function tsOwner_(){return ME&&CFG.url?FlagshipTimesheetSync.owner(ME.username,CFG.url):null;}
+function tsRecord_(account){return 'timesheet-v2:'+account;}
+function tsChange_(account,change){
+  if(MEM||!DB)return Promise.reject(new Error('Durable Timesheet storage is unavailable. Nothing was submitted.'));
+  return new Promise(function(resolve,reject){
+    var transaction=DB.transaction('cfg','readwrite'),store=transaction.objectStore('cfg'),value;
+    var q=store.get(tsRecord_(account));
+    q.onsuccess=function(){try{value=change(q.result&&q.result.state);store.put({id:tsRecord_(account),state:value});}catch(e){reject(e);transaction.abort();}};
+    transaction.oncomplete=function(){resolve(value);};
+    transaction.onerror=transaction.onabort=function(){reject(transaction.error||new Error('Timesheet storage transaction failed.'));};
+  });
+}
+var TSSYNC=FlagshipTimesheetSync.create({
+  read:function(account){return get1('cfg',tsRecord_(account)).then(function(v){return v&&v.state;});},
+  change:tsChange_,currentOwner:tsOwner_,online:function(){return navigator.onLine;},
+  send:async function(identity,rows){
+    var r;
+    try{r=await fetch(identity.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'timesheets',user:identity.user,pass:identity.pass,rows:rows})});}
+    catch(e){throw new Error('Network request failed; delivery is unconfirmed. Review before retrying. '+String(e.message||e));}
+    if(!r.ok)throw new Error('Server HTTP '+r.status+'; delivery is unconfirmed.');
+    try{return await r.json();}catch(e){throw new Error('Invalid server response; delivery is unconfirmed.');}
+  },notify:function(){tsRefresh_().catch(tsError_);}
+});
+function tsError_(e){var el=document.getElementById('tsQueue');if(el)el.textContent='Timesheet error: '+String(e.message||e);}
+function tsStamp_(){Object.keys(ENTRIES).forEach(function(w){Object.keys(ENTRIES[w]).forEach(function(d){
+  var r=ENTRIES[w][d],fp=FlagshipTimesheetSync.fingerprint(w,d,r);
+  if(r._fingerprint!==fp){r.revision=FlagshipTimesheetSync.id();r._fingerprint=fp;r.sent=false;r.syncState='draft';r.syncReason='';}
+});});}
+function tsMerge_(s,account,cycle){
+  if(TSOWNER!==account||TSCYCLE!==cycle||tsOwner_()!==account)return;
+  var saved=s.cycles[cycle]||{};
+  Object.keys(ENTRIES).forEach(function(w){Object.keys(ENTRIES[w]).forEach(function(d){var r=ENTRIES[w][d],v=saved[w]&&saved[w][d];
+    if(v&&v.revision===r.revision){r.syncState=v.syncState;r.syncReason=v.syncReason;r.sent=v.syncState==='accepted';}
+  });});
+}
+function tsRefresh_(){var account=TSOWNER,cycle=TSCYCLE;if(!account)return Promise.resolve();return TSSYNC.read(account).then(function(s){tsMerge_(s,account,cycle);if(tsOwner_()===account){renderPeople();return renderQueue();}});}
 
 var DAYNAMES=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -4242,35 +4254,52 @@ function shiftCycle(c,n){
   return {y:y,m:m};
 }
 
-function mins(hhmm){
-  if(!hhmm) return null;
-  var p=String(hhmm).split(':');
-  var a=parseInt(p[0],10), b=parseInt(p[1],10);
-  if(isNaN(a)||isNaN(b)) return null;
-  return a*60+b;
+/* Repair 3: keep this calculation core identical in index.html and Code.gs.
+ * Wall-clock minutes; an earlier end means the following day, equal times
+ * mean zero duration. The starting date classifies the entire shift.
+ * Weekday lunch comes only from normal time; excess requires review. */
+function shiftMinutes_(value) {
+  if (typeof value !== 'string' || !/^\d{1,2}:\d{2}$/.test(value)) return null;
+  var p=value.split(':'), h=Number(p[0]), m=Number(p[1]);
+  return h<24 && m<60 ? h*60+m : null;
 }
-
-/* Mirrors calc_() in Code.gs — shown on screen so a mistyped time is
-   caught before it reaches the sheet. The sheet recalculates anyway. */
-function calcShift(dateStr,inStr,outStr,lunchMin){
-  var d=new Date(dateStr+'T00:00:00');
-  if(isNaN(d)) return null;
-  var dayType=d.getDay()===0?'Sunday':(d.getDay()===6?'Saturday':'Weekday');
-  var a=mins(inStr), b=mins(outStr);
-  if(a===null||b===null) return null;
-  if(b<a) b+=1440;
-  var lunch=(lunchMin==='' || lunchMin==null)?30:Number(lunchMin); if(isNaN(lunch)||lunch<0) lunch=30;
-  var normal=0, ot=0;
+function shiftCalculation_(dateStr,inStr,outStr,lunchMin,dayNames,normalStart,normalEnd) {
+  function invalid(message){return {error:message};}
+  if(typeof dateStr!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(dateStr))return invalid('Enter a valid shift date.');
+  // UTC is used only for calendar validation/day-of-week, not elapsed time.
+  var date=new Date(dateStr+'T00:00:00Z');
+  if(isNaN(date.getTime())||date.toISOString().slice(0,10)!==dateStr)return invalid('Enter a valid shift date.');
+  var a=shiftMinutes_(inStr), b=shiftMinutes_(outStr);
+  if(a===null||b===null)return invalid('Enter valid start and end times (00:00 to 23:59).');
+  if(b<a)b+=1440;
+  if((typeof lunchMin!=='number'&&typeof lunchMin!=='string')||String(lunchMin).trim()===''||!isFinite(Number(lunchMin))||Number(lunchMin)<0)
+    return invalid('Enter explicit lunch minutes (0 is valid).');
+  var lunch=Number(lunchMin), elapsed=b-a;
+  if(lunch>elapsed)return invalid('Review required: lunch exceeds the actual shift duration.');
+  var day=date.getUTCDay(), dayType=day===0?'Sunday':(day===6?'Saturday':'Weekday');
+  var normal=0, overtime=0;
   if(dayType==='Weekday'){
-    ot=((a<360)?(360-a):0)+((b>1020)?(b-1020):0);
-    normal=Math.max(0, Math.min(b,1020)-Math.max(a,360))-lunch;
-    if(normal<0) normal=0;
-  } else {
-    ot=(b-a)-lunch; if(ot<0) ot=0;
+    // Intersect [start,end) with each day's [06:00,17:00) window.
+    for(var offset=0;offset<b;offset+=1440){
+      normal+=Math.max(0,Math.min(b,offset+normalEnd)-Math.max(a,offset+normalStart));
+    }
+    overtime=elapsed-normal;
+    if(lunch>normal)return invalid('Review required: weekday lunch exceeds normal-time minutes. No excess has been assigned to overtime.');
+    normal-=lunch;
+  }else{
+    overtime=elapsed-lunch;
   }
-  var r2=function(m){ return Math.round((m/60)*100)/100; };
-  return {day:DAYNAMES[d.getDay()], dayType:dayType, lunch:lunch,
-          normal:r2(normal), overtime:r2(ot), total:r2(normal+ot)};
+  var hours=function(minutes){return Math.round(minutes/60*100)/100;};
+  return {day:dayNames[day],dayType:dayType,lunch:lunch,
+          normal:hours(normal),overtime:hours(overtime),total:hours(elapsed-lunch)};
+}
+function mins(hhmm){return shiftMinutes_(hhmm);}
+function calcShift(dateStr,inStr,outStr,lunchMin){
+  var result=shiftCalculation_(dateStr,inStr,outStr,lunchMin,DAYNAMES,360,1020);
+  return result.error?null:result;
+}
+function shiftReviewReason(dateStr,inStr,outStr,lunchMin){
+  return shiftCalculation_(dateStr,inStr,outStr,lunchMin,DAYNAMES,360,1020).error||'';
 }
 
 function hm(h){
@@ -4282,15 +4311,57 @@ function hm(h){
 /* ---- storage of in-progress entries ---- */
 function entKey(){ return 'ts-'+cycleKey(CYCLE); }
 function loadEntries(){
-  return get1('cfg',entKey()).then(function(e){ ENTRIES=(e&&e.data)||{}; })
-    .catch(function(){ ENTRIES={}; });
+  var ticket=++TSLOAD,account=tsOwner_(),cycle=entKey();
+  if(!account)return Promise.reject(new Error('Sign in and configure the Sheet before editing Timesheets.'));
+  document.getElementById('screenTime').inert=true;
+  return TSSAVE.then(function(){if(TSFAILED[account])throw new Error('Draft was not saved. Keep this screen open and retry saving before changing cycles.');return TSSYNC.read(account);}).then(function(s){
+    if(ticket!==TSLOAD||tsOwner_()!==account)return;
+    TSOWNER=account;TSCYCLE=cycle;ENTRIES={};
+    TSBASE[account+'|'+cycle]=(s.versions&&s.versions[cycle])||0;
+    ENTRIES=s.cycles[cycle]||{};tsStamp_();
+    return get1('cfg',cycle).then(function(legacy){
+      if(ticket!==TSLOAD||tsOwner_()!==account)return;
+      if(!s.cycles[cycle]&&legacy&&legacy.data&&Object.keys(legacy.data).length&&confirm('Legacy Timesheets have no recorded account owner or reliable acceptance status. Copy this cycle into '+ME.username+' as drafts for review? The original records will be kept.')){
+        ENTRIES=JSON.parse(JSON.stringify(legacy.data));Object.keys(ENTRIES).forEach(function(w){Object.keys(ENTRIES[w]).forEach(function(d){delete ENTRIES[w][d]._fingerprint;});});tsStamp_();return saveEntries();
+      }
+    });
+  }).catch(function(e){tsError_(e);throw e;}).finally(function(){if(ticket===TSLOAD)document.getElementById('screenTime').inert=false;});
 }
-var entTimer=null;
 function saveEntries(){
-  clearTimeout(entTimer);
-  entTimer=setTimeout(function(){
-    put('cfg',{id:entKey(),data:ENTRIES}).catch(function(){});
-  },500);
+  var account=TSOWNER,cycle=TSCYCLE;
+  if(!account||account!==tsOwner_())return Promise.reject(new Error('Account changed; reopen Timesheets.'));
+  tsStamp_();var snapshot=JSON.parse(JSON.stringify(ENTRIES));
+  var task=TSSAVE.then(function(){return TSSYNC.saveCycle(account,cycle,snapshot,TSBASE[account+'|'+cycle]||0);}).then(function(s){TSBASE[account+'|'+cycle]=s.versions[cycle];delete TSFAILED[account];return s;});
+  TSSAVE=task.catch(function(e){TSFAILED[account]=e;tsError_(e);});
+  return task.then(function(s){tsMerge_(s,account,cycle);return s;});
+}
+
+function fetchTimesheetAll(){
+  var account=TSOWNER,cycle=TSCYCLE,ticket=TSLOAD;
+  if(!account||account!==tsOwner_()||ME.role==='Worker')return Promise.resolve();
+  var identity={url:CFG.url,user:ME.username,pass:ME.pass};
+  var active=function(){return account===tsOwner_()&&account===TSOWNER&&cycle===TSCYCLE&&ticket===TSLOAD;};
+  return TSSAVE.then(async function(){
+    if(!active()||TSFAILED[account])return;
+    var baseline=await TSSYNC.read(account),version=(baseline.versions||{})[cycle]||0;
+    var url=identity.url+'?action=timesheetAll&cycle='+encodeURIComponent(cycle.slice(3))+'&user='+encodeURIComponent(identity.user)+'&pass='+encodeURIComponent(identity.pass);
+    var response=await fetch(url);
+    if(!response.ok)throw new Error('Server HTTP '+response.status+' while reading Timesheets.');
+    var body=await response.json();
+    if(!body||body.ok!==true)throw new Error(body&&body.error||'Timesheet read was not confirmed.');
+    if(body.cycle!==cycle.slice(3)||!body.entries||typeof body.entries!=='object'||Array.isArray(body.entries))throw new Error('Mismatched Timesheet cycle response.');
+    if(!active())return;
+    // Serialize import with local saves; an intervening edit cancels this read.
+    var task=TSSAVE.then(async function(){
+      if(!active()||TSFAILED[account])return;
+      var state=await TSSYNC.importServer(account,cycle,body.entries,version);
+      if(!active())return;
+      TSBASE[account+'|'+cycle]=(state.versions||{})[cycle]||0;
+      if(TSSAVE!==pending)return;
+      ENTRIES=state.cycles[cycle]||{};tsStamp_();renderPeople();
+    });
+    var pending=task.catch(tsError_);TSSAVE=pending;return task;
+  });
 }
 
 /* ---- screen ---- */
@@ -4320,21 +4391,14 @@ function showTime(){
       renderCycle();
       return;
     }
-renderCycle();
-
-  if(CFG.url){
-    Promise.all([
-      fetchWorkers(),
-      fetchTimesheetAll()
-    ]).then(function(){
+    renderCycle();
+    if(CFG.url) Promise.all([fetchWorkers(),fetchTimesheetAll()]).then(function(){
       if(ME && ME.role==='Worker') WORKERS=[ME.name];
       renderCycle();
-    }).catch(function(){
-      renderCycle();
-    });
-  }
-  renderQueue();
-    });
+    }).catch(function(){});
+  }).catch(tsError_);
+  renderQueue().catch(tsError_);
+  flushQueue().catch(tsError_);
 }
 
 function cycleOpen(){
@@ -4354,22 +4418,21 @@ function renderCycle(){
   renderPeople();
 }
 
-document.getElementById('cycPrev').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,-1); OPEN=null; loadEntries().then(renderCycle);
-});
-document.getElementById('cycNext').addEventListener('click',function(){
-  CYCLE=shiftCycle(CYCLE,1); OPEN=null; loadEntries().then(renderCycle);
-});
+async function tsMoveCycle_(delta){
+  try{await TSSAVE;if(TSFAILED[tsOwner_()])throw new Error('Draft was not saved. Keep this cycle open and retry saving.');CYCLE=shiftCycle(CYCLE,delta);OPEN=null;await loadEntries();renderCycle();await fetchTimesheetAll();}catch(e){tsError_(e);}
+}
+document.getElementById('cycPrev').addEventListener('click',function(){tsMoveCycle_(-1);});
+document.getElementById('cycNext').addEventListener('click',function(){tsMoveCycle_(1);});
 
 function workerTotals(name){
   var e=ENTRIES[name]||{}, n=0, ot=0, days=0, unsent=0;
   Object.keys(e).forEach(function(dk){
     var r=e[dk];
-    if(!r||!r.on) return;
+    if(!r||!r.on||!FlagshipTimesheetSync.validLunch(r.lu)) return;
     var c=calcShift(dk,r.ti,r.to,r.lu);
     if(!c) return;
     n+=c.normal; ot+=c.overtime; days++;
-    if(!r.sent) unsent++;
+    if(!r.sent&&r.syncState!=='recorded') unsent++;
   });
   return {normal:Math.round(n*100)/100, ot:Math.round(ot*100)/100,
           days:days, unsent:unsent};
@@ -4422,13 +4485,13 @@ function fillDays(bd,name){
       if(g===0||g===6) return;
       var k=iso(d);
       if(!ENTRIES[name][k] || !ENTRIES[name][k].on)
-        ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:30,job:'',note:''};
+        ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:60,job:'',note:''};
     });
-    saveEntries(); renderPeople();
+    saveEntries().catch(tsError_); renderPeople();
   });
   bar.querySelector('[data-clear]').addEventListener('click',function(){
     if(!confirm('Clear every day for '+name+' in this cycle?')) return;
-    ENTRIES[name]={}; saveEntries(); renderPeople();
+    ENTRIES[name]={}; saveEntries().catch(tsError_); renderPeople();
   });
   bd.appendChild(bar);
 
@@ -4446,8 +4509,8 @@ function fillDays(bd,name){
         DAYNAMES[g]+' '+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+
         (we?' — weekend, all overtime':'')+'</button></div>';
       row.querySelector('.add2').addEventListener('click',function(){
-        ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:30,job:'',note:''};
-        saveEntries(); renderPeople();
+        ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:60,job:'',note:''};
+        saveEntries().catch(tsError_); renderPeople();
       });
     } else {
       row.innerHTML=left+
@@ -4455,7 +4518,7 @@ function fillDays(bd,name){
           '<div class="on2">'+
             '<input type="time" class="ti" value="'+esc(r.ti||'')+'">'+
             '<input type="time" class="to" value="'+esc(r.to||'')+'">'+
-            '<input type="number" class="lu" value="'+(r.lu===undefined?30:r.lu)+'" min="0" step="5" inputmode="numeric" title="Lunch minutes">'+
+            '<input type="number" class="lu" value="'+esc(r.lu==null?'':r.lu)+'" min="0" step="5" inputmode="numeric" title="Lunch minutes (explicit value required; 0 is valid)">'+
           '</div>'+
           '<div class="ln2">'+
             '<input class="jn" placeholder="Job / site" value="'+esc(r.job||'')+'">'+
@@ -4473,25 +4536,26 @@ function fillDays(bd,name){
         /* Changed after it went through, so it must go again. The script
            updates the existing row rather than adding a duplicate. */
         r.sent=false;
+        r.syncState='draft';r.syncReason='';
         paint();
-        saveEntries();
+        saveEntries().catch(tsError_);
       };
       var paint=function(){
         var c=calcShift(k,r.ti,r.to,r.lu);
         var s=row.querySelector('.sum');
-        if(!c){ s.className='sum bad'; s.textContent='Both times needed.'; return; }
+        if(!c){ s.className='sum bad'; s.textContent=shiftReviewReason(k,r.ti,r.to,r.lu); return; }
+        if(!FlagshipTimesheetSync.validLunch(r.lu)){s.className='sum bad';s.textContent='Enter lunch minutes explicitly (0 is valid); this row cannot be sent yet.';return;}
         s.className='sum';
         var txt='normal <b>'+hm(c.normal)+'</b>';
         if(c.overtime>0) txt+=' · overtime <b class="ot">'+hm(c.overtime)+'</b>';
         if(c.dayType!=='Weekday') txt=c.dayType+' — overtime <b class="ot">'+hm(c.overtime)+'</b>';
-        s.innerHTML=txt+(r.sent?'<span class="st ok">sent</span>'
-                               :'<span class="st wait">not sent</span>')+
+        s.innerHTML=txt+'<span class="st '+(r.syncState==='accepted'?'ok':'wait')+'">'+esc(r.syncState==='recorded'?'on Sheet':(r.syncState||'draft'))+(r.syncReason?' — '+esc(r.syncReason):'')+'</span>'+
           '<button class="clr" type="button">Remove</button>';
         row.classList[r.sent?'add':'remove']('sent');
         s.querySelector('.clr').addEventListener('click',function(){
-          if(r.sent && !confirm('That day has already gone to the sheet. '+
+          if((r.sent||r.syncState==='recorded') && !confirm('That day has already gone to the sheet. '+
              'Removing it here takes it off this phone only — the row stays in the sheet.')) return;
-          delete ENTRIES[name][k]; saveEntries(); renderPeople();
+          delete ENTRIES[name][k]; saveEntries().catch(tsError_); renderPeople();
         });
       };
       row.querySelectorAll('input').forEach(function(i){ i.addEventListener('input',upd) });
@@ -4529,140 +4593,71 @@ document.getElementById('tsClearAll').addEventListener('click',function(){
   if(!n){ alert('Nothing filled in for this cycle.'); return; }
   if(!confirm('Clear all '+n+' entries for '+cycleLabel(CYCLE)+'?\n\nThis only clears what is on this phone. Anything already sent stays in the sheet.')) return;
   ENTRIES={};
-  put('cfg',{id:entKey(),data:{}});
+  saveEntries().catch(tsError_);
   OPEN=null;
   renderPeople();
 });
 
-/* ---- sending ---- */
+/* ---- sending: durable account-scoped snapshots ---- */
 function collectAll(onlyUnsent){
   var rows=[];
   Object.keys(ENTRIES).forEach(function(name){
-    var e=ENTRIES[name]||{};
-    Object.keys(e).sort().forEach(function(k){
-      var r=e[k];
-      if(!r||!r.on) return;
-      if(onlyUnsent && r.sent) return;
-      if(!calcShift(k,r.ti,r.to,r.lu)) return;
-      rows.push({date:k,worker:name,job:r.job||'',timeIn:r.ti,timeOut:r.to,
-                 lunch:r.lu,note:r.note||''});
+    if(ME&&ME.role==='Worker'&&name.trim().toLowerCase()!==ME.name.trim().toLowerCase())return;
+    Object.keys(ENTRIES[name]).sort().forEach(function(k){
+      var r=ENTRIES[name][k];if(!r||!r.on||onlyUnsent&&['accepted','recorded'].indexOf(r.syncState)>=0)return;
+      rows.push({worker:name,date:k,revision:r.revision});
     });
-  });
-  return rows;
+  });return rows;
 }
-
-function collectUnsent(){ return collectAll(true); }
-
-/* Days stay on the screen after they go through — the flag is what stops
-   them being sent twice, not wiping them. */
-function markSent(rows, result){
-  /* Only mark rows as sent when the server actually accepted them.
-     Older versions marked every row sent even when the server rejected
-     part of a batch (closed cycle / wrong worker), which made the phone
-     and the sheet disagree. */
-  var results=(result&&Array.isArray(result.results))?result.results:null;
-  rows.forEach(function(r,i){
-    var ok=false;
-    if(results && results[i]) ok=['added','updated','unchanged'].indexOf(results[i].status)!==-1;
-    var e=ENTRIES[r.worker];
-    if(e && e[r.date]) e[r.date].sent=ok;
-  });
-  saveEntries();
-}
-
-function queueKey_(r){
-  return String(r.worker||'').trim().toLowerCase()+'||'+String(r.date||'').trim();
-}
-
-document.getElementById('tsSend').addEventListener('click',function(){
-  var rows=collectUnsent();
-  if(!rows.length){
-    alert(collectAll().length
-      ? 'Everything filled in has already been sent.'
-      : 'Nothing filled in yet for this cycle.');
-    return;
-  }
-  if(!confirm('Send '+rows.length+(rows.length===1?' day':' days')+' for '+cycleLabel(CYCLE)+'?'+
-    '\n\nWhat you have already sent stays on the screen and does not go again.')) return;
-
-  var btn=document.getElementById('tsSend');
-  btn.disabled=true; btn.textContent='Sending…';
-
-  post({action:'timesheets',rows:rows}).then(function(j){
-    btn.disabled=false; btn.textContent='Send to sheet';
-    markSent(rows,j);
-    var msg=[];
-    if(j.written) msg.push(j.written+' added');
-    if(j.updated) msg.push(j.updated+' updated');
-    if(j.closed)  msg.push(j.closed+' skipped — closed cycle');
-    if(j.blocked) msg.push(j.blocked+' refused — not yours to file');
-    if(j.skipped) msg.push(j.skipped+' skipped — invalid/empty');
-    alert(msg.length?msg.join(', ')+'.':'Nothing changed — those entries were already in the sheet.');
-    renderPeople(); flushQueue();
-  }).catch(function(){
-    queue(rows).then(function(){
-      btn.disabled=false; btn.textContent='Send to sheet';
-      /* Queued is NOT the same as sent. Keep the entries visibly pending. */
-      rows.forEach(function(r){
-        var e=ENTRIES[r.worker];
-        if(e && e[r.date]) e[r.date].sent=false;
-      });
-      saveEntries();
-      alert('No connection — '+rows.length+' days saved on this phone. Open this again with signal and they will go through.');
-      renderPeople(); renderQueue();
-    });
-  });
+function collectUnsent(){return collectAll(true);}
+document.getElementById('tsSend').addEventListener('click',async function(){
+  var btn=document.getElementById('tsSend'),account=TSOWNER,cycle=TSCYCLE;
+  if(account!==tsOwner_()){tsError_(new Error('Account changed; reopen Timesheets.'));return;}
+  tsStamp_();var rows=collectUnsent();
+  if(!rows.length){alert('No drafts to submit.');return;}
+  var invalid=rows.map(function(x){var r=ENTRIES[x.worker][x.date];return shiftReviewReason(x.date,r.ti,r.to,r.lu);}).filter(Boolean)[0];
+  if(invalid){alert(invalid+' Nothing was submitted.');return;}
+  if(!confirm('Queue '+rows.length+' rows for '+cycleLabel(CYCLE)+' under '+ME.username+'? Rejected or failed rows remain available for review.'))return;
+  btn.disabled=true;
+  try{
+    await saveEntries();
+    if(account!==tsOwner_())throw new Error('Account changed; nothing was queued.');
+    await TSSYNC.enqueue(account,cycle,rows);
+    await tsRefresh_();await flushQueue();
+  }catch(e){tsError_(e);}finally{btn.disabled=false;}
 });
-
-function queue(rows){
-  /* Keep only the newest queued version of a worker/day. This prevents an
-     offline edit from sending an old version and then a newer version. */
-  return get1('cfg','queue').then(function(q){
-    var all=(q&&q.rows)||[];
-    var map={};
-    all.concat(rows).forEach(function(r){ map[queueKey_(r)]=r; });
-    return put('cfg',{id:'queue',rows:Object.keys(map).map(function(k){return map[k];})});
-  }).catch(function(){ return put('cfg',{id:'queue',rows:rows}); });
+async function renderQueue(){
+  var account=tsOwner_(),box=document.getElementById('tsQueue');if(!account){box.textContent='Sign in to review this account’s Timesheet queue.';return;}
+  var s=await TSSYNC.read(account),legacy=await get1('cfg','queue');if(account!==tsOwner_())return;
+  var html=s.queue.length?'<div class="queued"><b>Timesheet submissions for '+esc(ME.username)+'</b><ul>'+s.queue.map(function(q){return '<li>'+esc(q.row.worker)+' '+esc(q.row.date)+' — '+esc(q.status)+(q.reason?': '+esc(q.reason):'')+'</li>';}).join('')+'</ul><button type="button" id="tsRetry">Send queued / retry current rejected or failed rows</button></div>':'';
+  if(s.busy)html+='<div class="queued">Submission in flight or interrupted. <button type="button" id="tsRecover">Check interrupted submission</button></div>';
+  if(legacy&&legacy.rows&&legacy.rows.length)html+='<details class="queued"><summary>'+legacy.rows.length+' legacy queued rows held for review — account owner is unknown; never replayed automatically</summary><p>Compare these rows with the Sheet and enter any missing work as drafts under the correct account. The original queue is retained.</p><pre style="white-space:pre-wrap">'+esc(JSON.stringify(legacy.rows,null,2))+'</pre></details>';
+  box.innerHTML=html;
+  var retry=document.getElementById('tsRetry');if(retry)retry.onclick=async function(){
+    if(account!==tsOwner_())return;
+    if(!confirm('For failed or interrupted requests, check the Sheet first: delivery may have succeeded. Retry only current local revisions?'))return;
+    try{
+      await TSSAVE;if(TSFAILED[account])throw TSFAILED[account];var latest=await TSSYNC.read(account),byCycle={};
+      latest.queue.forEach(function(q){var r=latest.cycles[q.cycle]&&latest.cycles[q.cycle][q.row.worker]&&latest.cycles[q.cycle][q.row.worker][q.row.date];if(['rejected','failed'].indexOf(q.status)>=0&&r&&r.on&&r.revision===q.revision){(byCycle[q.cycle]||(byCycle[q.cycle]=[])).push({worker:q.row.worker,date:q.row.date,revision:q.revision});}});
+      for(var c of Object.keys(byCycle))await TSSYNC.enqueue(account,c,byCycle[c]);
+      await tsRefresh_();await flushQueue();
+    }catch(e){tsError_(e);}
+  };
+  var recover=document.getElementById('tsRecover');if(recover)recover.onclick=async function(){
+    if(account!==tsOwner_())return;
+    if(!navigator.locks){tsError_(new Error('This browser cannot safely recover an interrupted cross-tab submission. Keep this browser’s site data and reconcile the held records with the Sheet; do not reinstall or clear storage.'));return;}
+    try{await navigator.locks.request('flagship-timesheet-drain',{ifAvailable:true},async function(lock){if(!lock)throw new Error('Another tab is still submitting; wait for its acknowledgement.');if(account!==tsOwner_())return;await TSSYNC.recover(account);});await tsRefresh_();}catch(e){tsError_(e);}
+  };
 }
-
-function renderQueue(){
-  get1('cfg','queue').then(function(q){
-    var n=(q&&q.rows&&q.rows.length)||0;
-    var box=document.getElementById('tsQueue');
-    if(!n){ box.innerHTML=''; return; }
-    box.innerHTML='<div class="queued"><b>'+n+(n===1?' entry':' entries')+' waiting to send.</b> '+
-      'They go through automatically next time you open this with signal.</div>';
-    if(CFG.url&&navigator.onLine) flushQueue();
-  }).catch(function(){});
-}
-
 function flushQueue(){
-  if(!CFG.url) return;
-  get1('cfg','queue').then(function(q){
-    var rows=(q&&q.rows)||[];
-    if(!rows.length) return;
-    post({action:'timesheets',rows:rows}).then(function(j){
-      var results=Array.isArray(j.results)?j.results:[];
-      var keep=[];
-      rows.forEach(function(r,i){
-        var res=results[i];
-        var ok=!!(res && ['added','updated','unchanged'].indexOf(res.status)!==-1);
-        var e=ENTRIES[r.worker];
-        if(ok){
-          if(e && e[r.date]) e[r.date].sent=true;
-        }else{
-          keep.push(r);
-          if(e && e[r.date]) e[r.date].sent=false;
-        }
-      });
-      saveEntries();
-      put('cfg',{id:'queue',rows:keep}).then(function(){
-        renderQueue(); renderPeople();
-      });
-    }).catch(function(){});
-  }).catch(function(){});
+  if(TSFLUSH)return TSFLUSH;
+  var account=tsOwner_();if(!account||!navigator.onLine)return Promise.resolve();
+  var identity={url:CFG.url,user:ME.username,pass:ME.pass};
+  var run=async function(){await TSSAVE;if(TSFAILED[account])throw TSFAILED[account];if(account!==tsOwner_())return;await TSSYNC.drain(account,identity);await tsRefresh_();};
+  TSFLUSH=(navigator.locks?navigator.locks.request('flagship-timesheet-drain',run):Promise.resolve().then(run)).finally(function(){TSFLUSH=null;});
+  return TSFLUSH;
 }
-window.addEventListener('online',flushQueue);
+window.addEventListener('online',function(){flushQueue().catch(tsError_);});
 
 /* ============ boot ============ */
 function boot(){

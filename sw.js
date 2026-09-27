@@ -5,6 +5,7 @@ const SHELL = [
   './',
   './index.html',
   './supabase-client.js',
+  './timesheet-sync.js',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
