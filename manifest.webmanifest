@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Flagship Solar — Ops",
   "short_name": "Flagship Ops",
-  "description": "Flagship Solar field operations: job cards, inspections, timesheets, stock, proposals and scheduling.",
+  "description": "Inspections, timesheets and job cards for Flagship Solar.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
@@ -37,16 +37,6 @@
       "name": "New inspection",
       "short_name": "Inspection",
       "url": "./#inspection"
-    },
-    {
-      "name": "Job cards",
-      "short_name": "Job cards",
-      "url": "./#jobcards"
-    },
-    {
-      "name": "Calendar",
-      "short_name": "Calendar",
-      "url": "./#calendar"
     }
   ]
 }
