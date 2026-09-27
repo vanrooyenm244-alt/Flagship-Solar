@@ -5,7 +5,8 @@
     var box = document.getElementById('qbXeroResults');
     var search = document.getElementById('qbXeroQ');
 
-    if (!box || !search || !window.api || !window.QB) return;
+    var bridge=window.FlagshipQuoteBridge;
+    if (!box || !search || !bridge) return;
 
     var btn = document.getElementById('qbXeroCreateCustomer');
 
@@ -27,7 +28,7 @@
         text.indexOf('no xero customer found') >= 0;
 
       var alreadyPicked =
-        !!(QB.xeroContact && QB.xeroContact.contactID);
+        !!(bridge.getQuote().xeroContact && bridge.getQuote().xeroContact.contactID);
 
       btn.classList.toggle(
         'hidden',
@@ -75,7 +76,8 @@
       btn.disabled = true;
       btn.textContent = 'Creating…';
 
-      api({
+      var quote=bridge.getQuote();
+      bridge.request({
         action: 'xeroCreateContact',
         contact: {
           name: name,
@@ -86,6 +88,8 @@
 
       .then(function (j) {
 
+        if(!j.contactID)throw new Error('Missing contact acknowledgement. Check Xero before retrying.');
+        if(bridge.getQuote()!==quote){alert('Customer created in Xero; select it in the current quote.');return;}
         var c = {
           contactID: j.contactID,
           name: j.name || name,
@@ -93,8 +97,8 @@
           number: j.number || String(number).trim()
         };
 
-        QB.xeroContact = c;
-        QB.client = c.name;
+        quote.xeroContact = c;
+        quote.client = c.name;
 
         if (clientInput) {
           clientInput.value = c.name;
@@ -120,7 +124,7 @@
 
         btn.classList.add('hidden');
 
-        qbSave();
+        bridge.save();
       })
 
       .catch(function (e) {

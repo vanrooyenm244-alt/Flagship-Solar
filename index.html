@@ -1574,7 +1574,7 @@ var CAL_DATE=new Date(), CAL_ALL=false;
 function calPad_(n){return String(n).padStart(2,'0');}
 function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
 function calEsc_(x){return esc(x||'');}
-function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !n || String(e.technician||'').toLowerCase().indexOf(n)>=0;}
+function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !!n && String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
 function showCalendar(){backTo='screenHome';show('screenCalendar');calRender_();}
 function calRender_(){
   getAll('calendar').then(function(items){
@@ -1590,7 +1590,14 @@ function calRender_(){
     document.querySelectorAll('[data-cal-open]').forEach(function(el){el.onclick=function(){calOpen_(el.getAttribute('data-cal-open'));};});
   });
 }
-function calOpen_(id){get1('calendar',id).then(function(e){if(!e)return;var msg='Job: '+(e.customer||'')+'\nSite: '+(e.site||'')+'\n'+(e.date||'')+' '+(e.startTime||'')+'–'+(e.endTime||'')+'\nTechnician: '+(e.technician||'')+'\nStatus: '+(e.status||'SCHEDULED');if(e.jobCardId)msg+='\nJob Card linked';if(confirm(msg+'\n\nOpen Job Card?')){JC=jcBlank();JC.customer=e.customer||'';JC.site=e.site||'';JC.date=e.date||'';JC.techs=e.technician||'';JC.types=e.jobType?[e.jobType]:[];JC.calendarEventId=e.id;backTo='screenCalendar';show('screenJobCard');jcRenderAll_();jcBindCommon_();jcSaveLocal_();}});}
+function calOpen_(id){get1('calendar',id).then(function(e){
+  if(!e)return;
+  if(!confirm('Open Job Card for '+(e.customer||'')+' at '+(e.site||'')+'?'))return;
+  if(e.jobCardId)return jcOpen_(e.jobCardId);
+  var card=jcBlank();card.customer=e.customer||'';card.site=e.site||'';card.date=e.date||'';card.technicians=e.technician||'';
+  var type=JC_TYPES.find(function(t){return t.id===e.jobType||t.name===e.jobType;});card.types=type?[type.id]:[];card.calendarEventId=e.id;
+  return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id);});
+}).catch(function(e){alert('Could not open calendar job: '+e.message);});}
 document.getElementById('calNew').addEventListener('click',function(){document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);});
 document.getElementById('calCancel').addEventListener('click',function(){document.getElementById('calForm').classList.add('hidden');});
 document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
@@ -1693,20 +1700,41 @@ function jcCustomPhoto_(i,val){val=val||{};var id='jcc-'+i+'-'+Math.random().toS
 function jcBindFields_(){
   document.querySelectorAll('#screenJobCard [data-jc-field]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-field').split('|');if(!JC.sections[p[0]])JC.sections[p[0]]={};JC.sections[p[0]][p[1]]=el.value;jcScheduleSave_();});});
   document.querySelectorAll('#screenJobCard [data-jc-coc]').forEach(function(el){el.addEventListener('input',function(){JC.sections.coc[el.getAttribute('data-jc-coc')]=el.value;jcScheduleSave_();});});
-  document.querySelectorAll('#screenJobCard [data-jc-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}shrink(f,function(url){var p=input.getAttribute('data-jc-photo').split('|');if(!JC.sections[p[0]])JC.sections[p[0]]={};JC.sections[p[0]][p[1]]={img:url,cap:(JC.sections[p[0]][p[1]]||{}).cap||''};jcRenderSections_();jcScheduleSave_();});});});
+  document.querySelectorAll('#screenJobCard [data-jc-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}var card=JC,p=input.getAttribute('data-jc-photo').split('|');shrink(f,function(url){if(!card.sections[p[0]])card.sections[p[0]]={};card.sections[p[0]][p[1]]={img:url,cap:(card.sections[p[0]][p[1]]||{}).cap||''};card.status='DRAFT';if(JC===card)jcRenderSections_();jcSaveLocal_(card);});});});
   document.querySelectorAll('#screenJobCard [data-jc-cap]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-cap').split('|'),v=JC.sections[p[0]][p[1]]||{};if(typeof v==='string')v={img:v};v.cap=el.value;JC.sections[p[0]][p[1]]=v;jcScheduleSave_();});});
   document.querySelectorAll('#screenJobCard [data-jc-custom-desc]').forEach(function(el){el.addEventListener('input',function(){JC.sections.custom.items[Number(el.getAttribute('data-jc-custom-desc'))].description=el.value;jcScheduleSave_();});});
   document.querySelectorAll('#screenJobCard [data-jc-custom-cap]').forEach(function(el){el.addEventListener('input',function(){var i=Number(el.getAttribute('data-jc-custom-cap')),v=JC.sections.custom.items[i].photo||{};v.cap=el.value;JC.sections.custom.items[i].photo=v;jcScheduleSave_();});});
-  document.querySelectorAll('#screenJobCard [data-jc-custom-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}shrink(f,function(url){var i=Number(input.getAttribute('data-jc-custom-photo'));JC.sections.custom.items[i].photo={img:url,cap:(JC.sections.custom.items[i].photo||{}).cap||''};jcRenderSections_();jcScheduleSave_();});});});
+  document.querySelectorAll('#screenJobCard [data-jc-custom-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}var card=JC,item=card.sections.custom.items[Number(input.getAttribute('data-jc-custom-photo'))];shrink(f,function(url){if(card.sections.custom.items.indexOf(item)<0)return;item.photo={img:url,cap:(item.photo||{}).cap||''};card.status='DRAFT';if(JC===card)jcRenderSections_();jcSaveLocal_(card);});});});
   document.querySelectorAll('#screenJobCard [data-jc-remove-item]').forEach(function(b){b.addEventListener('click',function(){JC.sections.custom.items.splice(Number(b.getAttribute('data-jc-remove-item')),1);jcRenderSections_();jcScheduleSave_();});});
   var add=document.getElementById('jcAddCustom');if(add)add.addEventListener('click',function(){JC.sections.custom.items.push({description:'',photo:{img:'',cap:''}});jcRenderSections_();jcScheduleSave_();});
 }
-function jcScheduleSave_(){clearTimeout(jcSaveTimer);jcSaveTimer=setTimeout(jcSaveLocal_,350);}
-function jcSupabaseEnabled_(){return !!(window.FlagshipSupabase&&window.FlagshipSupabase.enabled&&window.FlagshipSupabase.enabled());}
-function jcSync_(){if(!JC||!jcSupabaseEnabled_())return;window.FlagshipSupabase.saveJobCard(JC).then(function(remote){if(remote&&remote.remote_id)JC.remote_id=remote.remote_id;var m=document.getElementById('jcMsg');if(m)m.textContent='Saved to Supabase · '+new Date().toLocaleTimeString();}).catch(function(e){var m=document.getElementById('jcMsg');if(m)m.textContent='Saved on this phone; Supabase sync is waiting: '+String(e.message||e);});}
-function jcSaveLocal_(){if(!JC)return;JC.updated=Date.now();put('jobcards',JC).then(function(){var h=document.getElementById('jcStatusHead');if(h){h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();}var m=document.getElementById('jcMsg');if(m)m.textContent='Saved on this phone · '+new Date(JC.updated).toLocaleTimeString();jcSync_();}).catch(function(){alert('Could not save this job card on the phone.');});}
+var jcRemoteChain=Promise.resolve();
+function jcScheduleSave_(){if(JC)JC.status='DRAFT';return jcSaveLocal_();}
+function jcSupabaseEnabled_(){var a=window.FlagshipSupabase;return !!(a&&a.enabled&&a.enabled()&&a.getSession&&a.getSession());}
+function jcMessage_(card,text){if(JC&&JC.id===card.id&&(!card.revision||JC.revision===card.revision)){var m=document.getElementById('jcMsg');if(m)m.textContent=text;}}
+function jcSync_(card){
+  if(!jcSupabaseEnabled_())return Promise.resolve(null);
+  var owner=ME,endpoint=CFG.url,session=window.FlagshipSupabase.getSession();
+  var run=jcRemoteChain.catch(function(){}).then(function(){
+    if(ME!==owner||CFG.url!==endpoint||window.FlagshipSupabase.getSession()!==session)throw new Error('Session changed; submit under the original account.');
+    return window.FlagshipSupabase.saveJobCard(card);
+  });
+  jcRemoteChain=run;return run;
+}
+function jcSaveLocal_(card,noSync){
+  card=card||JC;if(!card)return Promise.resolve(false);
+  card.updated=Date.now();card.revision=String(card.updated)+'-'+Math.random().toString(36).slice(2);
+  var snapshot=JSON.parse(JSON.stringify(card));
+  if(MEM){jcMessage_(card,'NOT SAVED: browser storage unavailable. Export a PDF.');return Promise.resolve(false);}
+  return put('jobcards',snapshot).then(function(){
+    if(JC&&JC.id===snapshot.id&&JC.revision===snapshot.revision){var h=document.getElementById('jcStatusHead');if(h){h.textContent=snapshot.status==='SUBMITTED'?'Submitted':'Draft';h.className='jc-status '+String(snapshot.status||'DRAFT').toLowerCase();}}
+    jcMessage_(snapshot,'Saved on this phone · '+new Date(snapshot.updated).toLocaleTimeString());
+    if(!noSync&&jcSupabaseEnabled_())jcSync_(snapshot).then(function(){jcMessage_(snapshot,'Saved to Supabase.');}).catch(function(e){jcMessage_(snapshot,'Saved on this phone; remote save failed: '+String(e.message||e));});
+    return true;
+  }).catch(function(e){jcMessage_(snapshot,'NOT SAVED: '+String(e.message||e)+'. Export a PDF.');return false;});
+}
 function jcRenderAll_(){if(!JC)return;document.getElementById('jcNoHead').textContent=JC.number||'';document.getElementById('jcCustomer').value=JC.customer||'';document.getElementById('jcSite').value=JC.site||'';document.getElementById('jcDate').value=JC.date||'';document.getElementById('jcTechs').value=JC.technicians||'';jcRenderTypes_();jcRenderSections_();jcInitSignature_();var h=document.getElementById('jcStatusHead');h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();h.className='jc-status '+JC.status.toLowerCase();jcRenderReport_();}
-function jcBindCommon_(){['jcCustomer','jcSite','jcDate','jcTechs'].forEach(function(id){var e=document.getElementById(id);e.addEventListener('input',function(){JC.customer=document.getElementById('jcCustomer').value;JC.site=document.getElementById('jcSite').value;JC.date=document.getElementById('jcDate').value;JC.technicians=document.getElementById('jcTechs').value;jcRenderReport_();jcScheduleSave_();});});}
+function jcBindCommon_(){['jcCustomer','jcSite','jcDate','jcTechs'].forEach(function(id){var e=document.getElementById(id);e.oninput=function(){JC.customer=document.getElementById('jcCustomer').value;JC.site=document.getElementById('jcSite').value;JC.date=document.getElementById('jcDate').value;JC.technicians=document.getElementById('jcTechs').value;jcRenderReport_();jcScheduleSave_();};});}
 
 function jcInitSignature_(){
   var c=document.getElementById('jcSignature');if(!c)return;var ctx=c.getContext('2d');ctx.lineWidth=3;ctx.lineCap='round';ctx.lineJoin='round';
@@ -1730,12 +1758,53 @@ function jcNew_(){
 }
 
 window.jcNew_=jcNew_;
-function jcRefreshFromSupabase_(){if(!jcSupabaseEnabled_())return Promise.resolve();return window.FlagshipSupabase.listJobCards().then(function(cards){return Promise.all(cards.map(function(card){return put('jobcards',card);}));}).catch(function(){/* Offline cache remains usable. */});}
+function jcImportMissing_(card){
+  if(MEM)return Promise.resolve();
+  return new Promise(function(resolve,reject){var t=DB.transaction('jobcards','readwrite'),store=t.objectStore('jobcards');t.oncomplete=resolve;t.onabort=t.onerror=function(){reject(t.error||new Error('Import failed'));};var q=store.get(card.id);q.onsuccess=function(){if(!q.result)store.put(card);};});
+}
+function jcAcknowledge_(snapshot){
+  return new Promise(function(resolve,reject){
+    var matched=false,t=DB.transaction('jobcards','readwrite'),store=t.objectStore('jobcards');
+    t.oncomplete=function(){resolve(matched);};t.onabort=t.onerror=function(){reject(t.error||new Error('Could not save acknowledgement'));};
+    var q=store.get(snapshot.id);q.onsuccess=function(){var local=q.result;if(local&&!local.deleted&&local.revision===snapshot.revision){local.status='SUBMITTED';store.put(local);matched=true;}};
+  });
+}
+function jcRefreshFromSupabase_(){
+  var owner=ME,endpoint=CFG.url;
+  var request=jcSupabaseEnabled_()?window.FlagshipSupabase.listJobCards():
+    (CFG.url&&ME?apiGet({action:'jobCards'}).then(function(j){
+      if(!Array.isArray(j.jobCards))throw new Error('Invalid Job Card list response.');
+      return j.jobCards.filter(function(row){return row.data&&row.data.id===row.id&&Array.isArray(row.data.types)&&row.data.sections;}).map(function(row){var card=row.data;card.updated=Number(card.updated)||Date.parse(row.updated)||0;return card;});
+    }):Promise.resolve([]));
+  return request.then(function(cards){if(ME!==owner||CFG.url!==endpoint)return;return Promise.all(cards.map(jcImportMissing_));}).catch(function(e){var list=document.getElementById('jcList');if(list)list.title='Central refresh failed; showing this phone\'s records: '+String(e.message||e);});
+}
 function showJobCards(){currentId=null;backTo='screenHome';document.getElementById('barCount').textContent='—';document.getElementById('savedTag').textContent='job cards';show('screenJobCards');jcRefreshFromSupabase_().then(jcRenderList_);}
-function jcRenderList_(){getAll('jobcards').then(function(list){list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+st.toLowerCase()+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+j.id+'">Open</button><button type="button" data-jc-pdf="'+j.id+'">PDF</button><button type="button" data-jc-del="'+j.id+'">Delete</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Delete this job card?'))del('jobcards',b.getAttribute('data-jc-del')).then(jcRenderList_);});});});}
+function jcRenderList_(){getAll('jobcards').then(function(list){list=list.filter(function(j){return !j.deleted;});list.sort(function(a,b){return (b.updated||0)-(a.updated||0)});var el=document.getElementById('jcList');if(!list.length){el.innerHTML='<div class="empty-state">No job cards yet. Start one above.</div>';return;}el.innerHTML=list.map(function(j){var photos=jcPhotoCount_(j),st=String(j.status||'DRAFT');return '<div class="jc-list-row"><div class="info"><b>'+esc(j.number||'Job Card')+' — '+esc(j.customer||'No customer')+'</b><span>'+esc(j.site||'')+' · '+esc(j.date||'')+' · '+photos+' photos · <span class="jc-status '+esc(st.toLowerCase())+'">'+esc(st)+'</span></span></div><div class="actions"><button type="button" data-jc-open="'+esc(j.id)+'">Open</button><button type="button" data-jc-pdf="'+esc(j.id)+'">PDF</button><button type="button" data-jc-del="'+esc(j.id)+'">Hide locally</button></div></div>';}).join('');el.querySelectorAll('[data-jc-open]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-open'));});});el.querySelectorAll('[data-jc-pdf]').forEach(function(b){b.addEventListener('click',function(){jcOpen_(b.getAttribute('data-jc-pdf'),true);});});el.querySelectorAll('[data-jc-del]').forEach(function(b){b.addEventListener('click',function(){if(confirm('Hide this job card on this phone? The central record is retained.'))get1('jobcards',b.getAttribute('data-jc-del')).then(function(card){if(card){card.deleted=true;return put('jobcards',card);}}).then(jcRenderList_).catch(function(e){alert('Could not hide job card: '+e.message);});});});});}
 function jcPhotoCount_(j){var n=0;function walk(x){if(!x)return;if(typeof x==='object'){if(x.img)n++;Object.keys(x).forEach(function(k){if(k!=='img')walk(x[k]);});}}walk(j.sections);return n;}
 function jcOpen_(id,pdf){get1('jobcards',id).then(function(j){if(!j)return;JC=j;backTo='screenJobCards';show('screenJobCard');jcRenderAll_();jcBindCommon_();if(pdf)setTimeout(jcGeneratePdf_,50);});}
-function jcSubmit_(){if(!JC)return;var missing=[];if(!JC.customer.trim())missing.push('Customer');if(!JC.site.trim())missing.push('Site / Job');if(!JC.types.length)missing.push('at least one job type');if(missing.length){alert('Please fill in: '+missing.join(', '));return;}JC.status='SUBMITTED';jcSaveLocal_();if(jcSupabaseEnabled_()){document.getElementById('jcMsg').textContent='Submitting to Supabase…';jcSync_();}else if(CFG.url&&ME){var b=document.getElementById('jcSubmit');b.disabled=true;api({action:'jobCardSave',jobCard:jcMetaOnly_(JC)}).then(function(){document.getElementById('jcMsg').textContent='Submitted to the Google Sheet.';}).catch(function(e){document.getElementById('jcMsg').textContent='Saved locally, but sheet sync failed: '+String(e.message||e);}).finally(function(){b.disabled=false;});}else document.getElementById('jcMsg').textContent='Saved locally. Configure Supabase to sync centrally.';}
+function jcSubmit_(){
+  if(!JC)return;var card=JC,missing=[];
+  if(!card.customer.trim())missing.push('Customer');if(!card.site.trim())missing.push('Site / Job');if(!card.date)missing.push('Date');if(!card.types.length)missing.push('at least one job type');
+  if(missing.length){alert('Please fill in: '+missing.join(', '));return;}
+  var btn=document.getElementById('jcSubmit');if(btn.disabled)return;btn.disabled=true;
+  var owner=ME,endpoint=CFG.url,snapshot,revision;
+  return jcSaveLocal_(card,true).then(function(saved){
+    if(!saved)throw new Error('Local save failed; nothing was submitted.');
+    snapshot=JSON.parse(JSON.stringify(card));revision=snapshot.revision;snapshot.status='SUBMITTED';
+    if(ME!==owner||CFG.url!==endpoint)throw new Error('Session changed; nothing was submitted.');
+    if(jcSupabaseEnabled_())return jcSync_(snapshot).then(function(remote){if(!remote||remote.id!==snapshot.id)throw new Error('No matching Job Card acknowledgement.');return 'Supabase';});
+    if(!CFG.url||!ME)throw new Error('No signed-in Sheet connection.');
+    return api({action:'jobCardSave',jobCard:jcMetaOnly_(snapshot)}).then(function(j){if(j.id!==snapshot.id||j.status!=='SUBMITTED')throw new Error('No matching Job Card acknowledgement.');return 'Google Sheet (photos remain on this phone)';});
+  }).then(function(destination){
+    if(card.revision!==revision){jcMessage_(card,'Earlier version submitted; newer edits still need submission.');return;}
+    return jcAcknowledge_(snapshot).then(function(saved){
+      if(!saved){jcMessage_(card,'Earlier version submitted; local changes were retained.');return;}
+      if(card.revision===revision)card.status='SUBMITTED';
+      if(JC&&JC.id===snapshot.id&&JC.revision===revision){JC.status='SUBMITTED';document.getElementById('jcStatusHead').textContent='Submitted';}
+      jcMessage_(card,'Submitted to '+destination+'.');
+    });
+  }).catch(function(e){jcMessage_(card,'Not confirmed as submitted: '+String(e.message||e));}).finally(function(){btn.disabled=false;});
+}
 function jcMetaOnly_(j){var x=JSON.parse(JSON.stringify(j));function strip(v){if(!v||typeof v!=='object')return v;if(Array.isArray(v))return v.map(strip);var o={};Object.keys(v).forEach(function(k){if(k==='img')return;o[k]=strip(v[k]);});return o;}x.sections=strip(x.sections);return x;}
 function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appbar img')||{}).src||'';var html='<div class="rhead"><img src="'+logo+'"><div class="rhinfo"><h1>JOB CARD</h1><div>'+esc(JC.number||'')+'</div><div>'+esc(JC.status||'DRAFT')+'</div></div></div><div class="rmeta"><div><b>Customer</b><br>'+esc(JC.customer||'—')+'</div><div><b>Site / Job</b><br>'+esc(JC.site||'—')+'</div><div><b>Date</b><br>'+esc(JC.date||'—')+'</div><div><b>Technician(s)</b><br>'+esc(JC.technicians||'—')+'</div></div>';
   JC.types.forEach(function(t){var s=JC.sections[t]||{};var title=(JC_TYPES.find(function(x){return x.id===t})||{name:t}).name;html+='<h2>'+esc(title)+'</h2>';
@@ -3408,16 +3477,10 @@ document.getElementById('vpShow').addEventListener('change',function(){
 });
 
 function vpSave(){
-  if(!VPID) return;
-  clearTimeout(VPTIMER);
-  VPTIMER=setTimeout(function(){
-    var t=(VP.client||'').trim()||(VP.address||'').trim()||'Untitled proposal';
-    put('props',{id:VPID,title:t,updated:Date.now(),data:VP}).then(function(){
-      var tag=document.getElementById('savedTag');
-      tag.textContent='saved'; tag.className='saved';
-      setTimeout(function(){ tag.textContent='proposal'; tag.className='' },1400);
-    }).catch(function(){ alert('Could not save — the phone may be out of storage.') });
-  },600);
+  if(!VPID)return;var id=VPID,t=(VP.client||'').trim()||(VP.address||'').trim()||'Untitled proposal';
+  return put('props',{id:id,title:t,updated:Date.now(),data:VP}).then(function(){
+    if(VPID!==id)return;var tag=document.getElementById('savedTag');tag.textContent=MEM?'temporary only':'saved';tag.className='saved';
+  }).catch(function(){alert('Could not save the proposal — export to PDF now.');});
 }
 
 function vpNum(k){
@@ -3537,7 +3600,7 @@ function vpLines(){
     row.className='pline'+(it.role?' auto':'')+(it.custom?' edited':'');
     row.innerHTML='<div class="d"><b contenteditable spellcheck="false">'+esc(vpItemDesc_(it))+'</b>'+
       (it.spec?'<span>'+esc(it.spec)+'</span>':'')+'</div>'+
-      '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty||1)+'"></div>'+
+      '<div class="q"><input type="number" min="0" step="1" inputmode="numeric" value="'+(it.qty==null?1:it.qty)+'"></div>'+
       '<div class="amt"></div><button type="button" class="x" aria-label="Remove">\u00d7</button>';
     var nm=row.querySelector('.d b');
     nm.addEventListener('input',function(){
@@ -3708,7 +3771,10 @@ function vpPublish_(){
   if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
   VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
   var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Sending…';}});
+  var publishing=VP,publishingId=VPID;
   api({action:'proposalPublish',proposal:VP}).then(function(j){
+    if(!j.token||!j.url)throw new Error('Missing proposal acknowledgement. Check the server before sending again.');
+    if(VP!==publishing||VPID!==publishingId){alert('Proposal published: '+j.url+'. The current proposal was left unchanged.');return;}
     VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
     var st=document.getElementById('vpPublishStatus'); if(st)st.innerHTML='<b>Sent.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open customer link</a>';
     alert('Value Proposal sent. The customer can now accept it.');
@@ -3728,8 +3794,9 @@ function showQuote(){
   xeroStatus_();
 }
 function qbSave(){
-  put('cfg',{id:'quoteDraft',client:QB.client,title:QB.title,ref:QB.ref,expiry:QB.expiry,xeroContact:QB.xeroContact,xeroQuote:QB.xeroQuote||null,items:QB.items}).catch(function(){});
+  put('cfg',{id:'quoteDraft',client:QB.client,title:QB.title,ref:QB.ref,expiry:QB.expiry,xeroContact:QB.xeroContact,xeroQuote:QB.xeroQuote||null,items:QB.items}).catch(function(){alert('Quote draft could not be saved on this phone.');});
 }
+window.FlagshipQuoteBridge={request:api,getQuote:function(){return QB;},save:qbSave};
 function qbLoadPrices(){
   if(PRICES&&PRICES.length){ QB.prices=PRICES; qbRenderResults(); return; }
   apiGet({action:'prices'}).then(function(j){ QB.prices=j.prices||[]; qbRenderResults(); put('cfg',{id:'pricecache',list:QB.prices}).catch(function(){}); }).catch(function(){
@@ -3770,7 +3837,7 @@ function qbAddCustom(){
 function qbRenderLines(){
   var box=document.getElementById('qbLines'), sub=0; box.innerHTML='';
   QB.items.forEach(function(it,i){var row=document.createElement('div');row.className='qbline';
-    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty||1)+'"><div class="amount">'+money((it.qty||1)*it.sell)+'</div><button class="x" type="button">×</button>';
+    row.innerHTML='<div><b>'+esc(it.desc)+'</b>'+(it.spec?'<div class="qbmeta">'+esc(it.spec)+'</div>':'')+'</div><input type="number" min="0" step="0.01" value="'+(it.qty==null?1:it.qty)+'"><div class="amount">'+money((it.qty==null?1:it.qty)*it.sell)+'</div><button class="x" type="button">×</button>';
     var q=row.querySelector('input');q.addEventListener('input',function(){it.qty=Math.max(0,Number(q.value)||0);qbSave();qbRenderLines();});
     row.querySelector('.x').addEventListener('click',function(){QB.items.splice(i,1);qbSave();qbRenderLines();});box.appendChild(row);sub+=(Number(it.qty)||0)*(Number(it.sell)||0);});
   var vat=sub*.15,total=sub+vat;document.getElementById('qbCount').textContent=QB.items.length+(QB.items.length===1?' line':' lines');
@@ -3791,13 +3858,18 @@ function xeroFind_(){
 function xeroCreateQuote_(){
   if(!QB.xeroContact||!QB.xeroContact.contactID){alert('First find and select the customer in Xero.');return;}
   if(!QB.items.length){alert('Add at least one quote line.');return;}
+  if(QB.items.some(function(it){return !Number.isFinite(Number(it.qty))||Number(it.qty)<=0||!Number.isFinite(Number(it.sell));})){alert('Each quote line needs a positive quantity and an explicit numeric price.');return;}
+  if(QB.xeroQuote&&QB.xeroQuote.quoteID){alert('This draft already has a Xero quote. Open it in Xero or start a new draft.');return;}
+  var submittedQuote=QB;
   var btn=document.getElementById('qbXeroCreate');btn.disabled=true;btn.textContent='Creating…';
-  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',xeroItemCode:it.xeroItemCode||'',description:it.desc,quantity:Number(it.qty)||1,unitAmount:Number(it.sell)||0};})};
+  var payload={contactID:QB.xeroContact.contactID,date:new Date().toISOString().slice(0,10),expiryDate:QB.expiry||'',reference:QB.ref||('FS-Q-'+Date.now()),title:QB.title||'Flagship Quote',summary:'Created from Flagship Quote Builder',items:QB.items.map(function(it){return {code:it.code||'',xeroItemCode:it.xeroItemCode||'',description:it.desc,quantity:Number(it.qty),unitAmount:Number(it.sell)||0};})};
   api({action:'xeroCreateQuote',quote:payload}).then(function(j){
     btn.disabled=false;btn.textContent='Create quote in Xero';
+    if(!j.quoteID)throw new Error('Missing quote acknowledgement. Check Xero before retrying.');
+    if(QB!==submittedQuote){alert('Quote created in Xero: '+(j.quoteNumber||j.quoteID)+'. The newer local draft was left unchanged.');return;}
     QB.xeroQuote={quoteID:j.quoteID,quoteNumber:j.quoteNumber};qbSave();
     document.getElementById('qbStatus').innerHTML='<div class="calc"><b>Xero quote created:</b> '+esc(j.quoteNumber||'')+'<br><span class="qbmeta">Xero Quote ID: '+esc(j.quoteID||'')+'</span></div>';
-  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e));});
+  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e)+'\nCheck Xero before retrying: the quote may have been created even if the response was lost.');});
 }
 ['qbClient','qbTitle','qbRef','qbExpiry'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){QB[{qbClient:'client',qbTitle:'title',qbRef:'ref',qbExpiry:'expiry'}[id]]=this.value;qbSave();});});
 document.getElementById('qbSearch').addEventListener('input',qbRenderResults);
@@ -4018,12 +4090,7 @@ document.getElementById('stQ').addEventListener('input',function(){
 });
 
 var stDraft=null;
-function saveStockDraft(){
-  clearTimeout(stDraft);
-  stDraft=setTimeout(function(){
-    put('cfg',{id:'stockdraft',place:ST.place,counts:ST.counts}).catch(function(){});
-  },500);
-}
+function saveStockDraft(){return put('cfg',{id:'stockdraft',place:ST.place,counts:ST.counts}).catch(function(){alert('Stock draft could not be saved on this phone.');});}
 
 document.getElementById('stClear').addEventListener('click',function(){
   var n=Object.keys(ST.counts).length;
@@ -4041,15 +4108,16 @@ document.getElementById('stSend').addEventListener('click',function(){
   var btn=document.getElementById('stSend');
   btn.disabled=true; btn.textContent='Sending\u2026';
 
-  api({action:'stockCount',place:ST.place,counts:ST.counts}).then(function(j){
+  var sentPlace=ST.place,sentCounts=JSON.parse(JSON.stringify(ST.counts)),owner=ME;
+  api({action:'stockCount',place:sentPlace,counts:sentCounts}).then(function(j){
+    if(!Array.isArray(j.unknown)||typeof j.changed!=='number')throw new Error('Invalid stock acknowledgement; counts retained.');
     btn.disabled=false; btn.textContent='Send count';
     /* keep the screen honest: the numbers just sent are now the last count */
-    Object.keys(ST.counts).forEach(function(name){
-      for(var i=0;i<ST.items.length;i++){
-        if(ST.items[i].item===name){ ST.items[i][ST.place]=ST.counts[name]; break; }
-      }
+    Object.keys(sentCounts).forEach(function(name){
+      if(j.unknown.indexOf(name)>=0)return;
+      for(var i=0;i<ST.items.length;i++){if(ST.items[i].item===name){ST.items[i][sentPlace]=sentCounts[name];break;}}
+      if(ME===owner&&ST.place===sentPlace&&ST.counts[name]===sentCounts[name])delete ST.counts[name];
     });
-    ST.counts={};
     put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
     saveStockDraft();
     var msg=j.changed+(j.changed===1?' item updated':' items updated');
