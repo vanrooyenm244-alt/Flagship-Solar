@@ -1747,12 +1747,14 @@ var jcRemoteChain=Promise.resolve();
 function jcScheduleSave_(){if(JC)JC.status='DRAFT';return jcSaveLocal_();}
 function jcSupabaseEnabled_(){var a=window.FlagshipSupabase;return !!(a&&a.enabled&&a.enabled()&&a.getSession&&a.getSession());}
 function jcMessage_(card,text){if(JC&&JC.id===card.id&&(!card.revision||JC.revision===card.revision)){var m=document.getElementById('jcMsg');if(m)m.textContent=text;}}
+function jcDataUrlBlob_(url){var a=String(url||'').split(','),m=/^data:([^;]+);base64$/.exec(a[0]||'');if(!m||!a[1])return null;var raw=atob(a[1]),u=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)u[i]=raw.charCodeAt(i);return new Blob([u],{type:m[1]});}
+function jcUploadPhotos_(card){if(!jcSupabaseEnabled_()||!window.FlagshipSupabase.uploadJobCardPhoto)return Promise.resolve(card);var copy=JSON.parse(JSON.stringify(card)),jobs=[];function walk(x){if(!x||typeof x!=='object')return;Object.keys(x).forEach(function(k){var v=x[k];if(v&&typeof v==='object'&&typeof v.img==='string'&&v.img.indexOf('data:image/')===0){(function(photo){var blob=jcDataUrlBlob_(photo.img);if(!blob)return;jobs.push(window.FlagshipSupabase.uploadJobCardPhoto(copy.id,blob,blob.type).then(function(up){photo.storage=up;photo.img='storage:'+up.bucket+'/'+up.path;}));})(v);}else walk(v);});}walk(copy.sections);return Promise.all(jobs).then(function(){return copy;});}
 function jcSync_(card){
   if(!jcSupabaseEnabled_())return Promise.resolve(null);
   var owner=ME,endpoint=CFG.url,session=window.FlagshipSupabase.getSession();
   var run=jcRemoteChain.catch(function(){}).then(function(){
     if(ME!==owner||CFG.url!==endpoint||window.FlagshipSupabase.getSession()!==session)throw new Error('Session changed; submit under the original account.');
-    return window.FlagshipSupabase.saveJobCard(card);
+    return jcUploadPhotos_(card).then(function(remoteCard){return window.FlagshipSupabase.saveJobCard(remoteCard);});
   });
   jcRemoteChain=run;return run;
 }
