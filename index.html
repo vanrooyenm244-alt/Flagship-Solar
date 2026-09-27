@@ -1797,7 +1797,7 @@ function jcNew_(){
 window.jcNew_=jcNew_;
 function jcImportMissing_(card){
   if(MEM)return Promise.resolve();
-  return new Promise(function(resolve,reject){var t=DB.transaction('jobcards','readwrite'),store=t.objectStore('jobcards');t.oncomplete=resolve;t.onabort=t.onerror=function(){reject(t.error||new Error('Import failed'));};var q=store.get(card.id);q.onsuccess=function(){if(!q.result)store.put(card);};});
+  return new Promise(function(resolve,reject){var t=DB.transaction('jobcards','readwrite'),store=t.objectStore('jobcards');t.oncomplete=resolve;t.onabort=t.onerror=function(){reject(t.error||new Error('Import failed'));};var q=store.get(card.id);q.onsuccess=function(){var local=q.result;if(!local){store.put(card);return;}var localUpdated=Number(local.updated)||0,remoteUpdated=Number(card.updated)||0,localDraft=String(local.status||'DRAFT')!=='SUBMITTED';if(remoteUpdated>localUpdated&&!localDraft)store.put(card);};});
 }
 function jcHydratePhotos_(card){var a=window.FlagshipSupabase;if(!(jcSupabaseEnabled_()&&a.signedJobCardPhotoUrl))return Promise.resolve(card);var jobs=[];function walk(x){if(!x||typeof x!=='object')return;Object.keys(x).forEach(function(k){var v=x[k];if(v&&typeof v==='object'&&v.storage&&v.storage.bucket==='job-card-photos'&&v.storage.path&&(!v.img||String(v.img).indexOf('storage:')===0)){jobs.push(a.signedJobCardPhotoUrl(v.storage.path,3600).then(function(url){v.img=url;}));}else walk(v);});}walk(card.sections);return Promise.all(jobs).then(function(){return card;});}
 function jcAcknowledge_(snapshot){
