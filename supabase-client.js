@@ -95,7 +95,21 @@ memberships: function () {
 
 listCompanyMemberships: function (companyId) { if (!session || !session.user || !companyId) return Promise.resolve([]); return rest('company_memberships','company_id=eq.'+encodeURIComponent(companyId)+'&select=id,user_id,active,role_id,role:roles(name),profile:profiles(full_name)',{method:'GET'}); },
 
-listCompanyMemberships: function (companyId) { if (!session || !session.user || !companyId) return Promise.resolve([]); return rest('company_memberships','company_id=eq.'+encodeURIComponent(companyId)+'&select=id,user_id,active,role_id,role:roles(name),profile:profiles(full_name)',{method:'GET'}); },
+
+listCalendarEvents: function (companyId) {
+  if (!session || !session.user || !companyId) return Promise.resolve([]);
+  return rest('calendar_events','company_id=eq.'+encodeURIComponent(companyId)+'&select=*&order=starts_at.asc',{method:'GET'});
+},
+saveCalendarEvent: function (event, companyId) {
+  if (!session || !session.user) return Promise.reject(new Error('Sign in to Supabase before scheduling.'));
+  if (!companyId) return Promise.reject(new Error('Company is required before scheduling.'));
+  if (!event || !event.id || !event.customer || !event.date) return Promise.reject(new Error('Calendar event ID, customer and date are required.'));
+  var start=event.date+'T'+(event.startTime||'00:00')+':00';
+  var end=event.endTime ? event.date+'T'+event.endTime+':00' : null;
+  var payload={id:event.id,company_id:companyId,title:event.customer+(event.site?' — '+event.site:''),starts_at:start,ends_at:end,created_by:session.user.id};
+  return request('/rest/v1/calendar_events?on_conflict=id&select=*',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(payload)})
+    .then(function(rows){if(!rows||!rows[0]||rows[0].id!==event.id)throw new Error('Missing Calendar acknowledgement.');return rows[0];});
+},
 
 listPrices: function () {
   return rest(
