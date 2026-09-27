@@ -22,3 +22,13 @@ test('actual proposal publish, view and accept persist the expected state',()=>{
 test('missing Xero credentials fail closed without external financial writes',()=>{const b=backend();let sent=0;b.c.UrlFetchApp={fetch(){sent++;throw Error('not allowed');}};const r=b.post({action:'xeroCreateQuote',quote:{contactID:'fixture',items:[{quantity:1,unitAmount:100}]}});assert.equal(r.ok,false);assert.match(r.error,/not configured/);assert.equal(sent,0);});
 test('missing Supabase server config is an explicit price integration blocker',()=>{const b=backend(),r=b.get({action:'prices'});assert.equal(r.ok,false);assert.match(r.error,/Supabase server settings are missing/);});
 test('public proposal escapes quotes in customer-controlled HTML attributes',()=>{const b=backend();assert.equal(b.c.escXeroHtml_('" onfocus="test'),'&quot; onfocus=&quot;test');});
+test('supplier update rejects missing or non-price values without overwriting existing costs',()=>{
+ const b=backend(),sh=b.sheets.get('Prices');
+ sh.appendRow(['fixture','Other','Test','SKU','Synthetic','each',100,'Cost',0,0,0,'','']);
+ for(const price of ['', ' ', null, undefined, false, [], -1]){
+  const r=b.post({action:'updatePriceList',updates:[{code:'SKU',price}]});
+  assert.equal(r.ok,true);assert.equal(r.updated,0);assert.equal(sh.rows[1][6],100);
+ }
+ const r=b.post({action:'updatePriceList',updates:[{code:'SKU',price:0}]});
+ assert.equal(r.ok,true);assert.equal(r.updated,1);assert.equal(sh.rows[1][6],0);
+});

@@ -1463,6 +1463,8 @@ function doPost(e) {
       for (var ui = 0; ui < updates.length; ui++) {
         var uitem = updates[ui] || {};
         var ucode = String(uitem.code || '').trim().toUpperCase();
+        if ((typeof uitem.price !== 'number' && typeof uitem.price !== 'string') ||
+            String(uitem.price).trim() === '') continue;
         var uprice = Number(uitem.price);
         if (!ucode || !isFinite(uprice) || uprice < 0) continue;
         if (byCode[ucode] === undefined) { notFound++; continue; }
@@ -1568,4 +1570,3 @@ function testPrices() {
   Logger.log("PRICE COUNT: " + rows.length);
   Logger.log(JSON.stringify(rows.slice(0, 3)));
 }
-

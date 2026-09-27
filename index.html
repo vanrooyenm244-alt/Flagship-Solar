@@ -2490,6 +2490,7 @@ function normHeader_(s){
 function numPrice_(v){
   if(typeof v==='number') return v;
   var s=String(v==null?'':v).replace(/r/ig,'').replace(/\s/g,'').replace(/,/g,'').trim();
+  if(!s) return NaN;
   var n=Number(s);
   return isFinite(n)?n:NaN;
 }
@@ -2514,7 +2515,7 @@ function supplierRowsFromMatrix_(matrix){
   for(var i=headerAt+1;i<matrix.length;i++){
     var rr=matrix[i]||[], code=String(rr[codeCol]==null?'':rr[codeCol]).trim();
     var price=numPrice_(rr[priceCol]);
-    if(!code || !isFinite(price)) continue;
+    if(!code || !isFinite(price) || price<0) continue;
     code=code.toUpperCase();
     if(seen[code]) continue;
     seen[code]=true;
