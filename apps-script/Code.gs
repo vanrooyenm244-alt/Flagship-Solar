@@ -44,7 +44,8 @@ var SHEETS = {
            'Cost', 'Type', 'Markup %', 'Install Cost', 'Spec', 'Active', 'Updated'],
   Log: ['Timestamp', 'User', 'Action', 'Detail', 'Was', 'Now'],
   Proposals: ['Token','Proposal No','Customer','Customer Email','Status','Created','Updated','Accepted At','Xero Quote ID','Xero Quote Number','Data JSON'],
-  JobCards: ['ID','Job Card No','Customer','Site / Job','Date','Technicians','Types','Status','Created By','Created','Updated','Data JSON']
+  JobCards: ['ID','Job Card No','Customer','Site / Job','Date','Technicians','Types','Status','Created By','Created','Updated','Data JSON'],
+  Calendar: ['ID','Customer','Site / Job','Date','Start','End','Technician','Company','Job Type','Notes','Status','Updated']
 };
 
 /* Categories the quoting engine understands. The engine keys off these,
@@ -1077,6 +1078,10 @@ function jobCardDeleteLocked_(body){
   var sh=jobCardsSheet_(),n=sh.getLastRow();if(n<2)return {ok:true};var vals=sh.getRange(2,1,n-1,12).getValues();for(var i=0;i<vals.length;i++)if(String(vals[i][0])===id){sh.deleteRow(i+2);log_(u.username,'jobCardDelete',String(vals[i][1]||id),'','');return {ok:true};}return {ok:true};
 }
 
+/* ================= CALENDAR / SCHEDULING ================= */
+function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();if(n<2)return {ok:true,events:[]};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:out};}
+function calendarSave_(body){var u=auth_(body,['Admin','Technician']),e=body.event||{},id=String(e.id||'').trim(),customer=String(e.customer||'').trim(),date=String(e.date||'').trim();if(!id||!customer||!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))throw new Error('Calendar ID, customer and valid date are required.');var sh=sheet_('Calendar'),n=sh.getLastRow(),row=0;if(n>=2){var ids=sh.getRange(2,1,n-1,1).getValues();for(var i=0;i<ids.length;i++)if(String(ids[i][0])===id){row=i+2;break;}}var now=new Date(),data=[id,customer,String(e.site||''),date,String(e.startTime||''),String(e.endTime||''),String(e.technician||''),String(e.company||''),String(e.jobType||''),String(e.notes||''),String(e.status||'SCHEDULED'),now];if(row)sh.getRange(row,1,1,12).setValues([data]);else sh.appendRow(data);log_(u.username,'calendarSave',id,customer,date);return {ok:true,id:id,updatedAt:now.getTime()};}
+
 /* ================= VALUE PROPOSAL SERVER WORKFLOW ================= */
 function proposalSheet_(){ return sheet_('Proposals'); }
 function proposalRow_(token){
@@ -1273,6 +1278,7 @@ function doGet(e) {
     if (p.action === 'xeroContacts') { auth_(body,['Admin','Technician']); return out_(xeroContacts_(p.q||'')); }
     if (p.action === 'xeroCreateContact') return out_(xeroCreateContact_(body));
     if (p.action === 'jobCards') { return out_(jobCardsList_(body)); }
+    if (p.action === 'calendar') { return out_(calendarList_(body)); }
 
 
     if (p.action === 'prices') {
@@ -1416,6 +1422,7 @@ function doPost(e) {
 
     if (body.action === 'jobCardSave') return out_(jobCardSave_(body));
     if (body.action === 'jobCardDelete') return out_(jobCardDelete_(body));
+    if (body.action === 'calendarSave') return out_(calendarSave_(body));
 
 
     if (body.action === 'savePrice') {

@@ -36,3 +36,5 @@ test('supplier update rejects missing or non-price values without overwriting ex
 });
 
 test('proposal Xero handoff is serialized to protect against duplicate quote creation',()=>{const src=fs.readFileSync('apps-script/Code.gs','utf8');assert.match(src,/function proposalSendToXero_\(body\)\{[\s\S]{0,220}getScriptLock\(\)/);assert.match(src,/proposalSendToXeroLocked_\(body\)/);});
+
+test('actual Calendar endpoints persist central schedules and restrict worker writes',()=>{const b=backend(),e={id:'cal-fixture',customer:'Synthetic',site:'Test',date:'2026-09-28',startTime:'08:00',endTime:'10:00',technician:'Test Worker',jobType:'Electrical Work',status:'SCHEDULED'};assert.equal(b.post({action:'calendarSave',event:e}).id,e.id);assert.equal(b.get({action:'calendar'}).events.length,1);assert.equal(b.get({action:'calendar'},'worker').events[0].customer,'Synthetic');assert.equal(b.post({action:'calendarSave',event:{...e,id:'worker-edit'}},'worker').ok,false);});
