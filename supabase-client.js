@@ -85,7 +85,17 @@ listPrices: function () {
     'price_items',
     'select=*&active=eq.true&order=category.asc,description.asc',
     { method: 'GET' }
-  );
+  ).then(function (rows) {
+    return (rows || []).map(function (p) {
+      return {
+        id: p.id, company_id: p.company_id, category: p.category || '', supplier: p.supplier || '',
+        code: p.code || '', description: p.description || '', descriptionEn: p.description_en || '',
+        unit: p.unit || 'each', type: p.price_type || 'Cost', cost: Number(p.cost || 0),
+        markup: p.markup == null ? '' : Number(p.markup), install: Number(p.install || 0),
+        spec: p.spec || '', active: p.active !== false
+      };
+    });
+  });
 },
 
     listJobCards: function () {
@@ -108,7 +118,7 @@ listPrices: function () {
     },
     uploadJobCardPhoto: function (jobCardId, file, contentType) {
       if (!session || !session.user) return Promise.reject(new Error('Sign in to upload photos.'));
-      var name = 'job-cards/' + encodeURIComponent(jobCardId) + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
+      var name = encodeURIComponent(session.user.id) + '/job-cards/' + encodeURIComponent(jobCardId) + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
       return request('/storage/v1/object/job-card-photos/' + name, {
         method: 'POST', headers: { 'Content-Type': contentType || 'image/jpeg', 'x-upsert': 'false' }, body: file
       }).then(function () { return { bucket: 'job-card-photos', path: name }; });
