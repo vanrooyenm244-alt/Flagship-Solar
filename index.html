@@ -1651,6 +1651,11 @@ var JC=null, jcSaveTimer=null, JC_TYPES=[
   {id:'plug',name:'Plug Change'},
   {id:'firmware',name:'Battery Firmware Update'},
   {id:'coc',name:'COC Inspection Work'},
+  {id:'electrical',name:'Electrical Work'},
+  {id:'heatpump',name:'Heat Pump Installation / Repair'},
+  {id:'gas',name:'Gas Work'},
+  {id:'plumbing',name:'Plumbing Work'},
+  {id:'fault',name:'Fault Finding / Repair'},
   {id:'custom',name:'Custom Jobs'}
 ];
 function pad2_(n){
@@ -1658,7 +1663,7 @@ function pad2_(n){
 }
 function jcBlank(){
   var d=new Date(), ds=d.getFullYear()+'-'+pad2_(d.getMonth()+1)+'-'+pad2_(d.getDate());
-  return {id:'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),number:'JC-'+ds.replace(/-/g,'')+'-'+String(Date.now()).slice(-4),customer:'',site:'',date:ds,technicians:ME?ME.name:'',types:[],status:'DRAFT',signature:'',signatureName:'',signedAt:'',created:Date.now(),updated:Date.now(),sections:{descale:{},plug:{},firmware:{},coc:{},fullsolar:{},panels:{},custom:{items:[]}}};
+  return {id:'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),number:'JC-'+ds.replace(/-/g,'')+'-'+String(Date.now()).slice(-4),customer:'',site:'',date:ds,technicians:ME?ME.name:'',types:[],status:'DRAFT',signature:'',signatureName:'',signedAt:'',created:Date.now(),updated:Date.now(),sections:{descale:{},plug:{},firmware:{},coc:{},fullsolar:{},panels:{},electrical:{},heatpump:{},gas:{},plumbing:{},fault:{},custom:{items:[]}}};
 }
 function jcEscLines_(s){ return esc(String(s==null?'':s)).replace(/\n/g,'<br>'); }
 function jcGet_(obj,path){ var a=path.split('.'),x=obj; for(var i=0;i<a.length;i++) x=x&&x[a[i]]; return x==null?'':x; }
@@ -1680,6 +1685,9 @@ function jcRenderTypes_(){
   var el=document.getElementById('jcTypes'); if(!el)return; el.innerHTML=JC_TYPES.map(function(t){return '<button type="button" class="jc-type '+(jcHas_(t.id)?'on':'')+'" data-jc-type="'+t.id+'">'+esc(t.name)+'</button>';}).join('');
   el.querySelectorAll('[data-jc-type]').forEach(function(b){b.addEventListener('click',function(){var id=b.getAttribute('data-jc-type'),i=JC.types.indexOf(id);if(i>=0)JC.types.splice(i,1);else JC.types.push(id);if(id==='custom'&&!JC.sections.custom.items.length)JC.sections.custom.items=[{description:'',photo:{img:'',cap:''}}];jcRenderAll_();jcScheduleSave_();});});
 }
+function jcFieldPack_(section,fields){return '<div class="jc-grid2">'+fields.map(function(f){return jcText_(section,f[0],f[1],f[2]||'',!!f[3]);}).join('')+'</div>';}
+function jcEvidence_(section){var sec=JC.sections[section]||(JC.sections[section]={}),items=sec.evidence||(sec.evidence=[]);return '<div style="margin-top:14px;border-top:1px solid #d8dee6;padding-top:12px"><h3>Site notes & photographic evidence</h3><p class="hint">Add as many notes and photos as needed. Use this for before, during, after, equipment labels, test readings, defects and completed work.</p><div>'+items.map(function(it,i){it=it||{};return '<div class="jc-item"><button class="remove" type="button" data-jc-ev-remove="'+section+'|'+i+'">Remove</button><div class="jc-field"><label>Evidence type / note</label><textarea data-jc-ev-note="'+section+'|'+i+'" placeholder="What does this show?">'+esc(it.note||'')+'</textarea></div>'+jcEvidencePhoto_(section,i,it.photo)+'</div>';}).join('')+'</div><button class="add" type="button" data-jc-ev-add="'+section+'">+ Add note / photo</button></div>';}
+function jcEvidencePhoto_(section,i,val){val=val||{};return '<div class="jc-photo"><div class="pt">Photo (optional)</div>'+(val.img?'<img src="'+val.img+'" alt="">':'')+'<input type="file" accept="image/*" capture="environment" data-jc-ev-photo="'+section+'|'+i+'"><div class="pcap"><input value="'+esc(val.cap||'')+'" placeholder="Photo caption" data-jc-ev-cap="'+section+'|'+i+'"></div></div>';}
 function jcRenderSections_(){
   var out='';
   if(jcHas_('panels')) out+='<section class="jc-section"><h3>Solar Panels</h3><p class="hint">Record the panel work and add photos that prove what was installed.</p>'+jcText_('panels','work','Work performed','Describe the panel installation / replacement.',true)+jcPhotoBlock_('panels','photo','Panel installation / completed work')+'</section>';
@@ -1694,10 +1702,17 @@ function jcRenderSections_(){
       '<div class="jc-grid2">'+jcText_('coc','snags','Snags','Any outstanding snags?',true)+jcText_('coc','damages','Damages caused by our team','Describe any damage and add photos below.',true)+'</div>'+jcPhotoBlock_('coc','damagePhoto','Photo — damage caused by our team')+
       '<h3 style="margin-top:15px">Measurements</h3>'+['Live → Neutral Voltage','Neutral → Earth Voltage','Live → Earth Voltage','Panels DC Voltage','DC Disconnect — Fuse size'].map(function(label,i){var k=['ln','ne','le','dc','fuse'][i],v=c[k]||'';return '<div class="jc-measure"><label>'+esc(label)+'</label><input value="'+esc(v)+'" placeholder="Value / size" data-jc-coc="'+k+'"></div>';}).join('')+jcPhotoBlock_('coc','fusePhoto','Photo — DC Disconnect / fuse')+'</section>';
   }
+  if(jcHas_('electrical')) out+='<section class="jc-section"><h3>Electrical Work</h3><p class="hint">Record the installation, alteration, repair and verification evidence. This Job Card supports the legal CoC/test report; it does not replace a prescribed CoC.</p>'+jcFieldPack_('electrical',[[ 'scope','Scope / circuits worked on','DB, circuit, appliance or alteration',true],['db','DB / supply','DB name or supply'],['protective','Protection / breaker / RCD','Type and rating'],['cable','Cable / conductor details','Size, type, route'],['earthing','Earthing / bonding','Method and observations',true],['ln','L-N voltage','V'],['le','L-E voltage','V'],['ne','N-E voltage','V'],['loop','Earth fault loop impedance','Ω'],['insulation','Insulation resistance','MΩ'],['rcd','Earth leakage / RCD result','Trip current/time'],['polarity','Polarity / phase rotation','Result'],['pscc','PSCC','A or kA'],['final','Final verification','Safe / operational / outstanding items',true]])+jcEvidence_('electrical')+'</section>';
+  if(jcHas_('heatpump')) out+='<section class="jc-section"><h3>Heat Pump Installation / Repair</h3>'+jcFieldPack_('heatpump',[[ 'work','Complaint / work requested','',true],['make','Make',''],['model','Model',''],['serial','Serial number',''],['geyser','Cylinder / geyser volume','L'],['setpoint','Setpoint','°C'],['waterStart','Water temperature at start','°C'],['waterFinal','Water temperature at completion','°C'],['inTemp','Water IN temperature','°C'],['outTemp','Water OUT temperature','°C'],['voltage','Supply voltage','V'],['current','Running current','A'],['pump','Circulation pump','Model / operation'],['sensor','Temperature sensor / pocket','Location and reading'],['tempering','Tempering / mixing valve','Setting / condition'],['flow','Water flow / circulation','Result'],['leaks','Leak check','Result'],['fault','Fault found','',true],['parts','Parts replaced / work performed','',true],['commission','Commissioning result','',true]])+jcEvidence_('heatpump')+'</section>';
+  if(jcHas_('gas')) out+='<section class="jc-section"><h3>Gas Work</h3><p class="hint">Capture installation and test evidence for the registered gas practitioner / CoC record where applicable.</p>'+jcFieldPack_('gas',[[ 'work','Work performed','',true],['appliance','Appliance make / model',''],['serial','Appliance serial',''],['cylinders','Cylinder arrangement / sizes',''],['regulator','Regulator','Type / rating'],['pipe','Pipe type / size / route','',true],['isolation','Isolation valves',''],['pressure','Pressure test / operating pressure',''],['leak','Leak / soundness test','Result'],['ventilation','Ventilation / flue / combustion air','',true],['clearances','Clearances / location observations','',true],['coc','Gas CoC / reference',''],['practitioner','Registered practitioner','Name / registration'],['commission','Commissioning / appliance operation','',true]])+jcEvidence_('gas')+'</section>';
+  if(jcHas_('plumbing')) out+='<section class="jc-section"><h3>Plumbing Work</h3>'+jcFieldPack_('plumbing',[[ 'work','Work performed / complaint','',true],['equipment','Geyser / pump / equipment','Make, model, size'],['pipe','Pipework','Material / size / route'],['pressure','Water pressure','kPa / bar'],['temperature','Water temperature','°C'],['valves','Safety / control / isolation valves','',true],['drainage','Drain / discharge arrangement','',true],['leaks','Leak test','Result'],['parts','Parts replaced','',true],['commission','Final operation / commissioning','',true]])+jcEvidence_('plumbing')+'</section>';
+  if(jcHas_('fault')) out+='<section class="jc-section"><h3>Fault Finding / Repair</h3>'+jcFieldPack_('fault',[[ 'complaint','Customer complaint / symptoms','',true],['initial','Initial condition','',true],['tests','Tests / measurements performed','',true],['diagnosis','Fault found / diagnosis','',true],['repair','Corrective work','',true],['parts','Parts replaced','',true],['finalTests','Final tests','',true],['result','Final result / outstanding work','',true]])+jcEvidence_('fault')+'</section>';
+  ['panels','fullsolar','descale','plug','firmware','coc'].forEach(function(k){if(jcHas_(k))out=out.replace('</section>','</section>');});
   if(jcHas_('custom')){
     var items=JC.sections.custom.items||[];
     out+='<section class="jc-section"><h3>Custom Jobs</h3><p class="hint">Add as many individual tasks as needed. Each task can have its own photo.</p><div id="jcCustomItems">'+items.map(function(it,i){return '<div class="jc-item"><button class="remove" type="button" data-jc-remove-item="'+i+'">Remove</button><div class="jc-field"><label>What was done?</label><textarea data-jc-custom-desc="'+i+'" placeholder="Describe the work">'+esc(it.description||'')+'</textarea></div>'+jcCustomPhoto_(i,it.photo)+'</div>';}).join('')+'</div><button class="add" type="button" id="jcAddCustom">+ Add another item</button></section>';
   }
+  ['panels','fullsolar','descale','plug','firmware','coc'].forEach(function(k){if(jcHas_(k)){var nm=(JC_TYPES.find(function(x){return x.id===k;})||{name:k}).name;out+='<section class="jc-section"><h3>'+esc(nm)+' — extra site record</h3>'+jcEvidence_(k)+'</section>';}});
   document.getElementById('jcSections').innerHTML=out;
   jcBindFields_();
 }
@@ -1712,6 +1727,11 @@ function jcBindFields_(){
   document.querySelectorAll('#screenJobCard [data-jc-custom-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');input.value='';return;}var card=JC,item=card.sections.custom.items[Number(input.getAttribute('data-jc-custom-photo'))];shrink(f,function(url){if(card.sections.custom.items.indexOf(item)<0)return;item.photo={img:url,cap:(item.photo||{}).cap||''};card.status='DRAFT';if(JC===card)jcRenderSections_();jcSaveLocal_(card);});});});
   document.querySelectorAll('#screenJobCard [data-jc-remove-item]').forEach(function(b){b.addEventListener('click',function(){JC.sections.custom.items.splice(Number(b.getAttribute('data-jc-remove-item')),1);jcRenderSections_();jcScheduleSave_();});});
   var add=document.getElementById('jcAddCustom');if(add)add.addEventListener('click',function(){JC.sections.custom.items.push({description:'',photo:{img:'',cap:''}});jcRenderSections_();jcScheduleSave_();});
+  document.querySelectorAll('#screenJobCard [data-jc-ev-add]').forEach(function(b){b.addEventListener('click',function(){var k=b.getAttribute('data-jc-ev-add');var sec=JC.sections[k]||(JC.sections[k]={});(sec.evidence||(sec.evidence=[])).push({note:'',photo:{img:'',cap:''}});jcRenderSections_();jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-ev-remove]').forEach(function(b){b.addEventListener('click',function(){var p=b.getAttribute('data-jc-ev-remove').split('|');JC.sections[p[0]].evidence.splice(Number(p[1]),1);jcRenderSections_();jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-ev-note]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-ev-note').split('|');JC.sections[p[0]].evidence[Number(p[1])].note=el.value;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-ev-cap]').forEach(function(el){el.addEventListener('input',function(){var p=el.getAttribute('data-jc-ev-cap').split('|'),it=JC.sections[p[0]].evidence[Number(p[1])],v=it.photo||{};v.cap=el.value;it.photo=v;jcScheduleSave_();});});
+  document.querySelectorAll('#screenJobCard [data-jc-ev-photo]').forEach(function(input){input.addEventListener('change',function(){var f=input.files&&input.files[0];if(!f)return;if(f.type.indexOf('image/')!==0){alert('Please choose an image.');return;}var card=JC,p=input.getAttribute('data-jc-ev-photo').split('|'),it=card.sections[p[0]].evidence[Number(p[1])];shrink(f,function(url){if(!it)return;it.photo={img:url,cap:(it.photo||{}).cap||''};card.status='DRAFT';if(JC===card)jcRenderSections_();jcSaveLocal_(card);});});});
 }
 var jcRemoteChain=Promise.resolve();
 function jcScheduleSave_(){if(JC)JC.status='DRAFT';return jcSaveLocal_();}
@@ -1819,6 +1839,9 @@ function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appb
     if(t==='firmware')html+='<div class="rmeta"><div><b>Firmware</b><br>'+esc(s.version||'—')+'</div></div><div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.photo]);
     if(t==='coc'){html+='<div class="rmeta"><div><b>Inverter serial</b><br>'+esc(s.inverterSerial||'—')+'</div><div><b>Battery serial</b><br>'+esc(s.batterySerial||'—')+'</div></div><h2>Measurements</h2><table><tr><th>Measurement</th><th>Value</th></tr>'+[['Live → Neutral','ln'],['Neutral → Earth','ne'],['Live → Earth','le'],['Panels DC Voltage','dc'],['DC Disconnect — Fuse size','fuse']].map(function(a){return '<tr><td>'+a[0]+'</td><td>'+esc(s[a[1]]||'—')+'</td></tr>';}).join('')+'</table><h2>Snags / Damages</h2><div class="rblock"><b>Snags:</b> '+jcEscLines_(s.snags||'—')+'\n\n<b>Damages:</b> '+jcEscLines_(s.damages||'—')+'</div>'+jcReportPhotos_([s.roof,s.inverterwall,s.dbBefore,s.changeover,s.earthNeutral,s.dbAfter,s.railEarth,s.roofRoute,s.damagePhoto,s.fusePhoto]);}
     if(t==='custom')(s.items||[]).forEach(function(it,i){html+='<div class="rblock"><b>Item '+(i+1)+'</b> — '+jcEscLines_(it.description||'')+'</div>'+jcReportPhotos_([it.photo]);});
+    if(['electrical','heatpump','gas','plumbing','fault'].indexOf(t)>=0){var skip={evidence:1};Object.keys(s).forEach(function(k){if(skip[k]||!s[k]||typeof s[k]==='object')return;html+='<div class="rblock"><b>'+esc(k.replace(/([A-Z])/g,' $1').replace(/^./,function(x){return x.toUpperCase();}))+'</b><br>'+jcEscLines_(s[k])+'</div>';});}
+    (s.evidence||[]).forEach(function(it,i){if(it.note)html+='<div class="rblock"><b>Site evidence '+(i+1)+'</b><br>'+jcEscLines_(it.note)+'</div>';html+=jcReportPhotos_([it.photo]);});
+
   });
   if(JC.signature)html+='<h2>Client sign-off</h2><div class="rblock">Signed electronically'+(JC.signedAt?' · '+esc(new Date(JC.signedAt).toLocaleString()):'')+'</div><div style="margin-top:6px"><img src="'+JC.signature+'" style="max-width:420px;width:100%;height:100px;object-fit:contain;border-bottom:1px solid #667085"></div>';document.getElementById('jcReport').innerHTML=html;}
 function jcReportPhotos_(arr){var a=arr.filter(function(x){return x&&x.img;});if(!a.length)return '';return '<div class="rphotos">'+a.map(function(x){return '<div class="rphoto"><img src="'+x.img+'"><div class="cap">'+esc(x.cap||'')+'</div></div>';}).join('')+'</div>';}
@@ -1865,9 +1888,13 @@ function jcBuildPdf_(){
       var pagePixels=Math.floor(usableHeight*pixelsPerMm);
       var y=0;
       var pageNo=0;
+      var scaleY=canvas.height/el.scrollHeight;
+      var blocks=Array.prototype.slice.call(el.querySelectorAll('.rphoto,.rblock,tr,h2')).map(function(n){return {top:Math.round(n.offsetTop*scaleY),bottom:Math.round((n.offsetTop+n.offsetHeight)*scaleY)};});
 
       while(y<canvas.height){
         var sliceHeight=Math.min(pagePixels,canvas.height-y);
+        var target=y+sliceHeight;
+        if(target<canvas.height){var crossing=blocks.filter(function(b){return b.top<target&&b.bottom>target&&b.top>y+Math.round(pagePixels*0.20);}).sort(function(a,b){return a.top-b.top;})[0];if(crossing)sliceHeight=Math.max(1,crossing.top-y-2);}
         var slice=document.createElement('canvas');
         slice.width=canvas.width;
         slice.height=sliceHeight;
