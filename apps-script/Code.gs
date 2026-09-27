@@ -1367,14 +1367,14 @@ function doPost(e) {
         if (user.role === 'Worker' &&
             workerName.toLowerCase() !== String(user.name).trim().toLowerCase()) {
           blocked++;
-          results.push({index:i, date:String(r.date||''), worker:workerName, status:'blocked'});
+          results.push({index:i, date:String(r.date||''), worker:workerName, status:'blocked', reason:'Workers may only submit their own timesheet.'});
           continue;
         }
         // Only the open cycle can be written. Past cycles are closed to
         // everyone except an Admin, who can still fix a mistake.
         if (!isCurrentCycle_(r.date) && user.role !== 'Admin') {
           closed++;
-          results.push({index:i, date:String(r.date||''), worker:workerName, status:'closed'});
+          results.push({index:i, date:String(r.date||''), worker:workerName, status:'closed', reason:'This pay cycle is closed for non-admin users.'});
           continue;
         }
 
