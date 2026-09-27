@@ -90,8 +90,10 @@ setMembershipPermission: function (membershipId, permissionKey, allowed) {
 listPermissionCatalogue: function () { return rest('permissions','select=key,description&order=key.asc',{method:'GET'}); },
 memberships: function () {
   if (!session || !session.user) return Promise.resolve([]);
-  return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=company_id,role:roles(name),companies(name,slug)', { method: 'GET' });
+  return rest('company_memberships', 'user_id=eq.' + encodeURIComponent(session.user.id) + '&active=eq.true&select=id,company_id,role_id,role:roles(name),companies(name,slug)', { method: 'GET' });
 },
+
+listCompanyMemberships: function (companyId) { if (!session || !session.user || !companyId) return Promise.resolve([]); return rest('company_memberships','company_id=eq.'+encodeURIComponent(companyId)+'&select=id,user_id,active,role_id,role:roles(name),profile:profiles(full_name)',{method:'GET'}); },
 
 listPrices: function () {
   return rest(
