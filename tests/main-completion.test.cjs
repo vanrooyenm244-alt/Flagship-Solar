@@ -3,7 +3,7 @@ const baseline='f987198';
 const original=p=>cp.execFileSync('git',['show',baseline+':'+p],{encoding:'utf8'});
 test('main HTML keeps baseline structure plus the intentional Users permission panel',()=>{
  const current=fs.readFileSync('index.html','utf8'),base=original('index.html');
- const normalize=x=>x.replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/g,'').replace(/<div id=["']usrPerms["']><\\/div>/g,'').replace(/Approve accounts, assign roles, reset passwords, and choose exactly which app modules each user may access\\./g,'Approve accounts, assign roles, or reset a password.').replace(/\\s+/g,' ').trim();
+ const normalize=x=>x.replace(new RegExp('<script\\b[^>]*>[\\s\\S]*?<\\/script>','g'),'').replace('<div id="usrPerms"></div>','').replace('Approve accounts, assign roles, reset passwords, and choose exactly which app modules each user may access.','Approve accounts, assign roles, or reset a password.').replace(/\\s+/g,' ').trim();
  assert.equal(normalize(current),normalize(base));
  assert.ok(current.includes('id="usrPerms"'));
 });
