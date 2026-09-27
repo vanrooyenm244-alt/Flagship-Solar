@@ -7,3 +7,5 @@ test('disciplines capture commissioning tests',()=>{for(const x of ['Earth fault
 test('PDF waits for images and protects blocks',()=>{assert.ok(html.includes('img.complete&&img.naturalWidth'));assert.ok(html.includes("querySelectorAll('.rphoto,.rblock,tr,h2')"));});
 
 test('Job Cards upload photos before central Job Card save',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/function jcUploadPhotos_/);assert.match(main,/uploadJobCardPhoto\(copy\.id,blob,blob\.type\)/);assert.match(main,/jcUploadPhotos_\(card\)\.then\(function\(remoteCard\)\{return window\.FlagshipSupabase\.saveJobCard\(remoteCard\);\}\)/);assert.match(main,/photo\.storage=up;photo\.img='storage:'/);});
+
+test('Job Cards hydrate secure central photos for field and PDF views',()=>{const main=fs.readFileSync('index.html','utf8'),client=fs.readFileSync('supabase-client.js','utf8');assert.match(client,/signedJobCardPhotoUrl:/);assert.match(client,/object\/sign\/job-card-photos/);assert.match(main,/function jcHydratePhotos_/);assert.match(main,/signedJobCardPhotoUrl\(v\.storage\.path,3600\)/);assert.match(main,/jcHydratePhotos_\(card\)\.then\(jcImportMissing_\)/);});
