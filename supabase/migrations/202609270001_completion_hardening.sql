@@ -30,4 +30,18 @@ drop policy if exists "job card photo owner read" on storage.objects;
 create policy "job card photo owner upload" on storage.objects for insert to authenticated
   with check (bucket_id='job-card-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "job card photo owner read" on storage.objects for select to authenticated
-  using (bucket_id='job-card-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+  using (
+    bucket_id='job-card-photos'
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or exists (
+        select 1 from public.job_cards c
+        where c.client_id = (storage.foldername(name))[3]
+          and (
+            c.created_by = auth.uid()
+            or (c.job_id is not null and public.can_access_job(c.job_id))
+            or public.has_permission(c.company_id,'job_cards.review')
+          )
+      )
+    )
+  );
