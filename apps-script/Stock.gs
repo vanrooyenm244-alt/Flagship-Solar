@@ -108,13 +108,13 @@ function stockSave_(user, place, counts) {
   all.forEach(function (r) { byName[r.item.toLowerCase()] = r; });
 
   var now = new Date();
-  var changed = 0, unknown = [];
+  var changed = 0, unknown = [], rejected = [];
 
   Object.keys(counts || {}).forEach(function (name) {
     var r = byName[String(name).toLowerCase()];
     if (!r) { unknown.push(name); return; }
     var q = Number(counts[name]);
-    if (isNaN(q) || q < 0) return;
+    if (!isFinite(q) || q < 0 || Math.floor(q)!==q) { rejected.push(name); return; }
     if (r[place] === q) return;
     sh.getRange(r.row, col).setValue(q);
     sh.getRange(r.row, 9).setValue(now);
@@ -126,7 +126,7 @@ function stockSave_(user, place, counts) {
     stockTotals_();
     log_(user.username, 'stockCount', place, '', changed + ' items');
   }
-  return { changed: changed, unknown: unknown };
+  return { changed: changed, unknown: unknown, rejected: rejected };
 }
 
 /** Adds an item nobody had on the list yet. */
@@ -212,7 +212,7 @@ function stockPost_(body) {
   if (body.action === 'stockCount') {
     var u = auth_(body);
     var res = stockSave_(u, String(body.place || ''), body.counts || {});
-    return out_({ ok: true, changed: res.changed, unknown: res.unknown });
+    return out_({ ok: true, changed: res.changed, unknown: res.unknown, rejected: res.rejected });
   }
   if (body.action === 'stockAdd') {
     var u2 = auth_(body, ['Admin', 'Technician']);

@@ -4125,11 +4125,11 @@ document.getElementById('stSend').addEventListener('click',function(){
 
   var sentPlace=ST.place,sentCounts=JSON.parse(JSON.stringify(ST.counts)),owner=ME;
   api({action:'stockCount',place:sentPlace,counts:sentCounts}).then(function(j){
-    if(!Array.isArray(j.unknown)||typeof j.changed!=='number')throw new Error('Invalid stock acknowledgement; counts retained.');
+    if(!Array.isArray(j.unknown)||!Array.isArray(j.rejected)||typeof j.changed!=='number')throw new Error('Invalid stock acknowledgement; counts retained.');
     btn.disabled=false; btn.textContent='Send count';
     /* keep the screen honest: the numbers just sent are now the last count */
     Object.keys(sentCounts).forEach(function(name){
-      if(j.unknown.indexOf(name)>=0)return;
+      if(j.unknown.indexOf(name)>=0||j.rejected.indexOf(name)>=0)return;
       for(var i=0;i<ST.items.length;i++){if(ST.items[i].item===name){ST.items[i][sentPlace]=sentCounts[name];break;}}
       if(ME===owner&&ST.place===sentPlace&&ST.counts[name]===sentCounts[name])delete ST.counts[name];
     });
@@ -4137,6 +4137,7 @@ document.getElementById('stSend').addEventListener('click',function(){
     saveStockDraft();
     var msg=j.changed+(j.changed===1?' item updated':' items updated');
     if(j.unknown && j.unknown.length) msg+=', '+j.unknown.length+' not on the list';
+    if(j.rejected && j.rejected.length) msg+=', '+j.rejected.length+' invalid count'+(j.rejected.length===1?'':'s')+' kept for correction';
     alert(msg+'.');
     renderPlaces(); renderStock();
   }).catch(function(e){
