@@ -15,3 +15,9 @@ test('all PWA shell files exist',()=>{const shell=vm.runInNewContext(fs.readFile
 function adapter(rows){let posted;const ctx={window:{FLAGSHIP_SUPABASE_CONFIG:{url:'https://test.supabase.co',anonKey:'test-only'}},fetch:async(url,options)=>{posted={url,options};return {ok:true,status:200,json:async()=>rows};}};vm.runInNewContext(fs.readFileSync('supabase-client.js','utf8'),ctx);return {api:ctx.window.FlagshipSupabase,get posted(){return posted;}};}
 test('Supabase requires exact returned card and correct projection',async()=>{const row={id:'remote',client_id:'card',data:{id:'card',updated:123},status:'DRAFT'};const a=adapter([row]);await a.api.restore({access_token:'test',user:{id:'test-user'}});const saved=await a.api.saveJobCard({id:'card'});assert.match(a.posted.url,/select=\*/);assert.equal(saved.updated,123);assert.equal(saved.remote_id,'remote');assert.equal(row.data.remote_id,undefined);});
 test('Supabase missing or mismatched acknowledgement rejects',async()=>{for(const rows of [[],[{client_id:'wrong',data:{}}]]){const a=adapter(rows);await a.api.restore({access_token:'test',user:{id:'test-user'}});await assert.rejects(a.api.saveJobCard({id:'card'}),/acknowledgement/);}});
+test('publishable API key is not sent as bearer; signed-in JWT still is',async()=>{
+ const requests=[],ctx={window:{FLAGSHIP_SUPABASE_CONFIG:{url:'https://test.supabase.co',anonKey:'sb_publishable_testonly'}},fetch:async(url,options)=>{requests.push(options.headers);return {ok:true,status:200,json:async()=>url.endsWith('/user')?{id:'u'}:[]};}};
+ vm.runInNewContext(fs.readFileSync('supabase-client.js','utf8'),ctx);
+ await ctx.window.FlagshipSupabase.listPrices();assert.equal(requests[0].apikey,'sb_publishable_testonly');assert.equal(requests[0].Authorization,undefined);
+ await ctx.window.FlagshipSupabase.restore({access_token:'user-jwt',user:{id:'u'}});assert.equal(requests[1].Authorization,'Bearer user-jwt');
+});

@@ -10,7 +10,11 @@
   var session = null;
 
   function headers(extra) {
-    var h = { apikey: key, Authorization: 'Bearer ' + (session && session.access_token || key) };
+    var h = { apikey: key };
+    // Publishable keys identify the app; only JWTs belong in Authorization.
+    var token = session && session.access_token;
+    if (token) h.Authorization = 'Bearer ' + token;
+    else if (key.indexOf('sb_publishable_') !== 0) h.Authorization = 'Bearer ' + key;
     Object.keys(extra || {}).forEach(function (name) { h[name] = extra[name]; });
     return h;
   }
