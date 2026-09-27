@@ -149,10 +149,17 @@ listPrices: function () {
     },
     uploadJobCardPhoto: function (jobCardId, file, contentType) {
       if (!session || !session.user) return Promise.reject(new Error('Sign in to upload photos.'));
-      var name = encodeURIComponent(session.user.id) + '/job-cards/' + encodeURIComponent(jobCardId) + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.jpg';
+      var ext=(contentType||file.type||'image/jpeg').split('/')[1]||'jpg';if(ext==='jpeg')ext='jpg';
+      var name = encodeURIComponent(session.user.id) + '/job-cards/' + encodeURIComponent(jobCardId) + '/' + Date.now() + '-' + Math.random().toString(36).slice(2) + '.' + ext;
       return request('/storage/v1/object/job-card-photos/' + name, {
-        method: 'POST', headers: { 'Content-Type': contentType || 'image/jpeg', 'x-upsert': 'false' }, body: file
+        method: 'POST', headers: { 'Content-Type': contentType || file.type || 'image/jpeg', 'x-upsert': 'false' }, body: file
       }).then(function () { return { bucket: 'job-card-photos', path: name }; });
+    },
+    signedJobCardPhotoUrl: function (path, expiresIn) {
+      if (!session || !session.user || !path) return Promise.reject(new Error('Sign in to view photos.'));
+      return request('/storage/v1/object/sign/job-card-photos/' + path, {
+        method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expiresIn:expiresIn||3600})
+      }).then(function(x){var u=x&&x.signedURL;if(!u)throw new Error('Missing signed photo URL.');return u.indexOf('http')===0?u:base+'/storage/v1'+u;});
     }
   };
 })(window);
