@@ -923,9 +923,7 @@ table.page{border-collapse:collapse}
 <div class="wrap hidden" id="screenAdmin">
   <section class="sheet">
     <div class="sheet-head"><h2>Users</h2><button class="btn ghost" type="button" id="usrRefresh" style="margin-left:auto">Refresh</button></div>
-    <p class="hint">Approve accounts, assign roles, reset passwords, and choose exactly which app modules each user may access.</p>
-    <div id="usrPerms"></div>
-    <div id="usrList"></div>
+    <p class="hint">Approve accounts, assign roles, reset passwords, and choose exactly which app modules each user may access.</p>\n    <div id="usrPerms"></div>\n    <div id="usrList"></div>
   </section>
 </div>
 
@@ -1405,10 +1403,8 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return
    render. Store plain text; escape exactly once on the way back in. */
 function htmlToText(h){
   var s = String(h==null?'':h)
-    .replace(/<br\s*\/?>/gi,'
-')
-    .replace(/<\/?(div|p|li|h[1-6]|tr)\b[^>]*>/gi,'
-')
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<\/?(div|p|li|h[1-6]|tr)\b[^>]*>/gi,'\n')
     .replace(/<[^>]*>/g,'');
   var ta = document.createElement('textarea');
   /* decode repeatedly so already-double-escaped old jobs come back clean */
@@ -1416,15 +1412,9 @@ function htmlToText(h){
     ta.innerHTML = s; s = ta.value;
   }
   return s.replace(/\u00a0/g,' ').replace(/[ \t]+$/gm,'')
-          .replace(/
-{3,}/g,'
-
-').replace(/^
-+/,'').replace(/
-+$/,'');
+          .replace(/\n{3,}/g,'\n\n').replace(/^\n+/,'').replace(/\n+$/,'');
 }
-function textToHtml(t){ return esc(t).replace(/
-/g,'<br>'); }
+function textToHtml(t){ return esc(t).replace(/\n/g,'<br>'); }
 function setText(el,t){ el.innerHTML = textToHtml(t); }
 
 var slotSeq = 0;
@@ -1585,8 +1575,7 @@ var CAL_DATE=new Date(), CAL_ALL=false;
 function calPad_(n){return String(n).padStart(2,'0');}
 function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
 function calEsc_(x){return esc(x||'');}
-function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !!n && String(e.technician||'').toLowerCase().split(/[,;
-]+/).some(function(name){return name.trim()===n.trim();});}
+function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !!n && String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
 function showCalendar(){if(!hasPermission_('calendar.view')){showHome();return;}backTo='screenHome';show('screenCalendar');calRender_();if(CFG.url)apiGet({action:'calendar'}).then(function(j){var ev=Array.isArray(j.events)?j.events:[];return Promise.all(ev.map(function(e){return get1('calendar',e.id).then(function(local){if(!local||Number(e.updatedAt||0)>=Number(local.updatedAt||0)){e.approvalStatus='APPROVED';e.source='server';return put('calendar',e);}});}));}).then(calRender_).catch(function(){});}
 function calRender_(){
   getAll('calendar').then(function(items){
@@ -1683,8 +1672,7 @@ function jcBlank(){
   var d=new Date(), ds=d.getFullYear()+'-'+pad2_(d.getMonth()+1)+'-'+pad2_(d.getDate());
   return {id:'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),number:'JC-'+ds.replace(/-/g,'')+'-'+String(Date.now()).slice(-4),customer:'',site:'',date:ds,technicians:ME?ME.name:'',types:[],status:'DRAFT',signature:'',signatureName:'',signedAt:'',created:Date.now(),updated:Date.now(),sections:{descale:{},plug:{},firmware:{},coc:{},fullsolar:{},solarservice:{},generator:{},panels:{},electrical:{},heatpump:{},gas:{},plumbing:{},fault:{},custom:{items:[]}}};
 }
-function jcEscLines_(s){ return esc(String(s==null?'':s)).replace(/
-/g,'<br>'); }
+function jcEscLines_(s){ return esc(String(s==null?'':s)).replace(/\n/g,'<br>'); }
 function jcGet_(obj,path){ var a=path.split('.'),x=obj; for(var i=0;i<a.length;i++) x=x&&x[a[i]]; return x==null?'':x; }
 function jcSet_(obj,path,val){ var a=path.split('.'),x=obj; for(var i=0;i<a.length-1;i++){if(!x[a[i]])x[a[i]]={};x=x[a[i]];} x[a[a.length-1]]=val; }
 function jcHas_(id){return JC&&JC.types.indexOf(id)>=0;}
@@ -1859,9 +1847,7 @@ function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appb
     if(t==='descale')html+='<div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.location,s.before,s.after]);
     if(t==='plug')html+='<div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.before,s.after]);
     if(t==='firmware')html+='<div class="rmeta"><div><b>Firmware</b><br>'+esc(s.version||'—')+'</div></div><div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.photo]);
-    if(t==='coc'){html+='<div class="rmeta"><div><b>Inverter serial</b><br>'+esc(s.inverterSerial||'—')+'</div><div><b>Battery serial</b><br>'+esc(s.batterySerial||'—')+'</div></div><h2>Measurements</h2><table><tr><th>Measurement</th><th>Value</th></tr>'+[['Live → Neutral','ln'],['Neutral → Earth','ne'],['Live → Earth','le'],['Panels DC Voltage','dc'],['DC Disconnect — Fuse size','fuse']].map(function(a){return '<tr><td>'+a[0]+'</td><td>'+esc(s[a[1]]||'—')+'</td></tr>';}).join('')+'</table><h2>Snags / Damages</h2><div class="rblock"><b>Snags:</b> '+jcEscLines_(s.snags||'—')+'
-
-<b>Damages:</b> '+jcEscLines_(s.damages||'—')+'</div>'+jcReportPhotos_([s.roof,s.inverterwall,s.dbBefore,s.changeover,s.earthNeutral,s.dbAfter,s.railEarth,s.roofRoute,s.damagePhoto,s.fusePhoto]);}
+    if(t==='coc'){html+='<div class="rmeta"><div><b>Inverter serial</b><br>'+esc(s.inverterSerial||'—')+'</div><div><b>Battery serial</b><br>'+esc(s.batterySerial||'—')+'</div></div><h2>Measurements</h2><table><tr><th>Measurement</th><th>Value</th></tr>'+[['Live → Neutral','ln'],['Neutral → Earth','ne'],['Live → Earth','le'],['Panels DC Voltage','dc'],['DC Disconnect — Fuse size','fuse']].map(function(a){return '<tr><td>'+a[0]+'</td><td>'+esc(s[a[1]]||'—')+'</td></tr>';}).join('')+'</table><h2>Snags / Damages</h2><div class="rblock"><b>Snags:</b> '+jcEscLines_(s.snags||'—')+'\n\n<b>Damages:</b> '+jcEscLines_(s.damages||'—')+'</div>'+jcReportPhotos_([s.roof,s.inverterwall,s.dbBefore,s.changeover,s.earthNeutral,s.dbAfter,s.railEarth,s.roofRoute,s.damagePhoto,s.fusePhoto]);}
     if(t==='custom')(s.items||[]).forEach(function(it,i){html+='<div class="rblock"><b>Item '+(i+1)+'</b> — '+jcEscLines_(it.description||'')+'</div>'+jcReportPhotos_([it.photo]);});
     if(['fullsolar','solarservice','generator','electrical','heatpump','gas','plumbing','fault'].indexOf(t)>=0){var skip={evidence:1};Object.keys(s).forEach(function(k){if(skip[k]||!s[k]||typeof s[k]==='object')return;html+='<div class="rblock"><b>'+esc(k.replace(/([A-Z])/g,' $1').replace(/^./,function(x){return x.toUpperCase();}))+'</b><br>'+jcEscLines_(s[k])+'</div>';});}
     (s.evidence||[]).forEach(function(it,i){if(it.note)html+='<div class="rblock"><b>Site evidence '+(i+1)+'</b><br>'+jcEscLines_(it.note)+'</div>';html+=jcReportPhotos_([it.photo]);});
@@ -2526,10 +2512,8 @@ function csvRows_(text){
       if(q && n==='"'){ cell+='"'; i++; }
       else q=!q;
     } else if(c===',' && !q){ row.push(cell); cell=''; }
-    else if((c==='
-'||c==='\r') && !q){
-      if(c==='\r' && n==='
-') i++;
+    else if((c==='\n'||c==='\r') && !q){
+      if(c==='\r' && n==='\n') i++;
       row.push(cell); cell='';
       if(row.some(function(x){return String(x).trim()!=='';})) rows.push(row);
       row=[];
@@ -2812,18 +2796,12 @@ function openPriceUpdater_(){
 function applyPriceUpdate_(){
   if(!PU_PREVIEW || !PU_PREVIEW.changes.length) return;
   var n=PU_PREVIEW.changes.length;
-  if(!confirm('Update '+n+' supplier prices in the Prices tab?
-
-Stock, quantities and quotes will not be changed.')) return;
+  if(!confirm('Update '+n+' supplier prices in the Prices tab?\n\nStock, quantities and quotes will not be changed.')) return;
   var b=document.getElementById('puApply'); if(!b) return;
   b.disabled=true; b.textContent='Updating…';
   var updates=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
   api({action:'updatePriceList',updates:updates,source:PU_FILE?PU_FILE.name:''}).then(function(j){
-    alert('Price update complete.
-
-Cost prices updated: '+(j.updated||0)+'
-Unchanged: '+(j.unchanged||0)+'
-Not found: '+(j.notFound||0));
+    alert('Price update complete.\n\nCost prices updated: '+(j.updated||0)+'\nUnchanged: '+(j.unchanged||0)+'\nNot found: '+(j.notFound||0));
     PU_FILE=null; PU_ROWS=[]; PU_PREVIEW=null; loadPrices(); renderPriceUpdater_();
   }).catch(function(e){
     b.disabled=false; b.textContent='Update Prices';
@@ -3077,61 +3055,36 @@ function renderForm(){
    panels add up to, not a number you have to work out on a roof. */
 var VP=null, VPID=null, VPTIMER=null, PCACHE=[];
 
-var VP_INCL='Volledige installasie
-'+
-  'Omsetter- en batterykommissionering
-'+
-  'Dakstruktuur en waterdigting
-'+
-  'DC- en AC-beskerming
-'+
-  'Certificate of Compliance
-'+
+var VP_INCL='Volledige installasie\n'+
+  'Omsetter- en batterykommissionering\n'+
+  'Dakstruktuur en waterdigting\n'+
+  'DC- en AC-beskerming\n'+
+  'Certificate of Compliance\n'+
   'Inbedryfstelling en oorhandiging';
-var VP_EXCL='Dakherstel of versterking, indien nodig
-'+
-  'Opgradering van \'n nie-voldoenende hoofbord
-'+
+var VP_EXCL='Dakherstel of versterking, indien nodig\n'+
+  'Opgradering van \'n nie-voldoenende hoofbord\n'+
   'Graafwerk of siviele werk verder';
-var VP_STEPS='Julle bevestig die voorstel.
-'+
-  'Ons finaliseer die kwotasie en die installasiedatum.
-'+
-  'Installasie en inbedryfstelling.
-'+
+var VP_STEPS='Julle bevestig die voorstel.\n'+
+  'Ons finaliseer die kwotasie en die installasiedatum.\n'+
+  'Installasie en inbedryfstelling.\n'+
   'CoC uitgereik en die stelsel oorhandig.';
-var VP_TERMS='80% deposito is betaalbaar om die installasiedatum te verseker en toerustingkoste te dek. Die balans is betaalbaar met voltooiing.
-'+
-  'Installasiedatums word op ’n eerste-kom-eerste-bedien-basis bevestig sodra die deposito ontvang is.
-'+
-  'Die kwotasie sluit slegs die toerusting en werk in wat spesifiek vermeld word. Enige addisionele werk of materiaal word afsonderlik gekwoteer en vereis bestuur se goedkeuring.
-'+
-  'Kliënte mag nie Flagship Solar-werknemers opdrag gee om werk buite die goedgekeurde omvang uit te voer nie.
-'+
-  'Installasie is onderhewig aan veilige toegang en geskikte terrein-/installasievoorwaardes. Bestaande of onvoorsiene elektriese, strukturele of dakprobleme kan addisionele koste meebring.
-'+
-  'Toerusting word deur die vervaardiger se waarborg gedek. Waarborg-oproepe en arbeid kan afsonderlik gehef word.
-'+
-  'Sonkragproduksie en elektrisiteitsbesparing is ramings en word nie gewaarborg nie, aangesien dit afhanklik is van onder andere weer, skaduwee, verbruik en ander eksterne faktore.
-'+
-  'Vertragings weens weer, verskaffers, munisipale vereistes, kragonderbrekings of omstandighede buite ons beheer kan die installasiedatum beïnvloed.
-'+
+var VP_TERMS='80% deposito is betaalbaar om die installasiedatum te verseker en toerustingkoste te dek. Die balans is betaalbaar met voltooiing.\n'+
+  'Installasiedatums word op ’n eerste-kom-eerste-bedien-basis bevestig sodra die deposito ontvang is.\n'+
+  'Die kwotasie sluit slegs die toerusting en werk in wat spesifiek vermeld word. Enige addisionele werk of materiaal word afsonderlik gekwoteer en vereis bestuur se goedkeuring.\n'+
+  'Kliënte mag nie Flagship Solar-werknemers opdrag gee om werk buite die goedgekeurde omvang uit te voer nie.\n'+
+  'Installasie is onderhewig aan veilige toegang en geskikte terrein-/installasievoorwaardes. Bestaande of onvoorsiene elektriese, strukturele of dakprobleme kan addisionele koste meebring.\n'+
+  'Toerusting word deur die vervaardiger se waarborg gedek. Waarborg-oproepe en arbeid kan afsonderlik gehef word.\n'+
+  'Sonkragproduksie en elektrisiteitsbesparing is ramings en word nie gewaarborg nie, aangesien dit afhanklik is van onder andere weer, skaduwee, verbruik en ander eksterne faktore.\n'+
+  'Vertragings weens weer, verskaffers, munisipale vereistes, kragonderbrekings of omstandighede buite ons beheer kan die installasiedatum beïnvloed.\n'+
   'Deur hierdie voorstel te aanvaar en die deposito te betaal, bevestig die kliënt dat hulle hierdie Terme & Voorwaardes aanvaar.';
 
-var VP_SCOPE='Ons werk begin by die verdeelbord (DB) wat deur die omsetter gevoed word. Bestaande bedrading, kringe en toerusting agter daardie bord val buite hierdie omvang en word nie getoets of gesertifiseer nie.
-'+
-  'Installasie van die omsetter, battery en panele, insluitend die dakstruktuur en waterdigting by die punte waar ons deurdring.
-'+
-  'Alle DC- en AC-bedrading tussen die panele, omsetter, battery en verdeelbord, met die nodige beskerming en isolasie. Elke DC-string sluit tot 30 meter kabel in. Die skakelbord maak voorsiening vir ongeveer 5 meter vanaf die omsetter na die bord, en 5 meter vanaf die bord na die hoof-DB. Langer roetes word as installasiemateriaal gekwoteer.
-'+
-  'Hierdie kwotasie is vir enkelverdieping-dakke teen normale helling. Dubbelverdieping, steil of moeilik bereikbare dakke waar valbeskerming nodig is, word afsonderlik gekwoteer.
-'+
-  'Die verwydering of wegdoening van bestaande toerusting is nie ingesluit nie. Ons verwyder ons eie verpakking en afval van die installasie.
-'+
-  'Inbedryfstelling en oorhandiging — ons stel die stelsel en die moniteringsapp op, en wys een keer aan die persoon op die perseel hoe dit werk.
-'+
-  'Die Sertifikaat van Voldoening (CoC) wat ons uitreik dek slegs die sonkraginstallasie. Dit is nie ’n CoC vir die eiendom se bestaande elektriese installasie nie.
-'+
+var VP_SCOPE='Ons werk begin by die verdeelbord (DB) wat deur die omsetter gevoed word. Bestaande bedrading, kringe en toerusting agter daardie bord val buite hierdie omvang en word nie getoets of gesertifiseer nie.\n'+
+  'Installasie van die omsetter, battery en panele, insluitend die dakstruktuur en waterdigting by die punte waar ons deurdring.\n'+
+  'Alle DC- en AC-bedrading tussen die panele, omsetter, battery en verdeelbord, met die nodige beskerming en isolasie. Elke DC-string sluit tot 30 meter kabel in. Die skakelbord maak voorsiening vir ongeveer 5 meter vanaf die omsetter na die bord, en 5 meter vanaf die bord na die hoof-DB. Langer roetes word as installasiemateriaal gekwoteer.\n'+
+  'Hierdie kwotasie is vir enkelverdieping-dakke teen normale helling. Dubbelverdieping, steil of moeilik bereikbare dakke waar valbeskerming nodig is, word afsonderlik gekwoteer.\n'+
+  'Die verwydering of wegdoening van bestaande toerusting is nie ingesluit nie. Ons verwyder ons eie verpakking en afval van die installasie.\n'+
+  'Inbedryfstelling en oorhandiging — ons stel die stelsel en die moniteringsapp op, en wys een keer aan die persoon op die perseel hoe dit werk.\n'+
+  'Die Sertifikaat van Voldoening (CoC) wat ons uitreik dek slegs die sonkraginstallasie. Dit is nie ’n CoC vir die eiendom se bestaande elektriese installasie nie.\n'+
   'Enige werk buite bogenoemde word afsonderlik gekwoteer en eers na skriftelike goedkeuring gedoen.';
 
 
@@ -3175,60 +3128,35 @@ var EN_LABELS={
   a_sig:'Signature',
   a_date:'Date'
 };
-var EN_INCL='Full installation
-'+
-    'Inverter and battery commissioning
-'+
-    'Roof structure and waterproofing
-'+
-    'DC and AC protection
-'+
-    'Certificate of Compliance (SANS 10142-1)
-'+
+var EN_INCL='Full installation\n'+
+    'Inverter and battery commissioning\n'+
+    'Roof structure and waterproofing\n'+
+    'DC and AC protection\n'+
+    'Certificate of Compliance (SANS 10142-1)\n'+
     'Commissioning and handover';
-var EN_EXCL='Roof repair or strengthening, if required
-'+
-    'Upgrading a non-compliant main board
-'+
+var EN_EXCL='Roof repair or strengthening, if required\n'+
+    'Upgrading a non-compliant main board\n'+
     'Trenching or civil work beyond 20 m';
-var EN_STEPS='You confirm the proposal.
-'+
-    'We finalise the quotation and the installation date.
-'+
-    'Installation and commissioning.
-'+
+var EN_STEPS='You confirm the proposal.\n'+
+    'We finalise the quotation and the installation date.\n'+
+    'Installation and commissioning.\n'+
     'CoC issued and the system handed over.';
-var EN_TERMS='A 80% deposit is payable to secure the installation date and cover equipment costs. The balance is payable on completion.
-'+
-    'Installation dates are confirmed on a first-come, first-served basis once the deposit is received.
-'+
-    'This quotation covers only the equipment and work specifically listed. Any additional work or material is quoted separately and requires management approval.
-'+
-    'Clients may not instruct Flagship Solar employees to carry out work outside the approved scope.
-'+
-    'Installation is subject to safe access and suitable site and installation conditions. Existing or unforeseen electrical, structural or roof problems may add cost.
-'+
-    'Equipment is covered by the manufacturer\'s warranty. Warranty call-outs and labour may be charged separately.
-'+
-    'Solar production and electricity savings are estimates and are not guaranteed, as they depend on weather, shading, consumption and other external factors.
-'+
-    'Delays caused by weather, suppliers, municipal requirements, power outages or circumstances beyond our control may affect the installation date.
-'+
+var EN_TERMS='A 80% deposit is payable to secure the installation date and cover equipment costs. The balance is payable on completion.\n'+
+    'Installation dates are confirmed on a first-come, first-served basis once the deposit is received.\n'+
+    'This quotation covers only the equipment and work specifically listed. Any additional work or material is quoted separately and requires management approval.\n'+
+    'Clients may not instruct Flagship Solar employees to carry out work outside the approved scope.\n'+
+    'Installation is subject to safe access and suitable site and installation conditions. Existing or unforeseen electrical, structural or roof problems may add cost.\n'+
+    'Equipment is covered by the manufacturer\'s warranty. Warranty call-outs and labour may be charged separately.\n'+
+    'Solar production and electricity savings are estimates and are not guaranteed, as they depend on weather, shading, consumption and other external factors.\n'+
+    'Delays caused by weather, suppliers, municipal requirements, power outages or circumstances beyond our control may affect the installation date.\n'+
     'By accepting this proposal and paying the deposit, the client confirms acceptance of these Terms & Conditions.';
-var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter. Existing wiring, circuits and equipment behind that board fall outside this scope and are not tested or certified.
-'+
-    'Installation of the inverter, battery and panels, including the roof structure and waterproofing at the points where we penetrate.
-'+
-    'All DC and AC wiring between the panels, inverter, battery and distribution board, with the required protection and isolation. Each DC string includes up to 30 metres of cable. The changeover board allows for approximately 5 metres from the inverter to the board, and 5 metres from the board to the main DB. Longer routes are quoted as installation material.
-'+
-    'This quotation is for single-storey roofs at normal pitch. Double-storey, steep or difficult-access roofs requiring fall protection are quoted separately.
-'+
-    'Removal or disposal of existing equipment is not included. We remove our own packaging and installation waste.
-'+
-    'Commissioning and handover — we set up the system and the monitoring app, and demonstrate once to the person on site how it works.
-'+
-    'The Certificate of Compliance (CoC) we issue covers the solar installation only. It is not a CoC for the property\'s existing electrical installation.
-'+
+var EN_SCOPE='Our work begins at the distribution board (DB) fed by the inverter. Existing wiring, circuits and equipment behind that board fall outside this scope and are not tested or certified.\n'+
+    'Installation of the inverter, battery and panels, including the roof structure and waterproofing at the points where we penetrate.\n'+
+    'All DC and AC wiring between the panels, inverter, battery and distribution board, with the required protection and isolation. Each DC string includes up to 30 metres of cable. The changeover board allows for approximately 5 metres from the inverter to the board, and 5 metres from the board to the main DB. Longer routes are quoted as installation material.\n'+
+    'This quotation is for single-storey roofs at normal pitch. Double-storey, steep or difficult-access roofs requiring fall protection are quoted separately.\n'+
+    'Removal or disposal of existing equipment is not included. We remove our own packaging and installation waste.\n'+
+    'Commissioning and handover — we set up the system and the monitoring app, and demonstrate once to the person on site how it works.\n'+
+    'The Certificate of Compliance (CoC) we issue covers the solar installation only. It is not a CoC for the property\'s existing electrical installation.\n'+
     'Any work outside the above is quoted separately and carried out only after written approval.';
 
 var AF_LABELS=null;   /* filled from the markup the first time we swap */
@@ -3960,8 +3888,7 @@ function xeroCreateQuote_(){
     if(QB!==submittedQuote){alert('Quote created in Xero: '+(j.quoteNumber||j.quoteID)+'. The newer local draft was left unchanged.');return;}
     QB.xeroQuote={quoteID:j.quoteID,quoteNumber:j.quoteNumber};qbSave();
     document.getElementById('qbStatus').innerHTML='<div class="calc"><b>Xero quote created:</b> '+esc(j.quoteNumber||'')+'<br><span class="qbmeta">Xero Quote ID: '+esc(j.quoteID||'')+'</span></div>';
-  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e)+'
-Check Xero before retrying: the quote may have been created even if the response was lost.');});
+  }).catch(function(e){btn.disabled=false;btn.textContent='Create quote in Xero';alert('Xero: '+String(e.message||e)+'\nCheck Xero before retrying: the quote may have been created even if the response was lost.');});
 }
 ['qbClient','qbTitle','qbRef','qbExpiry'].forEach(function(id){document.getElementById(id).addEventListener('input',function(){QB[{qbClient:'client',qbTitle:'title',qbRef:'ref',qbExpiry:'expiry'}[id]]=this.value;qbSave();});});
 document.getElementById('qbSearch').addEventListener('input',qbRenderResults);
@@ -4195,9 +4122,7 @@ document.getElementById('stSend').addEventListener('click',function(){
   var n=Object.keys(ST.counts).length;
   if(!n){ alert('Nothing counted yet.'); return; }
   if(!confirm('Send '+n+(n===1?' item':' items')+' for '+ST.place+'?'+
-    '
-
-Only '+ST.place+' is written. The other places are left alone.')) return;
+    '\n\nOnly '+ST.place+' is written. The other places are left alone.')) return;
 
   var btn=document.getElementById('stSend');
   btn.disabled=true; btn.textContent='Sending\u2026';
@@ -4223,9 +4148,7 @@ Only '+ST.place+' is written. The other places are left alone.')) return;
   }).catch(function(e){
     btn.disabled=false; btn.textContent='Send count';
     alert('Could not send \u2014 '+String(e.message||e)+
-      '
-
-What you counted is still on this phone. Try again with signal.');
+      '\n\nWhat you counted is still on this phone. Try again with signal.');
   });
 });
 
@@ -4730,9 +4653,7 @@ document.getElementById('tsAddWorker').addEventListener('click',function(){
 document.getElementById('tsClearAll').addEventListener('click',function(){
   var n=collectAll().length;
   if(!n){ alert('Nothing filled in for this cycle.'); return; }
-  if(!confirm('Clear all '+n+' entries for '+cycleLabel(CYCLE)+'?
-
-This only clears what is on this phone. Anything already sent stays in the sheet.')) return;
+  if(!confirm('Clear all '+n+' entries for '+cycleLabel(CYCLE)+'?\n\nThis only clears what is on this phone. Anything already sent stays in the sheet.')) return;
   ENTRIES={};
   saveEntries().catch(tsError_);
   OPEN=null;
