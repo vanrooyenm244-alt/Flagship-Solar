@@ -23,3 +23,6 @@ test('generated staging backend parses and guards both entry points',()=>{const 
 test('staging backend refuses production and backup Sheet identities',()=>{for(const id of ['1OtZIGMbX-mdaANNI9R8Ly9yFWlsYnME76eUCPCfD55w','16sY-6D4pqj_aXjv8zzw4nUP1IOnG5QHhYfscuG5LIBI'])assert.throws(()=>guard(id)('timesheets'),/identity mismatch/);});
 test('staging backend refuses copied external credentials',()=>{for(const key of ['XERO_REFRESH_TOKEN','SUPABASE_SERVICE_ROLE_KEY'])assert.throws(()=>guard(STAGING_SHEET,{[key]:'fixture'})('me'),/credentials must be absent/);});
 test('staging blocks Xero writes and connection setup but permits status',()=>{const g=guard();for(const action of ['xeroCreateQuote','xeroCreateContact','xeroStart','xeroCallback','xeroSetConfig','proposalSendToXero'])assert.throws(()=>g(action),/disabled/);g('xeroStatus');g('timesheets');g('jobCardSave');});
+
+test('PWA cache version advances with completion field release',()=>{const sw=fs.readFileSync('sw.js','utf8');assert.match(sw,/flagship-completion-v88/);});
+test('PWA manifest exposes field workflow shortcuts',()=>{const m=JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));const urls=m.shortcuts.map(x=>x.url);assert.ok(urls.includes('./#inspection'));assert.ok(urls.includes('./#jobcards'));assert.ok(urls.includes('./#calendar'));});
