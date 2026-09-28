@@ -727,6 +727,9 @@ table.page{border-collapse:collapse}
   body.jcprinting .jc-report .rphoto img{width:auto;height:auto;max-width:100%;max-height:80mm}
 }
 
+
+.jc-tabs{display:flex;gap:4px;border-bottom:1px solid #d8dee6;margin:0 0 16px;overflow:auto}.jc-tabs button{border:0;background:transparent;padding:11px 14px;font-weight:700;color:#667085;border-bottom:3px solid transparent;white-space:nowrap}.jc-tabs button.on{color:#0877d1;border-bottom-color:#0877d1}.jc-photo-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.jc-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.jc-gallery .gphoto{position:relative;border:1px solid #d8dee6;border-radius:10px;overflow:hidden;background:#f5f7fa;aspect-ratio:1/1}.jc-gallery .gphoto img{width:100%;height:100%;object-fit:cover;display:block}.jc-gallery .gcap{position:absolute;left:0;right:0;bottom:0;padding:5px 7px;background:rgba(0,0,0,.58);color:#fff;font-size:10px}.jc-viewer{position:fixed;inset:0;background:#000;z-index:9999;display:flex;align-items:center;justify-content:center}.jc-viewer img{max-width:100%;max-height:100%;object-fit:contain}.jc-viewer button{position:absolute;top:18px;right:18px;border:0;border-radius:50%;width:42px;height:42px;font-size:28px;background:rgba(255,255,255,.9)}
+@media(max-width:650px){.jc-gallery{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
   <!-- Optional, public-key-only Supabase adapter. The configuration file is
        intentionally not committed; without it existing offline/Sheets flows remain available. -->
@@ -839,7 +842,7 @@ table.page{border-collapse:collapse}
     <div id="calGrid"></div>
     <div id="calForm" class="hidden" style="margin-top:15px;border-top:1px solid #ddd;padding-top:15px">
       <h3>Schedule Job</h3>
-      <div class="jc-grid2">
+      <div id="jcDetailsPane"><div class="jc-grid2">
         <div class="jc-field"><label>Customer</label><input id="calCustomer" placeholder="Customer name"></div>
         <div class="jc-field"><label>Site / Address</label><input id="calSite" placeholder="Site or address"></div>
         <div class="jc-field"><label>Date</label><input id="calDate" type="date"></div>
@@ -870,6 +873,7 @@ table.page{border-collapse:collapse}
 <div class="wrap hidden" id="screenJobCard">
   <div class="jc-editor">
     <section class="sheet">
+      <div class="jc-tabs" id="jcTabs"><button type="button" class="on" data-jc-tab="details">Details</button><button type="button" data-jc-tab="photos">Photos <span id="jcPhotoTabCount"></span></button><button type="button" data-jc-tab="pdf">PDF</button></div>
       <div class="sheet-head"><h2>Job Card <span id="jcNoHead"></span></h2><span id="jcStatusHead" class="jc-status">Draft</span></div>
       <div class="jc-grid2">
         <div class="jc-field"><label>Customer</label><input id="jcCustomer" placeholder="Customer name"></div>
@@ -879,7 +883,9 @@ table.page{border-collapse:collapse}
       </div>
       <h3>What are we installing / doing today?</h3>
       <div class="jc-types" id="jcTypes"></div>
-      <div id="jcSections"></div>
+      <div id="jcSections"></div></div>
+      <div id="jcPhotosPane" class="hidden"><div class="jc-photo-head"><h3>Photos</h3><button class="btn" type="button" id="jcAddPhotos">+ Add Photos</button><input class="hidden" id="jcAddPhotosInput" type="file" accept="image/*" multiple></div><p class="hint">All job photos in one place. Tap a photo to view it full screen.</p><div id="jcPhotoGallery" class="jc-gallery"></div></div>
+      <div id="jcPdfPane" class="hidden"><h3>PDF report</h3><p class="hint">Generate or share the current professional Job Card report.</p><button class="btn" type="button" onclick="jcGeneratePdf_()">Generate PDF</button> <button class="btn ghost" type="button" onclick="jcSharePdf_()">Share PDF</button></div>
       <div class="jc-row-actions">
         <button class="btn ghost" id="jcSave" type="button">Save</button>
         <button class="btn" id="jcSubmit" type="button">Submit Job Card</button>
@@ -1770,7 +1776,11 @@ function jcSaveLocal_(card,noSync){
     return true;
   }).catch(function(e){jcMessage_(snapshot,'NOT SAVED: '+String(e.message||e)+'. Export a PDF.');return false;});
 }
-function jcRenderAll_(){if(!JC)return;document.getElementById('jcNoHead').textContent=JC.number||'';document.getElementById('jcCustomer').value=JC.customer||'';document.getElementById('jcSite').value=JC.site||'';document.getElementById('jcDate').value=JC.date||'';document.getElementById('jcTechs').value=JC.technicians||'';jcRenderTypes_();jcRenderSections_();jcInitSignature_();var h=document.getElementById('jcStatusHead');h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();h.className='jc-status '+JC.status.toLowerCase();jcRenderReport_();}
+function jcAllPhotos_(){var out=[];if(!JC)return out;function walk(x,label){if(!x||typeof x!=='object')return;if(x.img)out.push({photo:x,label:x.cap||label||'Job photo'});Object.keys(x).forEach(function(k){if(k!=='img'&&k!=='storage'&&k!=='cap')walk(x[k],k);});}walk(JC.sections,'');return out;}
+function jcShowTab_(name){['details','photos','pdf'].forEach(function(n){var p=document.getElementById('jc'+n.charAt(0).toUpperCase()+n.slice(1)+'Pane');if(p)p.classList.toggle('hidden',n!==name);});document.querySelectorAll('#jcTabs [data-jc-tab]').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-jc-tab')===name);});if(name==='photos')jcRenderGallery_();}
+function jcRenderGallery_(){var box=document.getElementById('jcPhotoGallery'),a=jcAllPhotos_(),c=document.getElementById('jcPhotoTabCount');if(c)c.textContent='('+a.length+')';if(!box)return;box.innerHTML=a.length?a.map(function(x,i){return '<button type="button" class="gphoto" data-jc-view="'+i+'"><img src="'+x.photo.img+'" alt=""><span class="gcap">'+esc(x.label)+'</span></button>';}).join(''):'<div class="empty-state">No photos yet. Add site photos above.</div>';box.querySelectorAll('[data-jc-view]').forEach(function(b){b.onclick=function(){var x=a[Number(b.getAttribute('data-jc-view'))],v=document.createElement('div');v.className='jc-viewer';v.innerHTML='<img src="'+x.photo.img+'" alt=""><button type="button" aria-label="Close">×</button>';v.querySelector('button').onclick=function(){v.remove();};v.onclick=function(e){if(e.target===v)v.remove();};document.body.appendChild(v);};});}
+function jcBindTabs_(){document.querySelectorAll('#jcTabs [data-jc-tab]').forEach(function(b){b.onclick=function(){jcShowTab_(b.getAttribute('data-jc-tab'));};});var add=document.getElementById('jcAddPhotos'),inp=document.getElementById('jcAddPhotosInput');if(add&&inp){add.onclick=function(){inp.click();};inp.onchange=function(){var files=Array.prototype.slice.call(inp.files||[]);if(!files.length)return;var sec=JC.types[0]||'custom';if(!JC.sections[sec])JC.sections[sec]={};if(!JC.sections[sec].evidence)JC.sections[sec].evidence=[];var done=0;files.forEach(function(f){if(f.type.indexOf('image/')!==0){done++;return;}shrink(f,function(url){JC.sections[sec].evidence.push({note:'',photo:{img:url,cap:''}});done++;if(done===files.length){JC.status='DRAFT';jcSaveLocal_();jcRenderGallery_();jcRenderSections_();}});});};}}
+function jcRenderAll_(){if(!JC)return;jcBindTabs_();document.getElementById('jcNoHead').textContent=JC.number||'';document.getElementById('jcCustomer').value=JC.customer||'';document.getElementById('jcSite').value=JC.site||'';document.getElementById('jcDate').value=JC.date||'';document.getElementById('jcTechs').value=JC.technicians||'';jcRenderTypes_();jcRenderSections_();jcInitSignature_();var h=document.getElementById('jcStatusHead');h.textContent=JC.status==='DRAFT'?'Draft':JC.status.charAt(0)+JC.status.slice(1).toLowerCase();h.className='jc-status '+JC.status.toLowerCase();jcRenderReport_();jcRenderGallery_();}
 function jcBindCommon_(){['jcCustomer','jcSite','jcDate','jcTechs'].forEach(function(id){var e=document.getElementById(id);e.oninput=function(){JC.customer=document.getElementById('jcCustomer').value;JC.site=document.getElementById('jcSite').value;JC.date=document.getElementById('jcDate').value;JC.technicians=document.getElementById('jcTechs').value;jcRenderReport_();jcScheduleSave_();};});}
 
 function jcInitSignature_(){
