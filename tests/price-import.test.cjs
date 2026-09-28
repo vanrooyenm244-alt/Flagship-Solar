@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const html=fs.readFileSync('index.html','utf8');const c={};vm.createContext(c);vm.runInContext(html.slice(html.indexOf('function csvRows_'),html.indexOf('async function readSupplierFile_')),c);
+test('empty supplier prices are not silently converted to zero',()=>{for(const v of ['', ' ', null, undefined, 'R ', ','])assert.ok(Number.isNaN(c.numPrice_(v)),String(v));});
+test('explicit zero and existing currency/thousands syntax remain supported',()=>{assert.equal(c.numPrice_('0'),0);assert.equal(c.numPrice_(0),0);assert.equal(c.numPrice_('R 1,234.56'),1234.56);});
+test('CSV imports omit blank and negative prices while retaining explicit zero',()=>{const rows=c.supplierRowsFromMatrix_(c.csvRows_('SKU,Description,Price\nEMPTY,Blank,\nZERO,Free,0\nVALID,"Quoted, description","R 1,234.56"\nNEG,Negative,-10'));assert.deepEqual(JSON.parse(JSON.stringify(rows)).map(r=>[r.code,r.price]),[['ZERO',0],['VALID',1234.56]]);});

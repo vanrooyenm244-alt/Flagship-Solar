@@ -1,0 +1,28 @@
+name: Flagship completion checks
+
+on:
+  push:
+    branches:
+      - flagship-completion-2026-09-27
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run Flagship regression suite
+        run: node --test tests/*.test.cjs
