@@ -19,3 +19,5 @@ test('Job Card multi-photo selection preserves natural PDF aspect ratio',()=>{co
 test('Job Cards expose approved Details Photos PDF workflow and gallery',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/data-jc-tab="details"/);assert.match(main,/data-jc-tab="photos"/);assert.match(main,/data-jc-tab="pdf"/);assert.match(main,/id="jcPhotoGallery"/);assert.match(main,/id="jcAddPhotosInput" type="file" accept="image\/\*" multiple/);assert.match(main,/function jcRenderGallery_/);assert.match(main,/className='jc-viewer'/);});
 
 test('Job Card list uses field-ready photo preview cards',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/function jcFirstPhoto_/);assert.match(main,/class="jc-thumb"/);assert.match(main,/jc-cardrow/);assert.match(main,/data-jc-open/);});
+
+test('Job Card photo sync remembers storage and does not re-upload unchanged photos',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/function jcRememberPhotoStorage_/);assert.match(main,/v\.storage&&v\.storage\.bucket==='job-card-photos'&&v\.storage\.path/);assert.match(main,/jcRememberPhotoStorage_\(card,remoteCard\)/);});
