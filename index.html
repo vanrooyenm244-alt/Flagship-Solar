@@ -1637,7 +1637,7 @@ function show(id){
 }
 
 var EFFECTIVE_PERMISSIONS=null;
-function hasPermission_(key){return !EFFECTIVE_PERMISSIONS||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
+function hasPermission_(key){return (typeof EFFECTIVE_PERMISSIONS==='undefined'||!EFFECTIVE_PERMISSIONS)||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
 var TILE_PERMISSION_={jobs:'inspections.view',jobcards:'job_cards.view',calendar:'calendar.view',stock:'stock.view',time:'timesheets.view_own',prices:'prices.view',quote:'quotes.view',props:'proposals.view',admin:'users.manage'};
 function applyModulePermissions_(){document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
 function refreshSupabasePermissions_(){var a=window.FlagshipSupabase;if(!(a&&a.getSession&&a.getSession&&a.getSession()&&a.memberships&&a.permissionsForMembership))return Promise.resolve();return a.memberships().then(function(ms){var m=ms&&ms[0];if(!m)return;var id=m.id||m.membership_id;if(!id)return;return a.permissionsForMembership(id).then(function(p){EFFECTIVE_PERMISSIONS=p;});}).catch(function(){EFFECTIVE_PERMISSIONS=null;});}
