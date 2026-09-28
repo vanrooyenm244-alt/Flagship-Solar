@@ -13,3 +13,5 @@ test('Job Cards hydrate secure central photos for field and PDF views',()=>{cons
 test('Job Cards reconcile newer central cards without overwriting local drafts',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/remoteUpdated>localUpdated&&!localDraft/);assert.match(main,/if\(!local\)\{store\.put\(card\);return;\}/);});
 
 test('Job Card submit requires complete Supabase acknowledgement including photos',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/No matching submitted Job Card acknowledgement/);assert.match(main,/Job Card photo\(s\) were not uploaded/);assert.match(main,/String\(remote\.status\|\|''\)\.toUpperCase\(\)!=='SUBMITTED'/);});
+
+test('Job Card multi-photo selection preserves natural PDF aspect ratio',()=>{const main=fs.readFileSync('index.html','utf8');assert.match(main,/accept="image\/\*" multiple data-jc-photo/);assert.match(main,/files\.forEach\(function\(f,n\)/);assert.match(main,/sec\.evidence\.push\(\{note:'',photo:\{img:url,cap:''\}\}\)/);assert.match(main,/max-height:260px;object-fit:contain;margin:0 auto/);assert.match(main,/max-height:80mm/);});
