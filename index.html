@@ -1636,6 +1636,7 @@ function show(id){
   window.scrollTo(0,0);
 }
 
+var EFFECTIVE_PERMISSIONS=null;
 function hasPermission_(key){return !EFFECTIVE_PERMISSIONS||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
 var TILE_PERMISSION_={jobs:'inspections.view',jobcards:'job_cards.view',calendar:'calendar.view',stock:'stock.view',time:'timesheets.view_own',prices:'prices.view',quote:'quotes.view',props:'proposals.view',admin:'users.manage'};
 function applyModulePermissions_(){document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
