@@ -732,6 +732,9 @@ table.page{border-collapse:collapse}
 @media(max-width:650px){.jc-gallery{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 .jc-cardrow{cursor:pointer;display:grid!important;grid-template-columns:minmax(0,1fr) 74px auto;gap:10px;align-items:center}.jc-cardrow .info{display:flex;flex-direction:column;gap:3px;min-width:0}.jc-cardrow .info strong{font-size:15px}.jc-thumb{width:74px;height:74px;border-radius:9px;object-fit:cover;border:1px solid #d8dee6}.jc-cardrow .actions{display:flex;gap:5px;flex-direction:column}@media(max-width:650px){.jc-cardrow{grid-template-columns:minmax(0,1fr) 68px}.jc-cardrow .actions{grid-column:1/-1;flex-direction:row}.jc-thumb{width:68px;height:68px}}
+
+/* inspection v3 */
+.ins-testgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:10px 0 16px}.ins-test{border:1px solid #d8dee6;border-radius:8px;padding:9px;background:#fff}.ins-test label{display:block;font-size:12px;font-weight:700;margin-bottom:5px}.ins-test input,.ins-test select{width:100%;box-sizing:border-box;padding:9px;border:1px solid #c9d1da;border-radius:6px;background:#fff}.reqact{margin-top:7px;border-left:3px solid #b42318;padding:8px 10px;min-height:34px}.reqact:before{content:"Required action";display:block;font-size:11px;font-weight:800;text-transform:uppercase;color:#667085;margin-bottom:3px}.remedial-item{break-inside:avoid;border-bottom:1px solid #e4e7ec;padding:10px 0}.remedial-item b{display:block;margin-bottom:3px}.rectify{margin-top:8px;padding:8px;border:1px dashed #98a2b3;border-radius:7px}.rectify label{font-size:12px;font-weight:700}.rectify input[type="checkbox"]{width:auto}.ins-note{font-size:12px;color:#667085;margin:5px 0 10px}@media(max-width:650px){.ins-testgrid{grid-template-columns:1fr}}
 </style>
   <!-- Optional, public-key-only Supabase adapter. The configuration file is
        intentionally not committed; without it existing offline/Sheets flows remain available. -->
@@ -1221,29 +1224,60 @@ table.page{border-collapse:collapse}
   </section>
 
   <section class="sheet" data-disc="E">
-    <div class="sheet-head"><h2>Section <span class="secno"></span> — Electrical Installation</h2><span class="tag">SANS 10142-1</span></div>
-    <h3 class="ed" contenteditable data-f data-ph="Finding 1 — title">Finding 1 — </h3>
-    <div class="sev" data-sev>
-      <button type="button" aria-pressed="false">Critical</button><button type="button" aria-pressed="false">High</button>
-      <button type="button" aria-pressed="false">Moderate</button><button type="button" aria-pressed="false">Low</button>
+    <div class="sheet-head"><h2>Section <span class="secno"></span> — Electrical Tests &amp; Findings</h2><span class="tag">COC inspection</span></div>
+    <p class="hint">Record the measured results. Use N/A where a test does not apply. Findings below become the remedial-work list automatically.</p>
+    <div class="ins-testgrid">
+      <div class="ins-test"><label>DB / supply identification</label><input data-ins-test="db" placeholder="Main DB / Sub DB / supply"></div>
+      <div class="ins-test"><label>Supply / phase</label><input data-ins-test="phase" placeholder="Single / three phase"></div>
+      <div class="ins-test"><label>Main breaker rating</label><input data-ins-test="mainBreaker" placeholder="A"></div>
+      <div class="ins-test"><label>L-N voltage</label><input data-ins-test="ln" placeholder="V"></div>
+      <div class="ins-test"><label>L-E voltage</label><input data-ins-test="le" placeholder="V"></div>
+      <div class="ins-test"><label>N-E voltage / elevated neutral</label><input data-ins-test="ne" placeholder="V"></div>
+      <div class="ins-test"><label>Earth continuity</label><input data-ins-test="earthContinuity" placeholder="Ω / result"></div>
+      <div class="ins-test"><label>Bonding continuity</label><input data-ins-test="bonding" placeholder="Ω / result"></div>
+      <div class="ins-test"><label>Earth fault loop impedance</label><input data-ins-test="loop" placeholder="Ω"></div>
+      <div class="ins-test"><label>Earth resistance</label><input data-ins-test="earthResistance" placeholder="Ω / N/A"></div>
+      <div class="ins-test"><label>Insulation resistance</label><input data-ins-test="insulation" placeholder="MΩ"></div>
+      <div class="ins-test"><label>DB voltage — no load</label><input data-ins-test="noLoad" placeholder="V"></div>
+      <div class="ins-test"><label>DB voltage — on load</label><input data-ins-test="onLoad" placeholder="V"></div>
+      <div class="ins-test"><label>Earth leakage / RCD test</label><input data-ins-test="rcd" placeholder="Trip current / time / result"></div>
+      <div class="ins-test"><label>Earth leakage test button</label><select data-ins-test="rcdButton"><option></option><option>Pass</option><option>Fail</option><option>N/A</option></select></div>
+      <div class="ins-test"><label>Polarity</label><select data-ins-test="polarity"><option></option><option>Pass</option><option>Fail</option><option>N/A</option></select></div>
+      <div class="ins-test"><label>Switching devices</label><select data-ins-test="switching"><option></option><option>Pass</option><option>Fail</option><option>N/A</option></select></div>
+      <div class="ins-test"><label>Ring continuity</label><input data-ins-test="ring" placeholder="Result / N/A"></div>
     </div>
-    <div class="block" contenteditable data-f data-ph="What you found, the standard it fails, and what must happen before compliance testing."></div>
+    <h3>Electrical findings</h3>
+    <p class="ins-note">Photo → what is wrong → required action. Add findings in the order you want them on the report.</p>
     <div class="grid" data-grid></div>
-    <div class="addrow"><button class="add" type="button" data-add>+ Add photo slot</button></div>
+    <div class="addrow"><button class="add" type="button" data-add>+ Add finding / photo</button></div>
   </section>
 
   <section class="sheet" data-disc="S">
-    <div class="sheet-head"><h2>Section <span class="secno"></span> — Solar / PV Changeover</h2><span class="tag">SANS 10142-1-2</span></div>
-    <h3 class="ed" contenteditable data-f data-ph="Finding 2 — title">Finding 2 — </h3>
-    <div class="sev" data-sev>
-      <button type="button" aria-pressed="false">Critical</button><button type="button" aria-pressed="false">High</button>
-      <button type="button" aria-pressed="false">Moderate</button><button type="button" aria-pressed="false">Low</button>
+    <div class="sheet-head"><h2>Section <span class="secno"></span> — Solar / PV &amp; SSEG Tests</h2><span class="tag">PV commissioning</span></div>
+    <div class="ins-testgrid">
+      <div class="ins-test"><label>Inverter make / model</label><input data-ins-pv="inverter"></div>
+      <div class="ins-test"><label>Inverter serial</label><input data-ins-pv="inverterSerial"></div>
+      <div class="ins-test"><label>Battery make / model</label><input data-ins-pv="battery"></div>
+      <div class="ins-test"><label>Battery serial(s)</label><input data-ins-pv="batterySerials"></div>
+      <div class="ins-test"><label>PV modules / quantity</label><input data-ins-pv="modules" placeholder="Make/model/wattage × qty"></div>
+      <div class="ins-test"><label>String / MPPT layout</label><input data-ins-pv="strings"></div>
+      <div class="ins-test"><label>PV string Voc</label><input data-ins-pv="voc" placeholder="V per string"></div>
+      <div class="ins-test"><label>PV current</label><input data-ins-pv="current" placeholder="A per string"></div>
+      <div class="ins-test"><label>AC voltage</label><input data-ins-pv="acVoltage" placeholder="V"></div>
+      <div class="ins-test"><label>Grid frequency</label><input data-ins-pv="frequency" placeholder="Hz"></div>
+      <div class="ins-test"><label>DC isolation / protection</label><input data-ins-pv="dcProtection" placeholder="Result"></div>
+      <div class="ins-test"><label>AC isolation / protection</label><input data-ins-pv="acProtection" placeholder="Result"></div>
+      <div class="ins-test"><label>PV earthing / bonding</label><input data-ins-pv="bonding" placeholder="Result"></div>
+      <div class="ins-test"><label>CT / meter arrangement</label><input data-ins-pv="ct" placeholder="Location / direction / ratio"></div>
+      <div class="ins-test"><label>Grid code / country setting</label><input data-ins-pv="gridCode"></div>
+      <div class="ins-test"><label>Export setting</label><select data-ins-pv="export"><option></option><option>No Grid Export</option><option>Export to Load</option><option>Zero Export to CT</option></select></div>
+      <div class="ins-test"><label>Firmware</label><input data-ins-pv="firmware"></div>
+      <div class="ins-test"><label>Commissioning result</label><select data-ins-pv="commission"><option></option><option>Pass</option><option>Fail / remedial work required</option></select></div>
     </div>
-    <div class="block" contenteditable data-f data-ph="e.g. conductor identification between the changeover switch and the main board."></div>
+    <h3>Solar / PV findings</h3>
+    <p class="ins-note">Photograph defects or outstanding work. These are added to the remedial-work list in photo order.</p>
     <div class="grid" data-grid></div>
-    <div class="addrow"><button class="add" type="button" data-add>+ Add photo slot</button></div>
-    <h3>Outstanding items</h3>
-    <div class="block" contenteditable data-f data-ph="Anything not confirmed on this visit that the registered PV installer must still verify."></div>
+    <div class="addrow"><button class="add" type="button" data-add>+ Add finding / photo</button></div>
   </section>
 
   <section class="sheet" data-disc="P">
@@ -1261,22 +1295,11 @@ table.page{border-collapse:collapse}
   </section>
 
   <section class="sheet" data-disc="ESP">
-    <div class="sheet-head"><h2>Section <span class="secno"></span> — Recommended Scope of Works</h2><span class="tag">Quote from this</span></div>
-    <h3>Phase 1 — Repairs</h3>
-    <div class="block" contenteditable data-f data-ph="One repair per line."></div>
-    <h3>Phase 2 — Full compliance testing</h3>
-    <div data-disc="ES">
-      <ul class="scope"><li>Insulation resistance</li><li>Earth continuity</li><li>Earth leakage</li>
-        <li>Loop impedance</li><li>Polarity</li><li>Functional testing</li></ul>
-    </div>
-    <div data-disc="P">
-      <ul class="scope"><li>Pressure test on the hot and cold reticulation</li>
-        <li>T&amp;P safety valve operation and discharge</li>
-        <li>Vacuum breaker heights</li><li>Drip tray outlet flow</li>
-        <li>Leak test on all connections</li></ul>
-    </div>
-    <h3>Phase 3 — Follow-up</h3>
-    <p style="font-size:14.5px;margin:4px 0 0">If further faults show up once Phase 1 and Phase 2 are done, a supplementary quotation will be issued.</p>
+    <div class="sheet-head"><h2>Section <span class="secno"></span> — Remedial Work Required</h2><span class="tag">From findings</span></div>
+    <p class="hint">Built automatically from the photographed findings above, in the same order they were recorded.</p>
+    <div id="insRemedial"></div>
+    <h3>Rectification / Retest Notes</h3>
+    <div class="block" contenteditable data-f data-ph="Record completed repairs, retests and anything still outstanding."></div>
   </section>
 
   <section class="sheet" data-disc="ESP">
@@ -1443,8 +1466,7 @@ function makeSlot(cap,sans,img){
       '<button type="button" class="del">Remove</button></div>'+
     '<div class="caps">'+
       '<div class="cap" contenteditable data-ph="What does this photo show?">'+textToHtml(htmlToText(cap))+'</div>'+
-      '<div class="sansrow"><div class="sans" contenteditable data-ph="SANS reference">'+textToHtml(htmlToText(sans))+'</div>'+
-      '<button class="findbtn" type="button">Find</button></div>'+
+      '<div class="reqact" contenteditable data-ph="What must be done?">'+textToHtml(htmlToText(sans))+'</div>'+
     '</div>';
   if(img) slot.querySelector('img').src=img;
 
@@ -1470,15 +1492,14 @@ function makeSlot(cap,sans,img){
       }
       im.src = url;
       slot.classList.remove('empty'); slot.classList.add('filled');
-      renumber(); save();
+      renumber(); renderInspectionRemedial_(); save();
       input.value = '';
     });
   });
 
   slot.querySelector('.del').addEventListener('click',function(){
-    if(slot.classList.contains('empty')||confirm('Remove this photo?')){slot.remove();renumber();save()}
+    if(slot.classList.contains('empty')||confirm('Remove this photo?')){slot.remove();renumber();renderInspectionRemedial_();save()}
   });
-  slot.querySelector('.findbtn').addEventListener('click',function(){openFinder(slot.querySelector('.sans'))});
   return slot;
 }
 
@@ -1517,7 +1538,8 @@ function renumber(){
 /* ============ serialise ============ */
 var currentId=null, saveTimer=null;
 
-function inspectionSummary_(){var filled=document.querySelectorAll('#screenReport .slot.filled').length,sev={Critical:0,High:0,Moderate:0,Low:0};document.querySelectorAll('#screenReport [data-sev]').forEach(function(g){var b=g.querySelector('button[aria-pressed="true"]');if(b&&sev.hasOwnProperty(b.textContent.trim()))sev[b.textContent.trim()]++;});return {photos:filled,severity:sev,hasCritical:sev.Critical>0,hasHigh:sev.High>0};}
+function inspectionSummary_(){return {photos:document.querySelectorAll('#screenReport .slot.filled').length};}
+function renderInspectionRemedial_(){var box=document.getElementById('insRemedial');if(!box)return;var n=0,html='';document.querySelectorAll('#screenReport [data-grid] .slot.filled').forEach(function(sl){var finding=htmlToText((sl.querySelector('.cap')||{}).innerHTML||''),action=htmlToText((sl.querySelector('.reqact')||{}).innerHTML||'');if(!finding&&!action)return;n++;html+='<div class="remedial-item"><b>'+n+'. '+esc(finding||'Finding')+'</b><div><strong>Required:</strong> '+esc(action||'To be confirmed')+'</div></div>';});box.innerHTML=html||'<p class="hint">No remedial findings recorded.</p>';}
 function collect(){
   var fields=[], eds=document.querySelectorAll('#screenReport [data-f]');
   for(var i=0;i<eds.length;i++) fields.push(htmlToText(eds[i].innerHTML));
@@ -1526,7 +1548,7 @@ function collect(){
     var arr=[], sl=gs[g].querySelectorAll('.slot');
     for(var s=0;s<sl.length;s++){
       var im=sl[s].querySelector('.shot img');
-      arr.push({img:im?im.src:'', cap:htmlToText(sl[s].querySelector('.cap').innerHTML), sans:htmlToText(sl[s].querySelector('.sans').innerHTML)});
+      arr.push({img:im?im.src:'', cap:htmlToText(sl[s].querySelector('.cap').innerHTML), sans:htmlToText(sl[s].querySelector('.reqact').innerHTML)});
     }
     grids.push(arr);
   }
@@ -1536,7 +1558,8 @@ function collect(){
     for(var b=0;b<bs.length;b++) if(bs[b].getAttribute('aria-pressed')==='true') pick=b;
     sevs.push(pick);
   }
-  return {version:2,fields:fields,grids:grids,sevs:sevs,summary:inspectionSummary_(),updatedAt:Date.now()};
+  var tests={},pv={};document.querySelectorAll('#screenReport [data-ins-test]').forEach(function(el){tests[el.getAttribute('data-ins-test')]=el.value||'';});document.querySelectorAll('#screenReport [data-ins-pv]').forEach(function(el){pv[el.getAttribute('data-ins-pv')]=el.value||'';});
+  return {version:3,fields:fields,grids:grids,tests:tests,pv:pv,summary:inspectionSummary_(),updatedAt:Date.now()};
 }
 
 function apply(data){
@@ -1550,13 +1573,9 @@ function apply(data){
     var eds=document.querySelectorAll('#screenReport [data-f]');
     for(var i=0;i<eds.length && i<data.fields.length;i++) setText(eds[i], htmlToText(data.fields[i]));
   }
-  if(data&&data.sevs){
-    var sv=document.querySelectorAll('#screenReport [data-sev]');
-    for(var k=0;k<sv.length && k<data.sevs.length;k++){
-      var bs=sv[k].querySelectorAll('button');
-      for(var b=0;b<bs.length;b++) bs[b].setAttribute('aria-pressed', b===data.sevs[k]?'true':'false');
-    }
-  }
+  if(data&&data.tests)document.querySelectorAll('#screenReport [data-ins-test]').forEach(function(el){el.value=data.tests[el.getAttribute('data-ins-test')]||'';});
+  if(data&&data.pv)document.querySelectorAll('#screenReport [data-ins-pv]').forEach(function(el){el.value=data.pv[el.getAttribute('data-ins-pv')]||'';});
+  renderInspectionRemedial_();
   /* fills the section numbers and clears any leftover export filter */
   applyDisc('ESP');
 }
@@ -1575,7 +1594,7 @@ function save(){
   }).catch(function(){alert('Could not save — export to PDF now.');});
 }
 
-document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')) save(); });
+document.addEventListener('input',function(e){ if(e.target.closest&&e.target.closest('#screenReport')){renderInspectionRemedial_();save();} });
 
 
 /* ============ calendar ============ */
@@ -2212,7 +2231,7 @@ document.getElementById('btnPrint').addEventListener('click',function(){
     b.addEventListener('click',function(){
       var want=b.getAttribute('data-want');
       if(!discCounts()[want] && !confirm('No photos in that discipline. Export it anyway?')) return;
-      var sm=inspectionSummary_();if(sm.hasCritical&&!confirm('This inspection contains a CRITICAL finding. Save/export the report now?'))return;
+      
       runExport(want);
     });
   });
@@ -2226,13 +2245,6 @@ document.addEventListener('click',function(e){
     while(node&&!node.hasAttribute('data-grid')) node=node.previousElementSibling;
     if(node){ var sl=makeSlot('','',''); node.appendChild(sl); renumber(); save(); sl.scrollIntoView({block:'center',behavior:'smooth'}); }
     return;
-  }
-  var sev=e.target.closest&&e.target.closest('[data-sev] button');
-  if(sev){
-    var group=sev.closest('[data-sev]'), on=sev.getAttribute('aria-pressed')==='true';
-    group.querySelectorAll('button').forEach(function(b){ b.setAttribute('aria-pressed','false') });
-    sev.setAttribute('aria-pressed', on?'false':'true');
-    save();
   }
 });
 
