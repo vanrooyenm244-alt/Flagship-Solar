@@ -2745,10 +2745,12 @@ async function readSupplierFile_(file,onProgress){
           var vat=seg.search(/15(?:\.00)?\s*%/);
           if(vat<0)return;
           var before=seg.slice(hit.code.length,vat);
-          var nums=before.match(/\d[\d\s,]*(?:\.\d{2})/g)||[];
-          if(nums.length<2)return;
-          // Frontline rows end ... quantity, unit price, 15%, line total.
-          // The final decimal amount before VAT is therefore unit price.
+          // PDF.js may split a price into separate text objects ("87" "." "92").
+          // Normalize whitespace around decimal punctuation before extracting amounts.
+          before=before.replace(/(\d)\s*\.\s*(\d{2})/g,'$1.$2').replace(/(\d)\s*,\s*(\d{2})/g,'$1.$2');
+          var nums=before.match(/\d+(?:[ ,]\d{3})*(?:\.\d{2})|\d+\.\d{2}/g)||[];
+          if(!nums.length)return;
+          // The final decimal amount before VAT is Unit Price Ex VAT.
           var price=numPrice_(nums[nums.length-1]);
           if(!isFinite(price)||price<0)return;
           var key=hit.code.toUpperCase(); if(tableSeen[key])return;
