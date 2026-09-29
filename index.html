@@ -4486,12 +4486,23 @@ function fetchTimesheetAll(){
     var body=await response.json();
     if(!body||body.ok!==true)throw new Error(body&&body.error||'Timesheet read was not confirmed.');
     if(body.cycle!==cycle.slice(3)||!body.entries||typeof body.entries!=='object'||Array.isArray(body.entries))throw new Error('Mismatched Timesheet cycle response.');
-    // The central Timesheets sheet may return Sangwani under his login username.
-    // Merge that account key into the worker display name used by the app.
-    if(body.entries.sangwannyasulu){
-      body.entries.Sangwani=Object.assign({},body.entries.sangwannyasulu,body.entries.Sangwani||{});
-      delete body.entries.sangwannyasulu;
-    }
+    // Normalize account usernames to the worker/display names used by Timesheets.
+    // This keeps admin read-back consistent even when a login differs from the worker name.
+    var TIMESHEET_WORKER_ALIASES={
+      'mj89':'Michael',
+      'frank':'Frank',
+      'jacobus':'Jacobus',
+      'sangwannyasulu':'Sangwani',
+      'ian':'Ian',
+      'der101':'Derrick',
+      'reino04':'Andre'
+    };
+    Object.keys(body.entries).forEach(function(source){
+      var target=TIMESHEET_WORKER_ALIASES[String(source).trim().toLowerCase()];
+      if(!target||target===source)return;
+      body.entries[target]=Object.assign({},body.entries[source]||{},body.entries[target]||{});
+      delete body.entries[source];
+    });
     if(!active())return;
     // Serialize import with local saves; an intervening edit cancels this read.
     var task=TSSAVE.then(async function(){
