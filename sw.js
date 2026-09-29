@@ -1,6 +1,6 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v105-frontline-parser';
+const CACHE = 'flagship-completion-v106-network-html';
 const SHELL = [
   './',
   './index.html',
@@ -45,13 +45,8 @@ self.addEventListener('fetch', (e) => {
 
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request).then((res) => {
-        if (!res.ok) throw new Error('Navigation failed');
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
-        return res;
-      }).catch(() =>
-        caches.match(e.request).then((hit) => hit || caches.match('./index.html'))
+      fetch(e.request, { cache: 'no-store' }).catch(() =>
+        caches.match('./index.html')
       )
     );
     return;
