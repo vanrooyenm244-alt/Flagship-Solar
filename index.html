@@ -4486,6 +4486,12 @@ function fetchTimesheetAll(){
     var body=await response.json();
     if(!body||body.ok!==true)throw new Error(body&&body.error||'Timesheet read was not confirmed.');
     if(body.cycle!==cycle.slice(3)||!body.entries||typeof body.entries!=='object'||Array.isArray(body.entries))throw new Error('Mismatched Timesheet cycle response.');
+    // The central Timesheets sheet may return Sangwani under his login username.
+    // Merge that account key into the worker display name used by the app.
+    if(body.entries.sangwannyasulu){
+      body.entries.Sangwani=Object.assign({},body.entries.sangwannyasulu,body.entries.Sangwani||{});
+      delete body.entries.sangwannyasulu;
+    }
     if(!active())return;
     // Serialize import with local saves; an intervening edit cancels this read.
     var task=TSSAVE.then(async function(){
