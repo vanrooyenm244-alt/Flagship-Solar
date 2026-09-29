@@ -2720,44 +2720,45 @@ async function readSupplierFile_(file,onProgress){
         .sort(function(a,b){return b.length-a.length;});
 
       /*
-        Frontline fallback #2: their PDF text objects are not reliably grouped
-        into visual rows. Build one normalized text stream for the page, then
-        locate known Price List codes inside that stream. For each code, read
-        forward to the next 15% VAT marker and take the last monetary amount
-        before VAT as Unit Price Ex VAT.
+        Frontline parser: PDF.js exposes Frontline quotes as a sequential token
+        stream. Each product starts with Item Code and ends with:
+        Quantity | Unit Price Ex VAT | Line Total | 15.00% | Bin.
+        Match known Price List codes, then parse the numeric tail before VAT.
       */
       for(var spg=1;spg<=pdf.numPages;spg++){
         onProgress({phase:'read',current:spg,total:pdf.numPages,label:'Scanning Frontline PDF page '+spg+' of '+pdf.numPages});
         var sp=await pdf.getPage(spg), stc=await sp.getTextContent();
-        var stream=(stc.items||[]).map(function(it){return String(it.str||'').replace(/\s+/g,' ').trim();}).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
-        var upper=stream.toUpperCase();
-        var found=[];
-        knownCodes.forEach(function(kc){
-          var from=0, ku=kc.toUpperCase(), pos;
-          while((pos=upper.indexOf(ku,from))>=0){
-            found.push({pos:pos,code:kc}); from=pos+ku.length;
+        var toks=(stc.items||[]).map(function(it){return String(it.str||'').replace(/\\s+/g,' ').trim();}).filter(Boolean);
+        for(var ti=0;ti<toks.length;ti++){
+          var code='', span=0;
+          for(var kcN=0;kcN<knownCodes.length;kcN++){
+            var parts=knownCodes[kcN].toUpperCase().split(/\\s+/), ok=true;
+            if(ti+parts.length>toks.length)continue;
+            for(var pp=0;pp<parts.length;pp++)if(toks[ti+pp].toUpperCase()!==parts[pp]){ok=false;break;}
+            if(ok){code=knownCodes[kcN];span=parts.length;break;}
           }
-        });
-        found.sort(function(a,b){return a.pos-b.pos;});
-        found.forEach(function(hit,idx){
-          var end=idx+1<found.length?found[idx+1].pos:Math.min(stream.length,hit.pos+500);
-          var seg=stream.slice(hit.pos,end);
-          var vat=seg.search(/15(?:\.00)?\s*%/);
-          if(vat<0)return;
-          var before=seg.slice(hit.code.length,vat);
-          // PDF.js may split a price into separate text objects ("87" "." "92").
-          // Normalize whitespace around decimal punctuation before extracting amounts.
-          before=before.replace(/(\d)\s*\.\s*(\d{2})/g,'$1.$2').replace(/(\d)\s*,\s*(\d{2})/g,'$1.$2');
-          var nums=before.match(/\d+(?:[ ,]\d{3})*(?:\.\d{2})|\d+\.\d{2}/g)||[];
-          if(!nums.length)return;
-          // The final decimal amount before VAT is Unit Price Ex VAT.
-          var price=numPrice_(nums[nums.length-1]);
-          if(!isFinite(price)||price<0)return;
-          var key=hit.code.toUpperCase(); if(tableSeen[key])return;
+          if(!code)continue;
+          var vat=-1;
+          for(var vi=ti+span;vi<Math.min(toks.length,ti+span+18);vi++){
+            if(/^15(?:\\.00)?%$/.test(toks[vi])){vat=vi;break;}
+          }
+          if(vat<0)continue;
+          // In Frontline's extracted stream the last three numeric tokens before VAT are
+          // Quantity, Unit Price Ex VAT, Line Total.
+          var vals=[];
+          for(var ni=ti+span;ni<vat;ni++){
+            var s=toks[ni].replace(/\\s/g,'').replace(/,/g,'');
+            if(/^\\d+(?:\\.\\d+)?$/.test(s)) vals.push({i:ni,v:Number(s)});
+          }
+          if(vals.length<3)continue;
+          var price=vals[vals.length-2].v;
+          if(!isFinite(price)||price<0)continue;
+          var key=code.toUpperCase(); if(tableSeen[key])continue;
           tableSeen[key]=true; tableRows++;
           tableOut.push({code:key,price:price,description:''});
-        });
+        }
       }
+
       for(var fpg=1;fpg<=pdf.numPages;fpg++){
         onProgress({phase:'read',current:fpg,total:pdf.numPages,label:'Reading Frontline PDF page '+fpg+' of '+pdf.numPages});
         var fp=await pdf.getPage(fpg), fc=await fp.getTextContent(), fi=fc.items||[], fg=[];
