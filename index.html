@@ -965,6 +965,10 @@ table.page{border-collapse:collapse}
   <section class="sheet">
     <div class="sheet-head"><h2>Stock count</h2><span class="tag" id="stTag"></span></div>
     <div id="stWarn"></div>
+    <div class="setrow" style="margin-bottom:12px">
+      <label for="stCompany">Company stock</label>
+      <select id="stCompany"><option value="Flagship Solar">Flagship Solar</option><option value="Hi Service">Hi Service</option></select>
+    </div>
     <p class="hint" id="stHint">Which one are you counting? You only count the place you pick,
       so somebody else can count another one at the same time.</p>
     <div class="stplace" id="stPlaces"></div>
@@ -3992,24 +3996,24 @@ document.getElementById('xeroSyncItems').addEventListener('click',xeroSyncItems_
 /* A count, nothing more. You pick one place and count it; the app sends
    back that column alone, so four people counting four places never
    write over each other. Numbers live on the phone until they go. */
-var ST={place:'', items:[], cats:[], places:[], counts:{}, cat:'', q:''};
+var ST={company:'Flagship Solar',place:'', items:[], cats:[], places:[], counts:{}, cat:'', q:''};
 
 function showStock(){if(!hasPermission_('stock.view')){showHome();return;}
   backTo='screenHome';
   document.getElementById('savedTag').textContent='stock';
   document.getElementById('barCount').textContent='\u2014';
-  ST.place=''; ST.counts={}; ST.cat=''; ST.q='';
+  ST.company=(document.getElementById('stCompany')||{}).value||'Flagship Solar'; ST.place=''; ST.counts={}; ST.cat=''; ST.q='';
   document.getElementById('stBody').classList.add('hidden');
   document.getElementById('stQ').value='';
   show('screenStock');
   loadStock();
   stockShowAdminTools_();
-  get1('cfg','stockdraft').then(function(d){
+  get1('cfg','stockdraft-'+ST.company).then(function(d){
     if(d && d.place && d.counts && Object.keys(d.counts).length){
       setTimeout(function(){
         if(!confirm('You have '+Object.keys(d.counts).length+
           ' numbers counted for '+d.place+' that were never sent. Carry on with them?')){
-          put('cfg',{id:'stockdraft',place:'',counts:{}}).catch(function(){});
+          put('cfg',{id:'stockdraft-'+ST.company,company:ST.company,place:'',counts:{}}).catch(function(){});
           return;
         }
         pickPlace(d.place); ST.counts=d.counts; renderStock();
@@ -4021,13 +4025,13 @@ function showStock(){if(!hasPermission_('stock.view')){showHome();return;}
 function loadStock(){
   var box=document.getElementById('stPlaces');
 
-  get1('cfg','stockcache').then(function(c){
+  get1('cfg','stockcache-'+ST.company).then(function(c){
 
     var have=c && c.list && c.list.length;
 
     if(have){
       ST.items=c.list;
-      ST.places=c.places||['Store','GWM','NP200'];
+      ST.places=c.places||(ST.company==='Hi Service'?['Stoor','CEY 59799','CEY 67212']:['Store','GWM','NP200']);
       ST.cats=c.cats||[];
       renderPlaces();
 
@@ -4039,14 +4043,14 @@ function loadStock(){
       box.innerHTML='<div class="queued">First load — getting stock list…</div>';
     }
 
-    apiGet({action:'stock'}).then(function(j){
+    apiGet({action:ST.company==='Hi Service'?'hiStock':'stock',company:ST.company}).then(function(j){
 
       ST.items=j.stock||[];
-      ST.places=j.places||['Store','GWM','NP200'];
+      ST.places=j.places||(ST.company==='Hi Service'?['Stoor','CEY 59799','CEY 67212']:['Store','GWM','NP200']);
       ST.cats=j.categories||[];
 
       put('cfg',{
-        id:'stockcache',
+        id:'stockcache-'+ST.company,
         list:ST.items,
         places:ST.places,
         cats:ST.cats,
@@ -4170,8 +4174,14 @@ document.getElementById('stQ').addEventListener('input',function(){
   ST.q=this.value; renderStock();
 });
 
+document.getElementById('stCompany').addEventListener('change',function(){
+  if(Object.keys(ST.counts).length&&!confirm('Switch company? Unsent stock counts on this screen will be cleared.')){this.value=ST.company;return;}
+  ST.company=this.value;ST.place='';ST.counts={};ST.items=[];ST.cats=[];ST.places=[];
+  document.getElementById('stBody').classList.add('hidden');loadStock();
+});
+
 var stDraft=null;
-function saveStockDraft(){return put('cfg',{id:'stockdraft',place:ST.place,counts:ST.counts}).catch(function(){alert('Stock draft could not be saved on this phone.');});}
+function saveStockDraft(){return put('cfg',{id:'stockdraft-'+ST.company,company:ST.company,place:ST.place,counts:ST.counts}).catch(function(){alert('Stock draft could not be saved on this phone.');});}
 
 document.getElementById('stClear').addEventListener('click',function(){
   var n=Object.keys(ST.counts).length;
@@ -4190,7 +4200,7 @@ document.getElementById('stSend').addEventListener('click',function(){
   btn.disabled=true; btn.textContent='Sending\u2026';
 
   var sentPlace=ST.place,sentCounts=JSON.parse(JSON.stringify(ST.counts)),owner=ME;
-  api({action:'stockCount',place:sentPlace,counts:sentCounts}).then(function(j){
+  api({action:ST.company==='Hi Service'?'hiStockCount':'stockCount',company:ST.company,place:sentPlace,counts:sentCounts}).then(function(j){
     if(!Array.isArray(j.unknown)||(j.rejected!=null&&!Array.isArray(j.rejected))||typeof j.changed!=='number')throw new Error('Invalid stock acknowledgement; counts retained.');
     var rejected=Array.isArray(j.rejected)?j.rejected:[];
     btn.disabled=false; btn.textContent='Send count';
@@ -4200,7 +4210,7 @@ document.getElementById('stSend').addEventListener('click',function(){
       for(var i=0;i<ST.items.length;i++){if(ST.items[i].item===name){ST.items[i][sentPlace]=sentCounts[name];break;}}
       if(ME===owner&&ST.place===sentPlace&&ST.counts[name]===sentCounts[name])delete ST.counts[name];
     });
-    put('cfg',{id:'stockcache',list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
+    put('cfg',{id:'stockcache-'+ST.company,company:ST.company,list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
     saveStockDraft();
     var msg=j.changed+(j.changed===1?' item updated':' items updated');
     if(j.unknown && j.unknown.length) msg+=', '+j.unknown.length+' not on the list';
@@ -4913,7 +4923,7 @@ function stockSaveItem_(){
   if(!name){ msg.innerHTML='<div class="calc bad">Enter an item name.</div>'; return; }
   btn.disabled=true; btn.textContent='Adding…'; msg.innerHTML='';
 
-  api({action:'stockAdd',item:{item:name,category:category,unit:unit,price:price}})
+  api({action:ST.company==='Hi Service'?'hiStockAdd':'stockAdd',company:ST.company,item:{item:name,category:category,unit:unit,price:price,cost:price}})
     .then(function(){
       var form=document.getElementById('stItemForm');
       if(form) form.remove();
