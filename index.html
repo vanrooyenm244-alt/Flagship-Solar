@@ -2733,10 +2733,13 @@ async function readSupplierFile_(file,onProgress){
         // (e.g. "NITTO BLACK", "FER LUG 35X8", "HAGER SF263").
         // Do not split our known codes into words: that prevented every code
         // containing spaces from matching the real PDF token stream.
+        function normFrontlineCode_(s){
+          return String(s||'').toUpperCase().replace(/[^A-Z0-9]+/g,'');
+        }
         var codeMap={};
-        knownCodes.forEach(function(kc){codeMap[kc.toUpperCase()]=kc;});
+        knownCodes.forEach(function(kc){var nk=normFrontlineCode_(kc);if(nk)codeMap[nk]=kc;});
         for(var ti=0;ti<toks.length;ti++){
-          var code=codeMap[toks[ti].toUpperCase()]||'';
+          var code=codeMap[normFrontlineCode_(toks[ti])]||'';
           if(!code)continue;
           var vat=-1;
           for(var vi=ti+1;vi<Math.min(toks.length,ti+18);vi++){
@@ -2951,7 +2954,7 @@ async function readSupplierFile_(file,onProgress){
     }
 
     if(!out.length){
-      throw new Error('PDF opened, but no supplier products matched the current Price List. Loaded price-list codes: '+knownCodes.length+'.');
+      throw new Error('PDF opened, but no supplier product codes matched after normalized comparison. Loaded price-list codes: '+knownCodes.length+'.');
     }
 
     out._diagnostics={
