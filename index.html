@@ -2729,24 +2729,24 @@ async function readSupplierFile_(file,onProgress){
         onProgress({phase:'read',current:spg,total:pdf.numPages,label:'Scanning Frontline PDF page '+spg+' of '+pdf.numPages});
         var sp=await pdf.getPage(spg), stc=await sp.getTextContent();
         var toks=(stc.items||[]).map(function(it){return String(it.str||'').replace(/\\s+/g,' ').trim();}).filter(Boolean);
+        // Frontline keeps complete item codes in a single PDF text token
+        // (e.g. "NITTO BLACK", "FER LUG 35X8", "HAGER SF263").
+        // Do not split our known codes into words: that prevented every code
+        // containing spaces from matching the real PDF token stream.
+        var codeMap={};
+        knownCodes.forEach(function(kc){codeMap[kc.toUpperCase()]=kc;});
         for(var ti=0;ti<toks.length;ti++){
-          var code='', span=0;
-          for(var kcN=0;kcN<knownCodes.length;kcN++){
-            var parts=knownCodes[kcN].toUpperCase().split(/\\s+/), ok=true;
-            if(ti+parts.length>toks.length)continue;
-            for(var pp=0;pp<parts.length;pp++)if(toks[ti+pp].toUpperCase()!==parts[pp]){ok=false;break;}
-            if(ok){code=knownCodes[kcN];span=parts.length;break;}
-          }
+          var code=codeMap[toks[ti].toUpperCase()]||'';
           if(!code)continue;
           var vat=-1;
-          for(var vi=ti+span;vi<Math.min(toks.length,ti+span+18);vi++){
+          for(var vi=ti+1;vi<Math.min(toks.length,ti+18);vi++){
             if(/^15(?:\\.00)?%$/.test(toks[vi])){vat=vi;break;}
           }
           if(vat<0)continue;
-          // In Frontline's extracted stream the last three numeric tokens before VAT are
-          // Quantity, Unit Price Ex VAT, Line Total.
+          // Actual Frontline stream:
+          // CODE | DESCRIPTION | QTY | UNIT PRICE | LINE TOTAL | 15.00% | BIN
           var vals=[];
-          for(var ni=ti+span;ni<vat;ni++){
+          for(var ni=ti+1;ni<vat;ni++){
             var s=toks[ni].replace(/\\s/g,'').replace(/,/g,'');
             if(/^\\d+(?:\\.\\d+)?$/.test(s)) vals.push({i:ni,v:Number(s)});
           }
