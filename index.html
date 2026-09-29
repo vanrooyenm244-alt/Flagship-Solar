@@ -4034,11 +4034,12 @@ function loadStock(){
       ST.places=c.places||(ST.company==='Hi Service'?['Stoor','CEY 59799','CEY 67212']:['Store','GWM','NP200']);
       ST.cats=c.cats||[];
       renderPlaces();
+      renderCatsStock();
+      renderStock();
 
-      if(ST.place){
-        renderCatsStock();
-        renderStock();
-      }
+      /* The list itself must be visible as soon as it has been downloaded.
+         Choosing a place only decides which quantity column is being counted. */
+      document.getElementById('stBody').classList.remove('hidden');
     } else {
       box.innerHTML='<div class="queued">First load — getting stock list…</div>';
     }
@@ -4058,11 +4059,12 @@ function loadStock(){
       }).catch(function(){});
 
       renderPlaces();
+      renderCatsStock();
+      renderStock();
 
-      if(ST.place){
-        renderCatsStock();
-        renderStock();
-      }
+      /* The list itself must be visible as soon as it has been downloaded.
+         Choosing a place only decides which quantity column is being counted. */
+      document.getElementById('stBody').classList.remove('hidden');
 
       document.getElementById('stWarn').innerHTML='';
 
@@ -4177,7 +4179,7 @@ document.getElementById('stQ').addEventListener('input',function(){
 document.getElementById('stCompany').addEventListener('change',function(){
   if(Object.keys(ST.counts).length&&!confirm('Switch company? Unsent stock counts on this screen will be cleared.')){this.value=ST.company;return;}
   ST.company=this.value;ST.place='';ST.counts={};ST.items=[];ST.cats=[];ST.places=[];
-  document.getElementById('stBody').classList.add('hidden');loadStock();
+  document.getElementById('stBody').classList.remove('hidden');loadStock();
 });
 
 var stDraft=null;
