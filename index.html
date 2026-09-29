@@ -2706,6 +2706,48 @@ async function readSupplierFile_(file,onProgress){
         });
       }
     }
+    /*
+      Frontline fallback: PDF.js can flatten this quote so the visual X-column
+      boundaries are unreliable. Rebuild each text line and parse the known
+      Frontline row shape from the right:
+      <item code + description + bin> <qty> <unit price> <VAT%> <line total>
+      The bin token (for example P5.8, N2.7, D1 &) separates description from
+      the numeric columns. Item code is matched against the existing Prices
+      list, longest code first, so codes containing spaces remain intact.
+    */
+    if(!tableOut.length){
+      var knownCodes=(PRICES||[]).map(function(p){return String(p.code||'').trim();}).filter(Boolean)
+        .sort(function(a,b){return b.length-a.length;});
+      for(var fpg=1;fpg<=pdf.numPages;fpg++){
+        onProgress({phase:'read',current:fpg,total:pdf.numPages,label:'Reading Frontline PDF page '+fpg+' of '+pdf.numPages});
+        var fp=await pdf.getPage(fpg), fc=await fp.getTextContent(), fi=fc.items||[], fg=[];
+        var ft=[];
+        fi.forEach(function(it){
+          var s=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
+          if(!s)return; var tr=it.transform||[]; ft.push({t:s,x:Number(tr[4])||0,y:Number(tr[5])||0});
+        });
+        ft.sort(function(a,b){return b.y-a.y||a.x-b.x;});
+        ft.forEach(function(z){var g=fg.length?fg[fg.length-1]:null;if(!g||Math.abs(g.y-z.y)>2.5){g={y:z.y,a:[]};fg.push(g);}g.a.push(z);});
+        fg.forEach(function(g){
+          var line=g.a.slice().sort(function(a,b){return a.x-b.x;}).map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
+          if(!/15(?:\.00)?%/.test(line))return;
+          var code='';
+          for(var k=0;k<knownCodes.length;k++){
+            var kc=knownCodes[k];
+            if(line.toUpperCase().indexOf(kc.toUpperCase()+' ')===0){code=kc;break;}
+          }
+          if(!code)return;
+          var rest=line.slice(code.length).trim();
+          var m=rest.match(/^(.*?)\s+(?:[A-Z]?\d+(?:\.\d+)?|&)\s+(\d+(?:\.\d+)?)\s+([0-9][0-9\s,]*(?:\.\d+)?)\s+15(?:\.00)?%\s+([0-9][0-9\s,]*(?:\.\d+)?)$/i);
+          if(!m)return;
+          var price=numPrice_(m[3]); if(!isFinite(price)||price<0)return;
+          var key=code.toUpperCase(); if(tableSeen[key])return;
+          tableSeen[key]=true; tableRows++;
+          tableOut.push({code:key,price:price,description:m[1].trim()});
+        });
+      }
+    }
+
     if(tableOut.length){
       tableOut._diagnostics={sourceItems:tableItems,productRows:tableRows,products:tableOut.length,rejected:0,parser:'Supplier table'};
       onProgress({phase:'read',current:pdf.numPages,total:pdf.numPages,label:'PDF read complete · '+tableOut.length+' products found'});
