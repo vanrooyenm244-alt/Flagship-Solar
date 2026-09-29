@@ -2950,7 +2950,14 @@ async function readSupplierFile_(file,onProgress){
     }
 
     if(!out.length){
-      throw new Error('PDF opened, but 0 matching product rows were found. Loaded price-list codes: '+knownCodes.length+'. This usually means the PDF text positions differ from the supplier template.');
+      var dbg=[];
+      try{
+        for(var dp=1;dp<=Math.min(2,pdf.numPages);dp++){
+          var dpage=await pdf.getPage(dp),dtc=await dpage.getTextContent();
+          dbg.push('PAGE '+dp+': '+(dtc.items||[]).map(function(it){return String(it.str||'').replace(/\\s+/g,' ').trim();}).filter(Boolean).join(' | ').slice(0,1800));
+        }
+      }catch(de){}
+      throw new Error('DEBUG PDF TEXT — loaded '+knownCodes.length+' price codes. '+dbg.join(' || '));
     }
 
     out._diagnostics={
