@@ -2718,6 +2718,44 @@ async function readSupplierFile_(file,onProgress){
     if(!tableOut.length){
       var knownCodes=(PRICES||[]).map(function(p){return String(p.code||'').trim();}).filter(Boolean)
         .sort(function(a,b){return b.length-a.length;});
+
+      /*
+        Frontline fallback #2: their PDF text objects are not reliably grouped
+        into visual rows. Build one normalized text stream for the page, then
+        locate known Price List codes inside that stream. For each code, read
+        forward to the next 15% VAT marker and take the last monetary amount
+        before VAT as Unit Price Ex VAT.
+      */
+      for(var spg=1;spg<=pdf.numPages;spg++){
+        onProgress({phase:'read',current:spg,total:pdf.numPages,label:'Scanning Frontline PDF page '+spg+' of '+pdf.numPages});
+        var sp=await pdf.getPage(spg), stc=await sp.getTextContent();
+        var stream=(stc.items||[]).map(function(it){return String(it.str||'').replace(/\s+/g,' ').trim();}).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+        var upper=stream.toUpperCase();
+        var found=[];
+        knownCodes.forEach(function(kc){
+          var from=0, ku=kc.toUpperCase(), pos;
+          while((pos=upper.indexOf(ku,from))>=0){
+            found.push({pos:pos,code:kc}); from=pos+ku.length;
+          }
+        });
+        found.sort(function(a,b){return a.pos-b.pos;});
+        found.forEach(function(hit,idx){
+          var end=idx+1<found.length?found[idx+1].pos:Math.min(stream.length,hit.pos+500);
+          var seg=stream.slice(hit.pos,end);
+          var vat=seg.search(/15(?:\.00)?\s*%/);
+          if(vat<0)return;
+          var before=seg.slice(hit.code.length,vat);
+          var nums=before.match(/\d[\d\s,]*(?:\.\d{2})/g)||[];
+          if(nums.length<2)return;
+          // Frontline rows end ... quantity, unit price, 15%, line total.
+          // The final decimal amount before VAT is therefore unit price.
+          var price=numPrice_(nums[nums.length-1]);
+          if(!isFinite(price)||price<0)return;
+          var key=hit.code.toUpperCase(); if(tableSeen[key])return;
+          tableSeen[key]=true; tableRows++;
+          tableOut.push({code:key,price:price,description:''});
+        });
+      }
       for(var fpg=1;fpg<=pdf.numPages;fpg++){
         onProgress({phase:'read',current:fpg,total:pdf.numPages,label:'Reading Frontline PDF page '+fpg+' of '+pdf.numPages});
         var fp=await pdf.getPage(fpg), fc=await fp.getTextContent(), fi=fc.items||[], fg=[];
