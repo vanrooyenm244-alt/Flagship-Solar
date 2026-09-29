@@ -656,6 +656,10 @@ table.page{border-collapse:collapse}
 .pupreview td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .puactions{display:flex;gap:8px;margin-top:10px}
 .puactions .btn{flex:1}
+.puprogress{margin-top:10px;border:1px solid var(--rule);border-radius:9px;padding:10px;background:#fff}
+.puprogress-track{height:12px;background:#E7ECF1;border-radius:999px;overflow:hidden;margin:7px 0}
+.puprogress-fill{height:100%;width:0;background:var(--navy);transition:width .2s ease}
+.puprogress-meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted)}
 
 
   /* Quote builder */
@@ -2630,7 +2634,8 @@ function supplierRowsFromMatrix_(matrix){
   return out;
 }
 
-async function readSupplierFile_(file){
+async function readSupplierFile_(file,onProgress){
+  onProgress=typeof onProgress==='function'?onProgress:function(){};
   var name=(file.name||'').toLowerCase(), ext=name.split('.').pop();
   if(ext==='csv' || file.type==='text/csv'){
     return supplierRowsFromMatrix_(csvRows_(await file.text()));
@@ -2646,6 +2651,66 @@ async function readSupplierFile_(file){
     var pdfjs=await loadScript_('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','pdfjsLib');
     pdfjs.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     var pdf=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;
+
+    /*
+      First try a normal supplier quote/invoice table. Frontline Electrical
+      PDFs use: Item Code | Description | Quantity | Unit Price (Ex VAT) |
+      Vat % | Line Total. Column positions are taken from the PDF header,
+      so item codes may contain spaces (for example "NITTO BLACK").
+    */
+    var tableOut=[], tableSeen={}, tableItems=0, tableRows=0;
+    for(var tpg=1;tpg<=pdf.numPages;tpg++){
+      onProgress({phase:'read',current:tpg,total:pdf.numPages,label:'Reading PDF page '+tpg+' of '+pdf.numPages});
+      var tp=await pdf.getPage(tpg), ttc=await tp.getTextContent(), ti=ttc.items||[];
+      var tt=[];
+      ti.forEach(function(it){
+        var s=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
+        if(!s)return;
+        var tr=it.transform||[];
+        tt.push({t:s,x:Number(tr[4])||0,y:Number(tr[5])||0,w:Number(it.width)||0});
+      });
+      tableItems+=tt.length;
+      tt.sort(function(a,b){return b.y-a.y||a.x-b.x;});
+      var tg=[];
+      tt.forEach(function(z){
+        var g=tg.length?tg[tg.length-1]:null;
+        if(!g||Math.abs(g.y-z.y)>2){g={y:z.y,a:[]};tg.push(g);}
+        g.a.push(z);
+      });
+      var header=null;
+      tg.forEach(function(g){
+        if(header)return;
+        var txt=g.a.map(function(z){return z.t;}).join(' ');
+        if(/Item\s*Code/i.test(txt)&&/Description/i.test(txt)&&/Quantity/i.test(txt)&&/Unit\s*Price/i.test(txt)){
+          var a=g.a.slice().sort(function(x,y){return x.x-y.x;});
+          function hx(re){var z=a.find(function(v){return re.test(v.t);});return z?z.x:null;}
+          header={code:hx(/Item|Code/i),desc:hx(/Description/i),qty:hx(/Quantity/i),price:hx(/Unit|Price/i),vat:hx(/Vat/i),total:hx(/Line|Total/i)};
+        }
+      });
+      if(header&&header.desc!=null&&header.qty!=null&&header.price!=null){
+        tg.forEach(function(g){
+          if(g.y>=tg.find(function(x){return x.a.some(function(z){return /Item\s*Code|Item/i.test(z.t);});})?.y) return;
+          var a=g.a.slice().sort(function(x,y){return x.x-y.x;});
+          var code=a.filter(function(z){return z.x<header.desc;}).map(function(z){return z.t;}).join(' ').trim();
+          var desc=a.filter(function(z){return z.x>=header.desc&&z.x<header.qty;}).map(function(z){return z.t;}).join(' ').trim();
+          var qtyText=a.filter(function(z){return z.x>=header.qty&&z.x<header.price;}).map(function(z){return z.t;}).join('');
+          var priceEnd=header.vat!=null?header.vat:(header.total!=null?header.total:1e9);
+          var priceText=a.filter(function(z){return z.x>=header.price&&z.x<priceEnd;}).map(function(z){return z.t;}).join('');
+          var qty=numPrice_(qtyText), price=numPrice_(priceText);
+          if(!code||!desc||!isFinite(qty)||qty<=0||!isFinite(price)||price<0)return;
+          if(/^(number|subtotal|vat|total|quote|bin)$/i.test(code))return;
+          var key=code.toUpperCase();
+          if(tableSeen[key])return;
+          tableSeen[key]=true; tableRows++;
+          tableOut.push({code:key,price:price,description:desc});
+        });
+      }
+    }
+    if(tableOut.length){
+      tableOut._diagnostics={sourceItems:tableItems,productRows:tableRows,products:tableOut.length,rejected:0,parser:'Supplier table'};
+      onProgress({phase:'read',current:pdf.numPages,total:pdf.numPages,label:'PDF read complete · '+tableOut.length+' products found'});
+      return tableOut;
+    }
 
     var out=[], seen={}, sourceItems=0, candidateRows=0, rejected=0;
     var codeRe=/^[A-Z0-9][A-Z0-9._\/\-]{2,}$/i;
@@ -2669,6 +2734,7 @@ async function readSupplierFile_(file){
            across objects ("8" + "500.00").
     */
     for(var pg=1;pg<=pdf.numPages;pg++){
+      onProgress({phase:'read',current:pg,total:pdf.numPages,label:'Reading PDF page '+pg+' of '+pdf.numPages});
       var page=await pdf.getPage(pg);
       var tc=await page.getTextContent();
       var items=tc.items||[];
@@ -2826,7 +2892,7 @@ function renderPriceUpdater_(){
       '<div class="pustat"><b>'+p.notFound.length+'</b><span>Not found</span></div>'+
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
     '</div>';
-  var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceLines+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
+  var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceItems+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
   html+=diag;
   if(p.notFound.length) html+='<div class="puwarn"><b>'+p.notFound.length+' supplier codes were not found.</b> Nothing will be added automatically.</div>';
   if(p.changes.length){
@@ -2849,8 +2915,13 @@ function openPriceUpdater_(){
   document.getElementById('puFile').addEventListener('change',function(e){
     var file=e.target.files&&e.target.files[0]; if(!file) return;
     PU_FILE=file; PU_ROWS=[]; PU_PREVIEW=null;
-    var msg=document.getElementById('puMsg'); msg.className='pustats'; msg.innerHTML='<div class="pustat" style="grid-column:1/-1"><b>Reading…</b><span>'+esc(file.name)+'</span></div>';
-    readSupplierFile_(file).then(function(rows){
+    var msg=document.getElementById('puMsg'); msg.className='';
+    msg.innerHTML='<div class="puprogress"><b id="puProgLabel">Reading file…</b><div class="puprogress-track"><div class="puprogress-fill" id="puProgFill"></div></div><div class="puprogress-meta"><span id="puProgCount">Preparing…</span><span id="puProgPct">0%</span></div></div>';
+    readSupplierFile_(file,function(p){
+      var pct=p.total?Math.round((p.current/p.total)*100):0;
+      var f=document.getElementById('puProgFill'), l=document.getElementById('puProgLabel'), ct=document.getElementById('puProgCount'), pc=document.getElementById('puProgPct');
+      if(f)f.style.width=pct+'%'; if(l)l.textContent=p.label||'Reading…'; if(ct)ct.textContent=(p.current||0)+' / '+(p.total||0); if(pc)pc.textContent=pct+'%';
+    }).then(function(rows){
       PU_ROWS=rows; PU_PREVIEW=buildPricePreview_(rows); renderPriceUpdater_();
     }).catch(function(err){
       msg.className='puerr'; msg.textContent=String(err.message||err);
@@ -2865,14 +2936,36 @@ function applyPriceUpdate_(){
   if(!confirm('Update '+n+' supplier prices in the Prices tab?\n\nStock, quantities and quotes will not be changed.')) return;
   var b=document.getElementById('puApply'); if(!b) return;
   b.disabled=true; b.textContent='Updating…';
-  var updates=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
-  api({action:'updatePriceList',updates:updates,source:PU_FILE?PU_FILE.name:''}).then(function(j){
-    alert('Price update complete.\n\nCost prices updated: '+(j.updated||0)+'\nUnchanged: '+(j.unchanged||0)+'\nNot found: '+(j.notFound||0));
-    PU_FILE=null; PU_ROWS=[]; PU_PREVIEW=null; loadPrices(); renderPriceUpdater_();
-  }).catch(function(e){
-    b.disabled=false; b.textContent='Update Prices';
-    alert(e.message||e);
-  });
+  var all=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
+  var box=document.getElementById('prUpdater');
+  var prog=document.createElement('div'); prog.className='puprogress';
+  prog.innerHTML='<b id="puApplyLabel">Updating supplier prices…</b><div class="puprogress-track"><div class="puprogress-fill" id="puApplyFill"></div></div><div class="puprogress-meta"><span id="puApplyCount">0 / '+n+'</span><span id="puApplyPct">0%</span></div>';
+  box.querySelector('.pubox').appendChild(prog);
+  var done=0, updated=0, unchanged=0, notFound=0, failed=0, batchSize=40;
+  function draw(){
+    var pct=n?Math.round(done/n*100):100;
+    var f=document.getElementById('puApplyFill'),ct=document.getElementById('puApplyCount'),pc=document.getElementById('puApplyPct');
+    if(f)f.style.width=pct+'%'; if(ct)ct.textContent=done+' / '+n; if(pc)pc.textContent=pct+'%';
+  }
+  async function run(){
+    for(var i=0;i<all.length;i+=batchSize){
+      var part=all.slice(i,i+batchSize);
+      try{
+        var j=await api({action:'updatePriceList',updates:part,source:PU_FILE?PU_FILE.name:''});
+        updated+=Number(j.updated)||0; unchanged+=Number(j.unchanged)||0; notFound+=Number(j.notFound)||0;
+      }catch(e){
+        failed+=part.length;
+        var lab=document.getElementById('puApplyLabel'); if(lab)lab.textContent='A batch failed — continuing with the next batch';
+      }
+      done+=part.length; draw();
+    }
+    var lab=document.getElementById('puApplyLabel');
+    if(lab)lab.textContent=failed?'Finished with '+failed+' failed':'Price update complete';
+    alert('Price update complete.\n\nProcessed: '+done+'\nCost prices updated: '+updated+'\nUnchanged: '+unchanged+'\nNot found: '+notFound+'\nFailed: '+failed);
+    PU_FILE=null; PU_ROWS=[]; PU_PREVIEW=null; loadPrices();
+    setTimeout(renderPriceUpdater_,600);
+  }
+  run().catch(function(e){b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
 }
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
