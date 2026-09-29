@@ -2951,14 +2951,7 @@ async function readSupplierFile_(file,onProgress){
     }
 
     if(!out.length){
-      var dbg=[];
-      try{
-        for(var dp=1;dp<=Math.min(2,pdf.numPages);dp++){
-          var dpage=await pdf.getPage(dp),dtc=await dpage.getTextContent();
-          dbg.push('PAGE '+dp+': '+(dtc.items||[]).map(function(it){return String(it.str||'').replace(/\\s+/g,' ').trim();}).filter(Boolean).join(' | ').slice(0,1800));
-        }
-      }catch(de){}
-      throw new Error('DEBUG PDF TEXT — loaded '+knownCodes.length+' price codes. '+dbg.join(' || '));
+      throw new Error('PDF opened, but no supplier products matched the current Price List. Loaded price-list codes: '+knownCodes.length+'.');
     }
 
     out._diagnostics={
