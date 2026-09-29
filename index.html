@@ -2729,21 +2729,42 @@ async function readSupplierFile_(file,onProgress){
         ft.sort(function(a,b){return b.y-a.y||a.x-b.x;});
         ft.forEach(function(z){var g=fg.length?fg[fg.length-1]:null;if(!g||Math.abs(g.y-z.y)>2.5){g={y:z.y,a:[]};fg.push(g);}g.a.push(z);});
         fg.forEach(function(g){
-          var line=g.a.slice().sort(function(a,b){return a.x-b.x;}).map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
+          var a=g.a.slice().sort(function(a,b){return a.x-b.x;});
+          var line=a.map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
           if(!/15(?:\.00)?%/.test(line))return;
-          var code='';
+
+          // Match a known code anywhere near the start. Frontline may prepend
+          // the bin/location token before the item code on some rows.
+          var code='', codePos=-1;
           for(var k=0;k<knownCodes.length;k++){
-            var kc=knownCodes[k];
-            if(line.toUpperCase().indexOf(kc.toUpperCase()+' ')===0){code=kc;break;}
+            var kc=knownCodes[k], pos=line.toUpperCase().indexOf(kc.toUpperCase());
+            if(pos>=0 && (codePos<0 || pos<codePos)){code=kc;codePos=pos;}
           }
           if(!code)return;
-          var rest=line.slice(code.length).trim();
-          var m=rest.match(/^(.*?)\s+(?:[A-Z]?\d+(?:\.\d+)?|&)\s+(\d+(?:\.\d+)?)\s+([0-9][0-9\s,]*(?:\.\d+)?)\s+15(?:\.00)?%\s+([0-9][0-9\s,]*(?:\.\d+)?)$/i);
-          if(!m)return;
-          var price=numPrice_(m[3]); if(!isFinite(price)||price<0)return;
+
+          // Work backwards from VAT. The numeric value immediately before
+          // 15% is Unit Price Ex VAT; the next amount is the line total.
+          // Quantity/bin/description formatting therefore cannot break price parsing.
+          var vatIndex=-1;
+          for(var vi=0;vi<a.length;vi++)if(/^15(?:\.00)?%$/.test(a[vi].t)){vatIndex=vi;break;}
+          if(vatIndex<1)return;
+          var price=NaN, priceIndex=-1;
+          for(var pi=vatIndex-1;pi>=0;pi--){
+            var pn=numPrice_(a[pi].t);
+            if(isFinite(pn)){price=pn;priceIndex=pi;break;}
+          }
+          if(!isFinite(price)||price<0)return;
+
+          var afterCode=line.slice(codePos+code.length).trim();
+          var desc=afterCode;
+          var qtyPriceTail=afterCode.search(/\s\d+(?:\.\d+)?\s+[0-9][0-9\s,]*(?:\.\d+)?\s+15(?:\.00)?%/);
+          if(qtyPriceTail>0)desc=afterCode.slice(0,qtyPriceTail).trim();
+          // Strip the common Frontline bin token from the end of description.
+          desc=desc.replace(/\s+[A-Z]?\d+(?:\.\d+)?(?:\s*&)?\s*$/i,'').trim();
+
           var key=code.toUpperCase(); if(tableSeen[key])return;
           tableSeen[key]=true; tableRows++;
-          tableOut.push({code:key,price:price,description:m[1].trim()});
+          tableOut.push({code:key,price:price,description:desc});
         });
       }
     }
@@ -2889,7 +2910,7 @@ async function readSupplierFile_(file,onProgress){
     }
 
     if(!out.length){
-      throw new Error('I could read the PDF, but could not identify product rows. Try the supplier CSV/Excel export instead.');
+      throw new Error('PDF opened, but 0 matching product rows were found. Loaded price-list codes: '+knownCodes.length+'. This usually means the PDF text positions differ from the supplier template.');
     }
 
     out._diagnostics={
