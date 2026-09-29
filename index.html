@@ -2935,12 +2935,17 @@ function renderPriceUpdater_(){
       '<div class="pustat"><b>'+p.changes.length+'</b><span>Will change</span></div>'+
       '<div class="pustat"><b>'+p.increases+'</b><span>Increases</span></div>'+
       '<div class="pustat"><b>'+p.decreases+'</b><span>Decreases</span></div>'+
-      '<div class="pustat"><b>'+p.notFound.length+'</b><span>Not found</span></div>'+
+      '<div class="pustat"><b>'+p.notFound.length+'</b><span>New items</span></div>'+
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
     '</div>';
   var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceItems+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
   html+=diag;
-  if(p.notFound.length) html+='<div class="puwarn"><b>'+p.notFound.length+' supplier codes were not found.</b> Nothing will be added automatically.</div>';
+  if(p.notFound.length){
+    html+='<div class="puwarn"><b>'+p.notFound.length+' new supplier products will be created.</b> They will use the supplier description/code, Cost price, unit "each", category "Other", and the normal default markup.</div>';
+    html+='<div class="pupreview"><table><thead><tr><th>New code</th><th>Description</th><th>Cost</th></tr></thead><tbody>';
+    p.notFound.slice(0,200).forEach(function(x){html+='<tr><td>'+esc(x.code)+'</td><td>'+esc(x.description||'')+'</td><td class="num"><b>'+money(x.price)+'</b></td></tr>';});
+    html+='</tbody></table></div>';
+  }
   if(p.changes.length){
     html+='<div class="pupreview"><table><thead><tr><th>Code</th><th>Description</th><th>Old</th><th>New</th></tr></thead><tbody>';
     p.changes.slice(0,200).forEach(function(x){ html+='<tr><td>'+esc(x.current.code)+'</td><td>'+esc(x.current.description||x.incoming.description||'')+'</td><td class="num">'+money(x.old)+'</td><td class="num"><b>'+money(x.newPrice)+'</b></td></tr>'; });
@@ -2948,7 +2953,7 @@ function renderPriceUpdater_(){
     if(p.changes.length>200) html+='<div class="sub" style="margin-top:6px">Showing first 200 changes. All '+p.changes.length+' matched changes will be updated.</div>';
   }
   html+='<div class="puactions"><button class="btn ghost" type="button" id="puCancel">Cancel</button>'+
-    '<button class="btn" type="button" id="puApply" '+(p.changes.length?'':'disabled')+'>Update Prices</button></div></div>';
+    '<button class="btn" type="button" id="puApply" '+((p.changes.length||p.notFound.length)?'':'disabled')+'>Update Prices</button></div></div>';
   box.innerHTML=html;
   document.getElementById('puCancel').addEventListener('click',function(){PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;renderPriceUpdater_();});
   document.getElementById('puApply').addEventListener('click',applyPriceUpdate_);
@@ -2977,39 +2982,45 @@ function openPriceUpdater_(){
 }
 
 function applyPriceUpdate_(){
-  if(!PU_PREVIEW || !PU_PREVIEW.changes.length) return;
-  var n=PU_PREVIEW.changes.length;
-  if(!confirm('Update '+n+' supplier prices in the Prices tab?\n\nStock, quantities and quotes will not be changed.')) return;
+  if(!PU_PREVIEW || (!PU_PREVIEW.changes.length && !PU_PREVIEW.notFound.length)) return;
+  var updates=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
+  var creates=PU_PREVIEW.notFound.map(function(x){return {
+    id:'',description:x.description||x.code,category:'Other',unit:'each',
+    supplier:x.supplier||'Frontline',code:x.code,type:'Cost',cost:Number(x.price)||0,
+    markup:'',install:0,spec:'',active:true
+  };});
+  var n=updates.length+creates.length;
+  if(!confirm('Apply '+n+' supplier price-list changes?\n\nExisting price updates: '+updates.length+'\nNew supplier products: '+creates.length+'\n\nStock quantities and existing quotes will not be changed.')) return;
   var b=document.getElementById('puApply'); if(!b) return;
   b.disabled=true; b.textContent='Updating…';
-  var all=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
   var box=document.getElementById('prUpdater');
   var prog=document.createElement('div'); prog.className='puprogress';
   prog.innerHTML='<b id="puApplyLabel">Updating supplier prices…</b><div class="puprogress-track"><div class="puprogress-fill" id="puApplyFill"></div></div><div class="puprogress-meta"><span id="puApplyCount">0 / '+n+'</span><span id="puApplyPct">0%</span></div>';
   box.querySelector('.pubox').appendChild(prog);
-  var done=0, updated=0, unchanged=0, notFound=0, failed=0, batchSize=40;
-  function draw(){
+  var done=0,updated=0,created=0,unchanged=0,notFound=0,failed=0,batchSize=40;
+  function draw(label){
     var pct=n?Math.round(done/n*100):100;
-    var f=document.getElementById('puApplyFill'),ct=document.getElementById('puApplyCount'),pc=document.getElementById('puApplyPct');
-    if(f)f.style.width=pct+'%'; if(ct)ct.textContent=done+' / '+n; if(pc)pc.textContent=pct+'%';
+    var f=document.getElementById('puApplyFill'),ct=document.getElementById('puApplyCount'),pc=document.getElementById('puApplyPct'),lab=document.getElementById('puApplyLabel');
+    if(f)f.style.width=pct+'%'; if(ct)ct.textContent=done+' / '+n; if(pc)pc.textContent=pct+'%'; if(lab&&label)lab.textContent=label;
   }
   async function run(){
-    for(var i=0;i<all.length;i+=batchSize){
-      var part=all.slice(i,i+batchSize);
+    for(var i=0;i<updates.length;i+=batchSize){
+      var part=updates.slice(i,i+batchSize);
       try{
         var j=await api({action:'updatePriceList',updates:part,source:PU_FILE?PU_FILE.name:''});
         updated+=Number(j.updated)||0; unchanged+=Number(j.unchanged)||0; notFound+=Number(j.notFound)||0;
-      }catch(e){
-        failed+=part.length;
-        var lab=document.getElementById('puApplyLabel'); if(lab)lab.textContent='A batch failed — continuing with the next batch';
-      }
-      done+=part.length; draw();
+      }catch(e){failed+=part.length;}
+      done+=part.length; draw('Updating existing supplier prices…');
     }
-    var lab=document.getElementById('puApplyLabel');
-    if(lab)lab.textContent=failed?'Finished with '+failed+' failed':'Price update complete';
-    alert('Price update complete.\n\nProcessed: '+done+'\nCost prices updated: '+updated+'\nUnchanged: '+unchanged+'\nNot found: '+notFound+'\nFailed: '+failed);
-    PU_FILE=null; PU_ROWS=[]; PU_PREVIEW=null; loadPrices();
-    setTimeout(renderPriceUpdater_,600);
+    // New products use the existing, proven savePrice endpoint one at a time.
+    for(var k=0;k<creates.length;k++){
+      try{await api({action:'savePrice',item:creates[k]});created++;}
+      catch(e){failed++;}
+      done++; draw('Creating new supplier products…');
+    }
+    draw(failed?'Finished with '+failed+' failed':'Price list update complete');
+    alert('Price list update complete.\n\nProcessed: '+done+'\nExisting prices updated: '+updated+'\nNew products created: '+created+'\nUnchanged: '+unchanged+'\nNot found during update: '+notFound+'\nFailed: '+failed);
+    PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;loadPrices();setTimeout(renderPriceUpdater_,600);
   }
   run().catch(function(e){b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
 }
