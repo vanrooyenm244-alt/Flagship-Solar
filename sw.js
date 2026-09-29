@@ -1,6 +1,6 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v106-network-html';
+const CACHE = 'flagship-completion-v107-frontline';
 const SHELL = [
   './',
   './index.html',
