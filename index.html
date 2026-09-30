@@ -4019,27 +4019,76 @@ function vpOpenWhatsApp_(url){
   var msg=(VP.lang==='en'?'Hi '+VP.client+', here is your Flagship Solar Value Proposal: ':'Hi '+VP.client+', hier is jou Flagship Solar Value Proposal: ')+url;
   window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank','noopener');
 }
-function vpPublish_(){
+function vpShareMessage_(){
+  var name=(VP.client||'').trim();
+  return 'Hi '+(name||'there')+', thank you for choosing Flagship Solar.\n\nPlease find your personalised Value Proposal attached.\n\nShould you wish to proceed, or if you have any questions regarding the proposal, please don’t hesitate to contact us. We’ll be happy to assist.\n\nKind regards\nFlagship Solar ☀️';
+}
+function vpFileName_(){
+  var no=(VP.no||'VP').trim(), name=(VP.client||'Customer').trim();
+  return ('FS-'+no+' Value Proposal - '+name+'.pdf').replace(/[\\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
+}
+function vpBuildSharePdf_(){
+  vpMirrorAll(); vpCover(); vpCalc(); vpLines();
+  return jcLoadPdfLibs_().then(function(){
+    var source=document.getElementById('screenProp');
+    if(!source)throw new Error('Value Proposal was not found.');
+
+    var holder=document.createElement('div');
+    holder.style.position='fixed'; holder.style.left='-100000px'; holder.style.top='0';
+    holder.style.width='820px'; holder.style.display='block'; holder.style.background='#fff';
+    holder.style.zIndex='-1';
+
+    var el=source.cloneNode(true);
+    el.classList.remove('hidden');
+    el.style.display='block'; el.style.width='820px'; el.style.maxWidth='820px';
+    el.style.margin='0'; el.style.padding='0'; el.style.background='#fff';
+    Array.prototype.slice.call(el.querySelectorAll('.actionbar,.vpin,.addrow,#vpAdd,.pline .x,.vpsrc,#vpPublishStatus')).forEach(function(n){n.remove();});
+    holder.appendChild(el); document.body.appendChild(holder);
+
+    var imgs=Array.prototype.slice.call(el.querySelectorAll('img'));
+    return Promise.all(imgs.map(function(img){
+      if(img.complete&&img.naturalWidth)return Promise.resolve();
+      return new Promise(function(resolve){var done=function(){resolve();};img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true});setTimeout(done,5000);});
+    })).then(function(){
+      return html2canvas(el,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:820});
+    }).then(function(canvas){
+      var J=window.jspdf.jsPDF, doc=new J({orientation:'p',unit:'mm',format:'a4'});
+      var margin=7,pw=210,ph=297,uw=pw-margin*2,uh=ph-margin*2,ppm=canvas.width/uw,pagePx=Math.floor(uh*ppm),y=0,page=0;
+      while(y<canvas.height){
+        var h=Math.min(pagePx,canvas.height-y),slice=document.createElement('canvas');
+        slice.width=canvas.width;slice.height=h;
+        var ctx=slice.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,slice.width,slice.height);ctx.drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
+        if(page++)doc.addPage();
+        doc.addImage(slice.toDataURL('image/jpeg',0.94),'JPEG',margin,margin,uw,h/ppm);
+        y+=h;
+      }
+      holder.remove(); return doc;
+    }).catch(function(e){holder.remove();throw e;});
+  });
+}
+function vpShareToCustomer_(){
   vpMirrorAll(); vpCalc(); vpLines();
   if(!VP.client.trim()){alert('Customer name is required.');return;}
   if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
-  VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
-  VP.customerPhone=(document.getElementById('vpPhone').value||'').trim();
-  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Preparing…';}});
-  var publishing=VP,publishingId=VPID;
-  api({action:'proposalPublish',proposal:VP}).then(function(j){
-    if(!j.token||!j.url)throw new Error('Missing proposal acknowledgement. Check the server before sending again.');
-    if(VP!==publishing||VPID!==publishingId){alert('Proposal published: '+j.url+'. The current proposal was left unchanged.');return;}
-    VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
-    var st=document.getElementById('vpPublishStatus');
-    if(st)st.innerHTML='<b>Customer link ready.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open link</a> · <button type="button" class="btn ghost" id="vpWaNow" style="padding:5px 9px">WhatsApp</button>';
-    var wa=document.getElementById('vpWaNow'); if(wa)wa.addEventListener('click',function(){vpOpenWhatsApp_(j.url);});
-    /* Do not auto-open WhatsApp here: this callback runs after an async publish
-       request, so mobile browsers can treat window.open() as an unsolicited popup.
-       The visible WhatsApp button below is a real user gesture and opens reliably. */
-    if(st)st.scrollIntoView({behavior:'smooth',block:'nearest'});
-  }).catch(function(e){alert('Send failed: '+String(e.message||e));}).finally(function(){btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});});
+  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];
+  btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Preparing PDF…';}});
+  vpBuildSharePdf_().then(function(doc){
+    var blob=doc.output('blob'),file=new File([blob],vpFileName_(),{type:'application/pdf'});
+    var shareData={title:'Flagship Solar Value Proposal',text:vpShareMessage_(),files:[file]};
+    if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){
+      return navigator.share(shareData);
+    }
+    var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=file.name;a.click();
+    setTimeout(function(){URL.revokeObjectURL(u);},2000);
+    alert('This browser cannot open the phone share menu for PDF files. The Value Proposal PDF was saved instead.');
+  }).catch(function(e){
+    if(e&&e.name==='AbortError')return;
+    alert('Value Proposal share failed: '+String(e.message||e));
+  }).finally(function(){
+    btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});
+  });
 }
+function vpPublish_(){ vpShareToCustomer_(); }
 
 /* ============ quote builder ============ */
 var QB={id:'',client:'',title:'',ref:'',expiry:'',xeroContact:null,items:[],prices:[]};
