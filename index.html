@@ -2894,7 +2894,7 @@ async function readSupplierFile_(file,onProgress){
     }
 
     if(!out.length){
-      throw new Error('PDF opened, but no supplier product codes matched after normalized comparison. Loaded price-list codes: '+knownCodes.length+'.');
+      throw new Error('PDF opened, but no supplier product rows could be recognised. Loaded price-list codes: '+PRICES.length+'.');
     }
 
     out._diagnostics={
