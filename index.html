@@ -4033,58 +4033,80 @@ function vpBuildSharePdf_(){
     var source=document.getElementById('screenProp');
     if(!source)throw new Error('Value Proposal was not found.');
 
+    /* Build a customer-only document. Do not capture the editable screen:
+       the old/good proposal is a print document with its own cover and bands. */
     var holder=document.createElement('div');
-    holder.style.position='fixed'; holder.style.left='-100000px'; holder.style.top='0';
-    holder.style.width='820px'; holder.style.display='block'; holder.style.background='#fff';
-    holder.style.zIndex='-1';
+    holder.id='vpSharePrint';
+    holder.style.position='fixed';holder.style.left='-100000px';holder.style.top='0';
+    holder.style.width='794px';holder.style.background='#fff';holder.style.zIndex='-1';
 
-    var el=source.cloneNode(true);
-    el.classList.remove('hidden');
-    el.style.display='block'; el.style.width='820px'; el.style.maxWidth='820px';
-    el.style.margin='0'; el.style.padding='0'; el.style.background='#fff';
+    var srcCover=source.querySelector('.vpcover');
+    var srcTable=source.querySelector('table.page');
+    if(!srcCover||!srcTable)throw new Error('Proposal print layout was not found.');
 
-    /* Recreate the proposal's PRINT presentation before html2canvas captures it.
-       The branded cover/header/footer normally exist only inside @media print,
-       so a normal screen clone would hide the actual Flagship artwork. */
-    var cover=el.querySelector('.vpcover');
-    if(cover){cover.style.display='block';cover.style.position='relative';cover.style.width='794px';cover.style.height='1123px';cover.style.overflow='hidden';}
-    var coverBg=cover&&cover.querySelector('.bg');
-    if(coverBg){coverBg.style.position='absolute';coverBg.style.inset='0';coverBg.style.width='100%';coverBg.style.height='100%';coverBg.style.objectFit='cover';}
-    var coverIn=cover&&cover.querySelector('.in');
-    if(coverIn){coverIn.style.position='relative';coverIn.style.zIndex='1';coverIn.style.padding='672px 68px 0';}
-    Array.prototype.slice.call(el.querySelectorAll('.bandtop,.bandbot')).forEach(function(n){n.style.display='block';});
-    Array.prototype.slice.call(el.querySelectorAll('.bandtop img,.bandbot img')).forEach(function(n){n.style.width='100%';n.style.display='block';});
-    Array.prototype.slice.call(el.querySelectorAll('.vpin,.addrow,#vpAdd,.pline .x,.vpsrc,#vpPublishStatus,.actionbar')).forEach(function(n){n.remove();});
-    Array.prototype.slice.call(el.querySelectorAll('textarea[data-p]')).forEach(function(n){n.style.display='none';});
-    Array.prototype.slice.call(el.querySelectorAll('.tprint')).forEach(function(n){n.style.display='block';});
-    var pageTable=el.querySelector('table.page');
-    if(pageTable){pageTable.style.display='table';pageTable.style.width='100%';}
-    var th=pageTable&&pageTable.querySelector('thead');if(th)th.style.display='table-header-group';
-    var tf=pageTable&&pageTable.querySelector('tfoot');if(tf)tf.style.display='table-footer-group';
-    var tb=pageTable&&pageTable.querySelector('tbody');if(tb)tb.style.display='table-row-group';
-    Array.prototype.slice.call(el.querySelectorAll('table.page tr')).forEach(function(n){n.style.display='table-row';});
-    Array.prototype.slice.call(el.querySelectorAll('table.page th,table.page td')).forEach(function(n){n.style.display='table-cell';});
-    var bodyCell=pageTable&&pageTable.querySelector('tbody>tr>td');if(bodyCell){bodyCell.style.padding='0 53px';}
-    holder.appendChild(el); document.body.appendChild(holder);
+    var cover=srcCover.cloneNode(true);
+    var table=srcTable.cloneNode(true);
+    holder.appendChild(cover);holder.appendChild(table);
 
-    var imgs=Array.prototype.slice.call(el.querySelectorAll('img'));
+    /* Customer PDF must never contain editing/sending controls. */
+    Array.prototype.slice.call(holder.querySelectorAll(
+      '.actionbar,.vpin,.addrow,#vpAdd,.pline .x,.vpsrc,#vpPublishStatus,'+
+      '#vpXeroResults,#vpEmail,#vpPhone,#vpXeroSearch,#vpXeroFind,#vpPublish,#vpPublish2'
+    )).forEach(function(n){
+      var row=n.closest&&n.closest('.field'); if(row&&(/Customer email|Customer WhatsApp/i.test(row.textContent||'')))row.remove(); else n.remove();
+    });
+    Array.prototype.slice.call(holder.querySelectorAll('.field')).forEach(function(n){
+      if(/Xero customer|Send proposal|Customer email|Customer WhatsApp/i.test(n.textContent||''))n.remove();
+    });
+
+    /* Apply the same visible presentation as @media print. */
+    cover.style.display='block';cover.style.position='relative';cover.style.width='794px';
+    cover.style.height='1123px';cover.style.overflow='hidden';cover.style.breakAfter='page';
+    var bg=cover.querySelector('.bg');
+    if(bg){bg.style.position='absolute';bg.style.inset='0';bg.style.width='100%';bg.style.height='100%';bg.style.objectFit='cover';}
+    var cin=cover.querySelector('.in');
+    if(cin){cin.style.position='relative';cin.style.zIndex='1';cin.style.padding='672px 68px 0';}
+
+    table.style.display='table';table.style.width='100%';table.style.borderCollapse='separate';
+    var th=table.querySelector('thead');if(th)th.style.display='table-header-group';
+    var tf=table.querySelector('tfoot');if(tf)tf.style.display='table-footer-group';
+    var tb=table.querySelector('tbody');if(tb)tb.style.display='table-row-group';
+    Array.prototype.slice.call(table.querySelectorAll('tr')).forEach(function(n){n.style.display='table-row';});
+    Array.prototype.slice.call(table.querySelectorAll('th,td')).forEach(function(n){n.style.display='table-cell';});
+    var cell=table.querySelector('tbody>tr>td');if(cell)cell.style.padding='0 53px';
+    Array.prototype.slice.call(holder.querySelectorAll('.bandtop,.bandbot')).forEach(function(n){n.style.display='block';});
+    Array.prototype.slice.call(holder.querySelectorAll('.bandtop img,.bandbot img')).forEach(function(n){n.style.display='block';n.style.width='100%';});
+    Array.prototype.slice.call(holder.querySelectorAll('textarea[data-p]')).forEach(function(n){n.style.display='none';});
+    Array.prototype.slice.call(holder.querySelectorAll('.tprint')).forEach(function(n){n.style.display='block';n.style.fontSize='13px';});
+    Array.prototype.slice.call(holder.querySelectorAll('.hint')).forEach(function(n){n.style.display='none';});
+    Array.prototype.slice.call(holder.querySelectorAll('.sheet')).forEach(function(n){n.style.boxShadow='none';n.style.borderRadius='0';n.style.margin='0 0 23px';n.style.padding='0';});
+    Array.prototype.slice.call(holder.querySelectorAll('.sheet-head .tag')).forEach(function(n){n.style.display='none';});
+
+    document.body.appendChild(holder);
+    var imgs=Array.prototype.slice.call(holder.querySelectorAll('img'));
     return Promise.all(imgs.map(function(img){
       if(img.complete&&img.naturalWidth)return Promise.resolve();
       return new Promise(function(resolve){var done=function(){resolve();};img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true});setTimeout(done,5000);});
     })).then(function(){
-      return html2canvas(el,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:820});
-    }).then(function(canvas){
-      var J=window.jspdf.jsPDF, doc=new J({orientation:'p',unit:'mm',format:'a4'});
-      var margin=7,pw=210,ph=297,uw=pw-margin*2,uh=ph-margin*2,ppm=canvas.width/uw,pagePx=Math.floor(uh*ppm),y=0,page=0;
+      /* Capture cover separately so page 1 remains the exact full-page artwork. */
+      return html2canvas(cover,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:794}).then(function(cc){
+        return html2canvas(table,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:794}).then(function(tc){
+          return {cover:cc,body:tc};
+        });
+      });
+    }).then(function(canv){
+      var J=window.jspdf.jsPDF,doc=new J({orientation:'p',unit:'mm',format:'a4'});
+      doc.addImage(canv.cover.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297);
+
+      var canvas=canv.body,pw=210,ph=297,ppm=canvas.width/pw,pagePx=Math.floor(ph*ppm),y=0;
       while(y<canvas.height){
         var h=Math.min(pagePx,canvas.height-y),slice=document.createElement('canvas');
         slice.width=canvas.width;slice.height=h;
-        var ctx=slice.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,slice.width,slice.height);ctx.drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
-        if(page++)doc.addPage();
-        doc.addImage(slice.toDataURL('image/jpeg',0.94),'JPEG',margin,margin,uw,h/ppm);
-        y+=h;
+        var ctx=slice.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,slice.width,slice.height);
+        ctx.drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);
+        doc.addPage();doc.addImage(slice.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,h/ppm);y+=h;
       }
-      holder.remove(); return doc;
+      holder.remove();return doc;
     }).catch(function(e){holder.remove();throw e;});
   });
 }
