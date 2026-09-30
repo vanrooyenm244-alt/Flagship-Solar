@@ -2753,6 +2753,53 @@ async function readSupplierFile_(file,onProgress){
       }
     }
 
+    /*
+      Frontline TAX INVOICE parser.
+      Invoice layout: Item Code | Description | Quantity | Excl VAT | Total Ex Vat.
+      Unlike the quote format, there is no 15% VAT token per line. Use the
+      numeric tail of each visual row: quantity, unit cost excl VAT, line total.
+    */
+    if(!tableOut.length){
+      for(var ipg=1;ipg<=pdf.numPages;ipg++){
+        onProgress({phase:'read',current:ipg,total:pdf.numPages,label:'Reading Frontline invoice page '+ipg+' of '+pdf.numPages});
+        var ip=await pdf.getPage(ipg), itc=await ip.getTextContent(), its=itc.items||[], iv=[];
+        its.forEach(function(it){
+          var tx=String(it.str||'').replace(/[\u0000-\u001F\u007F]/g,' ').replace(/\s+/g,' ').trim();
+          if(!tx)return;
+          var tr=it.transform||[];
+          iv.push({t:tx,x:Number(tr[4])||0,y:Number(tr[5])||0,w:Number(it.width)||0});
+        });
+        iv.sort(function(a,b){return b.y-a.y||a.x-b.x;});
+        var igr=[];
+        iv.forEach(function(z){var g=igr.length?igr[igr.length-1]:null;if(!g||Math.abs(g.y-z.y)>2.2){g={y:z.y,a:[]};igr.push(g);}g.a.push(z);});
+        var ih=null;
+        igr.forEach(function(g){
+          if(ih)return;
+          var a=g.a.slice().sort(function(x,y){return x.x-y.x;}), txt=a.map(function(z){return z.t;}).join(' ');
+          if(/Item\s*Code/i.test(txt)&&/Description/i.test(txt)&&/Quantity/i.test(txt)&&/Excl\s*VAT/i.test(txt)){
+            function findX(re){var z=a.find(function(v){return re.test(v.t);});return z?z.x:null;}
+            ih={y:g.y,desc:findX(/Description/i),qty:findX(/Quantity/i),price:findX(/Excl\s*VAT|Excl/i),total:findX(/Total\s*Ex\s*Vat|Total/i)};
+          }
+        });
+        if(!ih||ih.desc==null||ih.qty==null||ih.price==null)continue;
+        igr.forEach(function(g){
+          if(g.y>=ih.y-1)return;
+          var a=g.a.slice().sort(function(x,y){return x.x-y.x;});
+          var left=a.filter(function(z){return z.x<ih.desc;}).map(function(z){return z.t;}).join(' ').trim();
+          var desc=a.filter(function(z){return z.x>=ih.desc&&z.x<ih.qty;}).map(function(z){return z.t;}).join(' ').replace(/\s+/g,' ').trim();
+          var qty=numPrice_(a.filter(function(z){return z.x>=ih.qty&&z.x<ih.price;}).map(function(z){return z.t;}).join(' '));
+          var pend=ih.total!=null?ih.total:1e9;
+          var price=numPrice_(a.filter(function(z){return z.x>=ih.price&&z.x<pend;}).map(function(z){return z.t;}).join(' '));
+          if(!left||!desc||!isFinite(qty)||qty<=0||!isFinite(price)||price<=0)return;
+          if(/^(Subtotal|Vat|Total|Account|Order|Representative|Invoice)$/i.test(left))return;
+          var key=left.toUpperCase();
+          if(tableSeen[key])return;
+          tableSeen[key]=true;tableRows++;
+          tableOut.push({code:left,price:price,description:desc,quantity:qty,supplier:'Frontline'});
+        });
+      }
+    }
+
     if(tableOut.length){
       tableOut._diagnostics={sourceItems:tableItems,productRows:tableRows,products:tableOut.length,rejected:0,parser:'Frontline token stream'};
       onProgress({phase:'read',current:pdf.numPages,total:pdf.numPages,label:'PDF read complete · '+tableOut.length+' products found'});
