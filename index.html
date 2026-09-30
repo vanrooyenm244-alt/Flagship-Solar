@@ -4046,7 +4046,15 @@ function vpBuildSharePdf_(){
 
     var cover=srcCover.cloneNode(true);
     var table=srcTable.cloneNode(true);
-    holder.appendChild(cover);holder.appendChild(table);
+
+    /* Keep cover and body in physically separate off-screen render roots.
+       html2canvas does not implement CSS paged-media breaks, so putting them
+       in one flow can leak the page-2 header into the bottom of page 1. */
+    var coverRoot=document.createElement('div'),bodyRoot=document.createElement('div');
+    coverRoot.style.width='794px';coverRoot.style.height='1123px';coverRoot.style.overflow='hidden';coverRoot.style.background='#fff';
+    bodyRoot.style.width='794px';bodyRoot.style.background='#fff';
+    coverRoot.appendChild(cover);bodyRoot.appendChild(table);
+    holder.appendChild(coverRoot);holder.appendChild(bodyRoot);
 
     /* Customer PDF must never contain editing/sending controls. */
     Array.prototype.slice.call(holder.querySelectorAll(
@@ -4089,8 +4097,8 @@ function vpBuildSharePdf_(){
       return new Promise(function(resolve){var done=function(){resolve();};img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true});setTimeout(done,5000);});
     })).then(function(){
       /* Capture cover separately so page 1 remains the exact full-page artwork. */
-      return html2canvas(cover,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:794}).then(function(cc){
-        return html2canvas(table,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:794}).then(function(tc){
+      return html2canvas(coverRoot,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',width:794,height:1123,windowWidth:794,windowHeight:1123,scrollX:0,scrollY:0}).then(function(cc){
+        return html2canvas(bodyRoot,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',windowWidth:794,scrollX:0,scrollY:0}).then(function(tc){
           return {cover:cc,body:tc};
         });
       });
