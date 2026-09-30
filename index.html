@@ -2803,6 +2803,27 @@ async function readSupplierFile_(file,onProgress){
           if(!left||!desc||!isFinite(qty)||qty<=0||!isFinite(price)||price<=0){pendingCode='';pendingDesc='';return;}
           if(/^(Subtotal|Vat|Total|Account|Order|Representative|Invoice|Tax Invoice)$/i.test(left)){pendingCode='';pendingDesc='';return;}
 
+          /*
+             Frontline sometimes wraps the END of the previous product onto a
+             separate visual row. If we have a pending fragment and the current
+             priced row is clearly a new full product, repair the previous row
+             instead of prefixing the fragment to this one.
+             Example:
+               priced row: GLO | 2 POLE PV Surge... | 2 | 371.25 | 742.50
+               wrap row:   GL1ADCBY7402600 | DC
+               next row:   HAGER SF263 | 63A...
+          */
+          if(pendingCode && tableOut.length){
+            var prev=tableOut[tableOut.length-1];
+            if(prev && prev.code && prev.code.split(/\s+/).length===1){
+              var oldKey=String(prev.code).toUpperCase();
+              delete tableSeen[oldKey];
+              prev.code=(prev.code+' '+pendingCode).replace(/\s+/g,' ').trim();
+              if(pendingDesc) prev.description=(prev.description+' '+pendingDesc).replace(/\s+/g,' ').trim();
+              tableSeen[String(prev.code).toUpperCase()]=true;
+              pendingCode='';pendingDesc='';
+            }
+          }
           if(pendingCode){left=(pendingCode+' '+left).replace(/\s+/g,' ').trim();}
           if(pendingDesc){desc=(pendingDesc+' '+desc).replace(/\s+/g,' ').trim();}
           pendingCode='';pendingDesc='';
