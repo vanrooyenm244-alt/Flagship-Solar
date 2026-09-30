@@ -2822,7 +2822,7 @@ async function readSupplierFile_(file,onProgress){
     }
 
     if(tableOut.length){
-      tableOut._diagnostics={sourceItems:tableItems,productRows:tableRows,products:tableOut.length,rejected:0,parser:'Frontline token stream'};
+      tableOut._diagnostics={sourceItems:tableItems,productRows:tableRows,products:tableOut.length,rejected:0,parser:'Frontline token stream',codes:tableOut.map(function(x){return x.code+' — '+x.description+' — '+money(x.price);})};
       onProgress({phase:'read',current:pdf.numPages,total:pdf.numPages,label:'PDF read complete · '+tableOut.length+' products found'});
       return tableOut;
     }
@@ -3008,6 +3008,9 @@ function renderPriceUpdater_(){
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
     '</div>';
   var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceItems+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
+  if(p.diagnostics && p.diagnostics.codes && p.diagnostics.codes.length){
+    diag+='<details style="margin-top:8px"><summary><b>Detected supplier codes ('+p.diagnostics.codes.length+')</b></summary><div class="sub" style="margin-top:6px;line-height:1.7">'+p.diagnostics.codes.map(esc).join('<br>')+'</div></details>';
+  }
   html+=diag;
   if(p.notFound.length){
     html+='<div class="puwarn"><b>'+p.notFound.length+' new supplier products will be created.</b> They will use the supplier description/code, Cost price, unit "each", category "Other", and the normal default markup.</div>';
