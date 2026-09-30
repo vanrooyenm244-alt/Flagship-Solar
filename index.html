@@ -2796,6 +2796,27 @@ async function readSupplierFile_(file,onProgress){
              (e.g. GLO) on one visual row and the rest on the next row. Keep
              non-priced fragments and prepend them to the next priced row. */
           if((left||desc)&&(!isFinite(qty)||qty<=0||!isFinite(price)||price<=0)){
+            /*
+              A non-priced visual row after a priced product is normally the
+              continuation of THAT previous product (e.g. "Renalec" or
+              "C-Curve"). Attach description-only fragments backwards.
+              Code fragments are held only when they cannot belong to the
+              previous code.
+            */
+            if(!left && desc && tableOut.length){
+              var pd=tableOut[tableOut.length-1];
+              pd.description=(pd.description+' '+desc).replace(/\s+/g,' ').trim();
+              return;
+            }
+            if(left && !desc && tableOut.length){
+              var pc=tableOut[tableOut.length-1];
+              if(pc && pc.code && pc.code.split(/\s+/).length===1){
+                var pk=String(pc.code).toUpperCase(); delete tableSeen[pk];
+                pc.code=(pc.code+' '+left).replace(/\s+/g,' ').trim();
+                tableSeen[String(pc.code).toUpperCase()]=true;
+                return;
+              }
+            }
             if(left && !/^(Subtotal|Vat|Total|Account|Order|Representative|Invoice|Tax Invoice)$/i.test(left)) pendingCode+=(pendingCode?' ':'')+left;
             if(desc) pendingDesc+=(pendingDesc?' ':'')+desc;
             return;
