@@ -3129,14 +3129,26 @@ function applyPriceUpdate_(){
       }catch(e){failed+=part.length;}
       done+=part.length; draw('Updating existing supplier prices…');
     }
-    // New products use the existing, proven savePrice endpoint one at a time.
-    for(var k=0;k<creates.length;k++){
-      try{await api({action:'savePrice',item:creates[k]});created++;}
-      catch(e){failed++;}
-      done++; draw('Creating new supplier products…');
+    // Create supplier products in one server batch. The backend de-duplicates by supplier code,
+    // so retrying the same invoice cannot create a second copy of products already saved.
+    var failureDetails=[];
+    if(creates.length){
+      try{
+        var cj=await api({action:'createSupplierPrices',items:creates,source:PU_FILE?PU_FILE.name:''});
+        created+=Number(cj.created)||0;
+        unchanged+=Number(cj.existing)||0;
+        failed+=Number(cj.failed)||0;
+        (cj.results||[]).forEach(function(x){if(x.status==='failed')failureDetails.push((x.code||'(no code)')+': '+(x.error||'failed'));});
+      }catch(e){
+        failed+=creates.length;
+        failureDetails.push('Batch create failed: '+String(e.message||e));
+      }
+      done+=creates.length; draw('Creating new supplier products…');
     }
     draw(failed?'Finished with '+failed+' failed':'Price list update complete');
-    alert('Price list update complete.\n\nProcessed: '+done+'\nExisting prices updated: '+updated+'\nNew products created: '+created+'\nUnchanged: '+unchanged+'\nNot found during update: '+notFound+'\nFailed: '+failed);
+    var msg='Price list update complete.\n\nProcessed: '+done+'\nExisting prices updated: '+updated+'\nNew products created: '+created+'\nUnchanged / already existing: '+unchanged+'\nNot found during update: '+notFound+'\nFailed: '+failed;
+    if(failureDetails.length)msg+='\n\nFailure details:\n'+failureDetails.join('\n');
+    alert(msg);
     PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;loadPrices();setTimeout(renderPriceUpdater_,600);
   }
   run().catch(function(e){b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
