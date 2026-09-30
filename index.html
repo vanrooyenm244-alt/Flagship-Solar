@@ -1193,6 +1193,7 @@ table.page{border-collapse:collapse}
     <div class="qbcard" style="margin-top:14px">
       <h3 style="margin:0 0 8px">Xero customer / Send proposal</h3>
       <div class="field"><label>Customer email</label><input id="vpEmail" type="email" placeholder="customer@example.com"></div>
+      <div class="field"><label>Customer WhatsApp</label><input id="vpPhone" type="tel" inputmode="tel" placeholder="082 123 4567"></div>
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
       <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
@@ -3410,7 +3411,7 @@ function vpBlank(lang){
           valid:en?'Prices valid for 14 days':'Pryse geldig vir 14 dae',
           bill:'',tariff:'3.02',panels:'',watt:'620',battery:'',sun:'4.0',
           invkw:'',strings:'',pick:{},
-          now:'',prop:'',items:[],showPrices:false, customerEmail:'', xeroContact:null, publishToken:'', publishUrl:'', publishStatus:'DRAFT',
+          now:'',prop:'',items:[],showPrices:false, customerEmail:'', customerPhone:'', xeroContact:null, publishToken:'', publishUrl:'', publishStatus:'DRAFT',
           incl:en?EN_INCL:VP_INCL, excl:en?EN_EXCL:VP_EXCL,
           steps:en?EN_STEPS:VP_STEPS, terms:en?EN_TERMS:VP_TERMS,
           scope:en?EN_SCOPE:VP_SCOPE};
@@ -4000,19 +4001,39 @@ function vpXeroFind_(){
     if(!box.innerHTML)box.innerHTML='<div class="no-res">No Xero customer found.</div>';
   }).catch(function(e){box.innerHTML='<div class="calc bad">'+esc(String(e.message||e))+'</div>';});
 }
+function vpPhoneWa_(raw){
+  var n=String(raw||'').replace(/[^0-9+]/g,'');
+  if(n.indexOf('+')===0)n=n.slice(1);
+  if(n.indexOf('00')===0)n=n.slice(2);
+  if(n.indexOf('0')===0)n='27'+n.slice(1);
+  return n.replace(/\D/g,'');
+}
+function vpOpenWhatsApp_(url){
+  var raw=(document.getElementById('vpPhone').value||'').trim();
+  if(!raw){raw=prompt('Customer WhatsApp number','')||''; if(!raw)return;}
+  var phone=vpPhoneWa_(raw);
+  if(phone.length<10){alert('Enter a valid WhatsApp number.');return;}
+  VP.customerPhone=raw; vpSave();
+  var msg=(VP.lang==='en'?'Hi '+VP.client+', here is your Flagship Solar Value Proposal: ':'Hi '+VP.client+', hier is jou Flagship Solar Value Proposal: ')+url;
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank','noopener');
+}
 function vpPublish_(){
   vpMirrorAll(); vpCalc(); vpLines();
-    if(!VP.client.trim()){alert('Customer name is required.');return;}
+  if(!VP.client.trim()){alert('Customer name is required.');return;}
   if(!VP.items||!VP.items.length){alert('The proposal has no priced lines.');return;}
   VP.customerEmail=(document.getElementById('vpEmail').value||'').trim();
-  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Sending…';}});
+  VP.customerPhone=(document.getElementById('vpPhone').value||'').trim();
+  var btns=[document.getElementById('vpPublish'),document.getElementById('vpPublish2')];btns.forEach(function(b){if(b){b.disabled=true;b.textContent='Preparing…';}});
   var publishing=VP,publishingId=VPID;
   api({action:'proposalPublish',proposal:VP}).then(function(j){
     if(!j.token||!j.url)throw new Error('Missing proposal acknowledgement. Check the server before sending again.');
     if(VP!==publishing||VPID!==publishingId){alert('Proposal published: '+j.url+'. The current proposal was left unchanged.');return;}
     VP.publishToken=j.token; VP.publishUrl=j.url; VP.publishStatus=j.status||'SENT'; vpSave();
-    var st=document.getElementById('vpPublishStatus'); if(st)st.innerHTML='<b>Sent.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open customer link</a>';
-    alert('Value Proposal sent. The customer can now accept it.');
+    var st=document.getElementById('vpPublishStatus');
+    if(st)st.innerHTML='<b>Customer link ready.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open link</a> · <button type="button" class="btn ghost" id="vpWaNow" style="padding:5px 9px">WhatsApp</button>';
+    var wa=document.getElementById('vpWaNow'); if(wa)wa.addEventListener('click',function(){vpOpenWhatsApp_(j.url);});
+    var useWa=confirm('Value Proposal is ready.\n\nPress OK to send it to the customer on WhatsApp.\nPress Cancel to keep the customer link without opening WhatsApp.');
+    if(useWa)vpOpenWhatsApp_(j.url);
   }).catch(function(e){alert('Send failed: '+String(e.message||e));}).finally(function(){btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});});
 }
 
