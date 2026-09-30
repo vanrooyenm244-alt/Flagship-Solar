@@ -2782,6 +2782,7 @@ async function readSupplierFile_(file,onProgress){
           }
         });
         if(!ih||ih.desc==null||ih.qty==null||ih.price==null)continue;
+        var pendingCode='', pendingDesc='';
         igr.forEach(function(g){
           if(g.y>=ih.y-1)return;
           var a=g.a.slice().sort(function(x,y){return x.x-y.x;});
@@ -2790,12 +2791,32 @@ async function readSupplierFile_(file,onProgress){
           var qty=numPrice_(a.filter(function(z){return z.x>=ih.qty&&z.x<ih.price;}).map(function(z){return z.t;}).join(' '));
           var pend=ih.total!=null?ih.total:1e9;
           var price=numPrice_(a.filter(function(z){return z.x>=ih.price&&z.x<pend;}).map(function(z){return z.t;}).join(' '));
-          if(!left||!desc||!isFinite(qty)||qty<=0||!isFinite(price)||price<=0)return;
-          if(/^(Subtotal|Vat|Total|Account|Order|Representative|Invoice)$/i.test(left))return;
+
+          /* Wrapped product rows: Frontline can put the first part of a code
+             (e.g. GLO) on one visual row and the rest on the next row. Keep
+             non-priced fragments and prepend them to the next priced row. */
+          if((left||desc)&&(!isFinite(qty)||qty<=0||!isFinite(price)||price<=0)){
+            if(left && !/^(Subtotal|Vat|Total|Account|Order|Representative|Invoice|Tax Invoice)$/i.test(left)) pendingCode+=(pendingCode?' ':'')+left;
+            if(desc) pendingDesc+=(pendingDesc?' ':'')+desc;
+            return;
+          }
+          if(!left||!desc||!isFinite(qty)||qty<=0||!isFinite(price)||price<=0){pendingCode='';pendingDesc='';return;}
+          if(/^(Subtotal|Vat|Total|Account|Order|Representative|Invoice|Tax Invoice)$/i.test(left)){pendingCode='';pendingDesc='';return;}
+
+          if(pendingCode){left=(pendingCode+' '+left).replace(/\s+/g,' ').trim();}
+          if(pendingDesc){desc=(pendingDesc+' '+desc).replace(/\s+/g,' ').trim();}
+          pendingCode='';pendingDesc='';
+
+          /* A real invoice line must reconcile quantity × unit price to line
+             total (within cents/rounding). This blocks totals/footer rows from
+             becoming fake products. */
+          var total=numPrice_(a.filter(function(z){return ih.total!=null&&z.x>=ih.total;}).map(function(z){return z.t;}).join(' '));
+          if(isFinite(total) && total>0 && Math.abs((qty*price)-total)>0.12)return;
+
           var key=left.toUpperCase();
           if(tableSeen[key])return;
           tableSeen[key]=true;tableRows++;
-          tableOut.push({code:left,price:price,description:desc,quantity:qty,supplier:'Frontline'});
+          tableOut.push({code:left,price:price,description:desc,quantity:qty,lineTotal:total,supplier:'Frontline'});
         });
       }
     }
