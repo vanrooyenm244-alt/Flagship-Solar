@@ -4042,7 +4042,29 @@ function vpBuildSharePdf_(){
     el.classList.remove('hidden');
     el.style.display='block'; el.style.width='820px'; el.style.maxWidth='820px';
     el.style.margin='0'; el.style.padding='0'; el.style.background='#fff';
-    Array.prototype.slice.call(el.querySelectorAll('.actionbar,.vpin,.addrow,#vpAdd,.pline .x,.vpsrc,#vpPublishStatus')).forEach(function(n){n.remove();});
+
+    /* Recreate the proposal's PRINT presentation before html2canvas captures it.
+       The branded cover/header/footer normally exist only inside @media print,
+       so a normal screen clone would hide the actual Flagship artwork. */
+    var cover=el.querySelector('.vpcover');
+    if(cover){cover.style.display='block';cover.style.position='relative';cover.style.width='794px';cover.style.height='1123px';cover.style.overflow='hidden';}
+    var coverBg=cover&&cover.querySelector('.bg');
+    if(coverBg){coverBg.style.position='absolute';coverBg.style.inset='0';coverBg.style.width='100%';coverBg.style.height='100%';coverBg.style.objectFit='cover';}
+    var coverIn=cover&&cover.querySelector('.in');
+    if(coverIn){coverIn.style.position='relative';coverIn.style.zIndex='1';coverIn.style.padding='672px 68px 0';}
+    Array.prototype.slice.call(el.querySelectorAll('.bandtop,.bandbot')).forEach(function(n){n.style.display='block';});
+    Array.prototype.slice.call(el.querySelectorAll('.bandtop img,.bandbot img')).forEach(function(n){n.style.width='100%';n.style.display='block';});
+    Array.prototype.slice.call(el.querySelectorAll('.vpin,.addrow,#vpAdd,.pline .x,.vpsrc,#vpPublishStatus,.actionbar')).forEach(function(n){n.remove();});
+    Array.prototype.slice.call(el.querySelectorAll('textarea[data-p]')).forEach(function(n){n.style.display='none';});
+    Array.prototype.slice.call(el.querySelectorAll('.tprint')).forEach(function(n){n.style.display='block';});
+    var pageTable=el.querySelector('table.page');
+    if(pageTable){pageTable.style.display='table';pageTable.style.width='100%';}
+    var th=pageTable&&pageTable.querySelector('thead');if(th)th.style.display='table-header-group';
+    var tf=pageTable&&pageTable.querySelector('tfoot');if(tf)tf.style.display='table-footer-group';
+    var tb=pageTable&&pageTable.querySelector('tbody');if(tb)tb.style.display='table-row-group';
+    Array.prototype.slice.call(el.querySelectorAll('table.page tr')).forEach(function(n){n.style.display='table-row';});
+    Array.prototype.slice.call(el.querySelectorAll('table.page th,table.page td')).forEach(function(n){n.style.display='table-cell';});
+    var bodyCell=pageTable&&pageTable.querySelector('tbody>tr>td');if(bodyCell){bodyCell.style.padding='0 53px';}
     holder.appendChild(el); document.body.appendChild(holder);
 
     var imgs=Array.prototype.slice.call(el.querySelectorAll('img'));
