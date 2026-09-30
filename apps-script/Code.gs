@@ -1459,6 +1459,29 @@ function doPost(e) {
       return out_({ ok: true, id: row[0], added: true });
     }
 
+    if (body.action === 'createSupplierPrices') {
+      var cpu = auth_(body, 'Admin');
+      var items = Array.isArray(body.items) ? body.items : [];
+      if (!items.length) return out_({ ok: false, error: 'no supplier products supplied' });
+      var csh = sheet_('Prices'), cn = csh.getLastRow() - 1, existing = {};
+      if (cn > 0) csh.getRange(2, 1, cn, 13).getValues().forEach(function(r){
+        var code = String(r[3] || '').trim().toUpperCase(); if (code) existing[code] = true;
+      });
+      var rows = [], results = [], now = new Date();
+      items.forEach(function(it){
+        it = it || {}; var code = String(it.code || '').trim(), key = code.toUpperCase();
+        var desc = String(it.description || '').trim(), cost = Number(it.cost);
+        if (!code || !desc || !isFinite(cost) || cost < 0) { results.push({code:code,status:'failed',error:'invalid code, description or cost'}); return; }
+        if (existing[key]) { results.push({code:code,status:'existing'}); return; }
+        var category = (it.category && CATEGORIES.indexOf(it.category) !== -1) ? it.category : 'Other';
+        rows.push([priceId_(),category,it.supplier||'',code,desc,it.unit||'each',cost,'Cost','',Number(it.install)||0,it.spec||'','Yes',now]);
+        existing[key] = true; results.push({code:code,status:'created'});
+      });
+      if (rows.length) csh.getRange(csh.getLastRow()+1,1,rows.length,13).setValues(rows);
+      if (rows.length) log_(cpu.username,'createSupplierPrices',(body.source||'supplier list')+' — '+rows.length+' products created','',rows.length+' created');
+      return out_({ok:true,created:rows.length,existing:results.filter(function(x){return x.status==='existing';}).length,failed:results.filter(function(x){return x.status==='failed';}).length,results:results});
+    }
+
     if (body.action === 'updatePriceList') {
       var upu = auth_(body, 'Admin');
       var updates = Array.isArray(body.updates) ? body.updates : [];
