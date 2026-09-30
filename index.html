@@ -3500,6 +3500,7 @@ function openProp(id){
     });
     document.getElementById('vpShow').checked = !!VP.showPrices;
     var ve=document.getElementById('vpEmail'); if(ve) ve.value=VP.customerEmail||'';
+    var vp=document.getElementById('vpPhone'); if(vp) vp.value=VP.customerPhone||'';
     var vx=document.getElementById('vpXeroPicked'); if(vx) vx.textContent=VP.xeroContact?'Xero customer: '+VP.xeroContact.name:'';
     var vs=document.getElementById('vpPublishStatus'); if(vs) vs.innerHTML=VP.publishUrl?'<b>'+esc(VP.publishStatus||'SENT')+'</b> — <a target="_blank" rel="noopener" href="'+esc(VP.publishUrl)+'">Open customer link</a>':'Not sent yet.';
     vpMirrorAll();
@@ -3969,6 +3970,7 @@ document.getElementById('vpXeroFind').addEventListener('click',vpXeroFind_);
 document.getElementById('vpPublish').addEventListener('click',vpPublish_);
 document.getElementById('vpPublish2').addEventListener('click',vpPublish_);
 document.getElementById('vpEmail').addEventListener('input',function(){VP.customerEmail=this.value;vpSave();});
+document.getElementById('vpPhone').addEventListener('input',function(){VP.customerPhone=this.value;vpSave();});
 
 document.getElementById('vpPrint').addEventListener('click',function(){
   vpMirrorAll(); vpCover(); vpCalc();
@@ -3992,7 +3994,7 @@ function vpXeroFind_(){
       var d=document.createElement('div'); d.className='xeroresult';
       d.innerHTML='<b>'+esc(c.name)+'</b><div class="qbmeta">'+esc(c.email||'')+(c.number?' · '+esc(c.number):'')+'</div>';
       d.addEventListener('click',function(){
-        VP.xeroContact=c; VP.client=c.name; if(c.email){VP.customerEmail=c.email; var e=document.getElementById('vpEmail');if(e)e.value=c.email;}
+        VP.xeroContact=c; VP.client=c.name; if(c.email){VP.customerEmail=c.email; var e=document.getElementById('vpEmail');if(e)e.value=c.email;} if(c.number){VP.customerPhone=c.number; var p=document.getElementById('vpPhone');if(p)p.value=c.number;}
         var ci=document.querySelector('#screenProp input[data-p="client"]'); if(ci)ci.value=VP.client;
         var pick=document.getElementById('vpXeroPicked'); if(pick)pick.textContent='Xero customer: '+c.name;
         box.innerHTML=''; vpSave(); vpMirrorAll();
@@ -4032,8 +4034,10 @@ function vpPublish_(){
     var st=document.getElementById('vpPublishStatus');
     if(st)st.innerHTML='<b>Customer link ready.</b> <a target="_blank" rel="noopener" href="'+esc(j.url)+'">Open link</a> · <button type="button" class="btn ghost" id="vpWaNow" style="padding:5px 9px">WhatsApp</button>';
     var wa=document.getElementById('vpWaNow'); if(wa)wa.addEventListener('click',function(){vpOpenWhatsApp_(j.url);});
-    var useWa=confirm('Value Proposal is ready.\n\nPress OK to send it to the customer on WhatsApp.\nPress Cancel to keep the customer link without opening WhatsApp.');
-    if(useWa)vpOpenWhatsApp_(j.url);
+    /* Do not auto-open WhatsApp here: this callback runs after an async publish
+       request, so mobile browsers can treat window.open() as an unsolicited popup.
+       The visible WhatsApp button below is a real user gesture and opens reliably. */
+    if(st)st.scrollIntoView({behavior:'smooth',block:'nearest'});
   }).catch(function(e){alert('Send failed: '+String(e.message||e));}).finally(function(){btns.forEach(function(b){if(b){b.disabled=false;b.textContent=b.id==='vpPublish'?'Send Value Proposal':'Send to Customer';}});});
 }
 
