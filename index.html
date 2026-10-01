@@ -1106,7 +1106,11 @@ table.page{border-collapse:collapse}
       <div><label for="ipSun">Sonure per dag</label>
         <input id="ipSun" data-p="sun" data-calc type="number" step="0.1" inputmode="decimal" placeholder="4.0"></div>
       <div><label for="ipStr">DC strings (los leeg = self)</label>
-        <input id="ipStr" data-p="strings" data-calc type="number" min="0" step="1" inputmode="numeric" placeholder="self"></div>
+        <div style="display:grid;grid-template-columns:42px 1fr 42px;gap:6px;align-items:center">
+          <button class="btn ghost" id="vpStrMinus" type="button" aria-label="Remove DC string" style="padding:8px 0">−</button>
+          <input id="ipStr" data-p="strings" data-calc type="number" min="0" step="1" inputmode="numeric" placeholder="self">
+          <button class="btn ghost" id="vpStrPlus" type="button" aria-label="Add DC string" style="padding:8px 0">+</button>
+        </div></div>
     </div>
 
     <div class="vppick" id="vpPick">
@@ -3024,18 +3028,51 @@ async function readSupplierFile_(file,onProgress){
 
 function normCode_(s){ return String(s==null?'':s).trim().toUpperCase(); }
 function buildPricePreview_(rows){
-  var byCode={}; PRICES.forEach(function(p){ var c=normCode_(p.code); if(c && !byCode[c]) byCode[c]=p; });
-  var changes=[], notFound=[], unchanged=[];
+  var existing={};
+  PRICES.forEach(function(p){
+    var c=normCode_(p.code); if(!c)return;
+    (existing[c]||(existing[c]=[])).push(p);
+  });
+
+  var incoming={}, conflicts=[], changes=[], notFound=[], unchanged=[];
   rows.forEach(function(r){
-    var p=byCode[normCode_(r.code)];
+    var c=normCode_(r.code);
+    if(!c){ conflicts.push({code:'',reason:'Supplier row has no usable code',incoming:[r],current:[]}); return; }
+    (incoming[c]||(incoming[c]=[])).push(r);
+  });
+
+  Object.keys(incoming).forEach(function(code){
+    var ins=incoming[code], cur=existing[code]||[];
+
+    /* Repeated identical rows are harmless; differing prices/descriptions
+       for the same supplier code need a human decision. */
+    if(ins.length>1){
+      var first=ins[0], same=ins.every(function(x){
+        return Math.abs((Number(x.price)||0)-(Number(first.price)||0))<0.005 &&
+          String(x.description||'').trim()===String(first.description||'').trim();
+      });
+      if(!same){
+        conflicts.push({code:code,reason:'Supplier file contains the same code more than once with different values',incoming:ins,current:cur});
+        return;
+      }
+      ins=[first];
+    }
+
+    if(cur.length>1){
+      conflicts.push({code:code,reason:'Your Prices sheet contains this code more than once',incoming:ins,current:cur});
+      return;
+    }
+
+    var r=ins[0], p=cur[0];
     if(!p){ notFound.push(r); return; }
     var old=Number(p.cost)||0, neu=Number(r.price)||0;
     if(Math.abs(old-neu)<0.005) unchanged.push({incoming:r,current:p});
     else changes.push({incoming:r,current:p,old:old,newPrice:neu});
   });
+
   var increases=0, decreases=0;
   changes.forEach(function(x){ if(x.newPrice>x.old) increases++; else if(x.newPrice<x.old) decreases++; });
-  return {changes:changes,notFound:notFound,unchanged:unchanged,total:rows.length,
+  return {changes:changes,notFound:notFound,unchanged:unchanged,conflicts:conflicts,total:rows.length,
     increases:increases,decreases:decreases,diagnostics:rows._diagnostics||null};
 }
 function renderPriceUpdater_(){
@@ -3051,12 +3088,22 @@ function renderPriceUpdater_(){
       '<div class="pustat"><b>'+p.decreases+'</b><span>Decreases</span></div>'+
       '<div class="pustat"><b>'+p.notFound.length+'</b><span>New items</span></div>'+
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
+      '<div class="pustat"><b>'+p.conflicts.length+'</b><span>Review</span></div>'+
     '</div>';
   var diag=p.diagnostics?'<p class="sub" style="margin-top:8px">PDF rows read: '+p.diagnostics.sourceItems+' · product rows recognised: '+p.diagnostics.products+'</p>':'';
   if(p.diagnostics && p.diagnostics.codes && p.diagnostics.codes.length){
     diag+='<details style="margin-top:8px"><summary><b>Detected supplier codes ('+p.diagnostics.codes.length+')</b></summary><div class="sub" style="margin-top:6px;line-height:1.7">'+p.diagnostics.codes.map(esc).join('<br>')+'</div></details>';
   }
   html+=diag;
+  if(p.conflicts.length){
+    html+='<div class="puwarn"><b>'+p.conflicts.length+' item'+(p.conflicts.length===1?' needs':'s need')+' review.</b> These are deliberately not auto-updated. Fix the duplicate/ambiguous code in Prices or the supplier file, then import again.</div>';
+    html+='<div class="pupreview"><table><thead><tr><th>Code</th><th>Why review</th><th>Supplier value(s)</th></tr></thead><tbody>';
+    p.conflicts.slice(0,200).forEach(function(x){
+      var vals=(x.incoming||[]).map(function(r){return (r.description||'')+' · '+money(r.price);}).join('<br>');
+      html+='<tr><td>'+esc(x.code||'—')+'</td><td>'+esc(x.reason||'Review required')+'</td><td>'+vals+'</td></tr>';
+    });
+    html+='</tbody></table></div>';
+  }
   if(p.notFound.length){
     html+='<div class="puwarn"><b>'+p.notFound.length+' new supplier products will be created.</b> They will use the supplier description/code, Cost price, unit "each", category "Other", and the normal default markup.</div>';
     html+='<div class="pupreview"><table><thead><tr><th>New code</th><th>Description</th><th>Cost</th></tr></thead><tbody>';
@@ -3115,6 +3162,7 @@ function applyPriceUpdate_(){
   prog.innerHTML='<b id="puApplyLabel">Updating supplier prices…</b><div class="puprogress-track"><div class="puprogress-fill" id="puApplyFill"></div></div><div class="puprogress-meta"><span id="puApplyCount">0 / '+n+'</span><span id="puApplyPct">0%</span></div>';
   box.querySelector('.pubox').appendChild(prog);
   var done=0,updated=0,created=0,unchanged=0,notFound=0,failed=0,batchSize=40;
+  var reportChanges=[], reportCreates=[];
   function draw(label){
     var pct=n?Math.round(done/n*100):100;
     var f=document.getElementById('puApplyFill'),ct=document.getElementById('puApplyCount'),pc=document.getElementById('puApplyPct'),lab=document.getElementById('puApplyLabel');
@@ -3126,6 +3174,7 @@ function applyPriceUpdate_(){
       try{
         var j=await api({action:'updatePriceList',updates:part,source:PU_FILE?PU_FILE.name:''});
         updated+=Number(j.updated)||0; unchanged+=Number(j.unchanged)||0; notFound+=Number(j.notFound)||0;
+        (j.changes||[]).forEach(function(x){reportChanges.push(x);});
       }catch(e){failed+=part.length;}
       done+=part.length; draw('Updating existing supplier prices…');
     }
@@ -3138,7 +3187,11 @@ function applyPriceUpdate_(){
         created+=Number(cj.created)||0;
         unchanged+=Number(cj.existing)||0;
         failed+=Number(cj.failed)||0;
-        (cj.results||[]).forEach(function(x){if(x.status==='failed')failureDetails.push((x.code||'(no code)')+': '+(x.error||'failed'));});
+        (cj.results||[]).forEach(function(x){
+          var src=creates.filter(function(z){return normCode_(z.code)===normCode_(x.code);})[0]||{};
+          reportCreates.push({code:x.code||src.code||'',description:src.description||'',cost:Number(src.cost)||0,status:x.status||''});
+          if(x.status==='failed')failureDetails.push((x.code||'(no code)')+': '+(x.error||'failed'));
+        });
       }catch(e){
         failed+=creates.length;
         failureDetails.push('Batch create failed: '+String(e.message||e));
@@ -3146,7 +3199,17 @@ function applyPriceUpdate_(){
       done+=creates.length; draw('Creating new supplier products…');
     }
     draw(failed?'Finished with '+failed+' failed':'Price list update complete');
-    var msg='Price list update complete.\n\nProcessed: '+done+'\nExisting prices updated: '+updated+'\nNew products created: '+created+'\nUnchanged / already existing: '+unchanged+'\nNot found during update: '+notFound+'\nFailed: '+failed;
+    var reportUrl='', reportError='';
+    try{
+      var rr=await api({action:'logPriceUpdate',source:PU_FILE?PU_FILE.name:'supplier list',
+        summary:{processed:done,updated:updated,created:created,unchanged:unchanged,notFound:notFound,conflicts:(PU_PREVIEW.conflicts||[]).length,failed:failed},
+        changes:reportChanges,creates:reportCreates,conflicts:PU_PREVIEW.conflicts||[]});
+      reportUrl=rr.reportUrl||'';
+    }catch(re){ reportError=String(re.message||re); }
+
+    var msg='Price list update complete.\n\nProcessed: '+done+'\nExisting prices updated: '+updated+'\nNew products created: '+created+'\nUnchanged / already existing: '+unchanged+'\nConflicts left for review: '+((PU_PREVIEW.conflicts||[]).length)+'\nNot found during update: '+notFound+'\nFailed: '+failed;
+    if(reportUrl)msg+='\n\nA PDF change report was saved to the PriceUpdates history.';
+    if(reportError)msg+='\n\nPrices were updated, but the history PDF could not be created: '+reportError;
     if(failureDetails.length)msg+='\n\nFailure details:\n'+failureDetails.join('\n');
     alert(msg);
     PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;loadPrices();setTimeout(renderPriceUpdater_,600);
@@ -3699,6 +3762,32 @@ function stringCount(){
   return n>0 ? Math.ceil(n/STRING_MAX) : 0;
 }
 
+/* Spread panels as evenly as possible across the selected strings.
+   20 panels / 3 strings becomes 7 + 7 + 6. Manual string counts are always
+   allowed; STRING_MAX is advisory and produces a warning instead of blocking. */
+function stringLayout_(){
+  var ns=stringCount(), np=vpNum('panels'), out=[];
+  if(ns<=0) return out;
+  var base=Math.floor(np/ns), extra=np%ns;
+  for(var i=0;i<ns;i++) out.push(base+(i<extra?1:0));
+  return out;
+}
+function setStringCount_(n){
+  n=Math.max(0,Math.round(Number(n))||0);
+  VP.strings=String(n);
+  var e=document.getElementById('ipStr'); if(e)e.value=VP.strings;
+  vpCalc(); vpSync(); vpLines(); vpSave();
+}
+function stringWarning_(){
+  var ns=stringCount(), np=vpNum('panels');
+  if(!ns || !np) return '';
+  var layout=stringLayout_(), max=layout.length?Math.max.apply(null,layout):0;
+  if(max<=STRING_MAX) return '';
+  return (VP.lang==='en'
+    ? 'Warning: '+np+' panels over '+ns+' strings = '+layout.join(' + ')+'. That exceeds the '+STRING_MAX+'-panel guideline per string. The proposal is not blocked.'
+    : 'Waarskuwing: '+np+' panele oor '+ns+' strings = '+layout.join(' + ')+'. Dit is meer as die '+STRING_MAX+'-paneel riglyn per string. Die voorstel word nie geblokkeer nie.');
+}
+
 var PICKCAT={panel:'Panel', battery:'Battery', inverter:'Inverter',
              roof:'Roof Structure', switch:'Changeover'};
 var PICKLBL={panel:'paneel', battery:'battery', inverter:'omsetter',
@@ -3738,10 +3827,14 @@ function vpSync(){
   var kw=vpNum('invkw'), sw=switchFor(kw);
   syncLine('switch', pk.switch, (pk.switch&&sw)?1:0, sw?switchDesc(sw):'');
 
-  /* One row per string rather than a quantity, so the second one can be
-     dropped to its own price without touching the first. */
-  var ns=stringCount(), dc=dcItem();
-  for(var i=1;i<=6;i++){
+  /* One priced row per selected DC string. There is no artificial six-string
+     ceiling: + / − changes the count and the panel split is recalculated. */
+  var ns=stringCount(), dc=dcItem(), maxDc=ns;
+  VP.items.forEach(function(x){
+    var m=String(x.role||'').match(/^dc(\d+)$/);
+    if(m) maxDc=Math.max(maxDc,Number(m[1])||0);
+  });
+  for(var i=1;i<=maxDc;i++){
     var role='dc'+i;
     if(i<=ns) syncLine(role, dc, 1,
       dc.description+(ns>1?' \u2014 string '+i:''));
@@ -3753,11 +3846,11 @@ function vpSync(){
 
   var w=document.getElementById('vpPickWarn');
   if(w){
-    if(kw>12) w.innerHTML='<div class="warn2">'+kw+' kW is groter as wat by \u2019n huis '+
-      'ingesit word. Kies die skakelbord self en tik die spesifikasie in.</div>';
-    else if(pk.switch && !sw) w.innerHTML='<div class="warn2">Tik die omsetter se kW in, '+
-      'anders kan die skakelbord se spesifikasie nie uitgewerk word nie.</div>';
-    else w.innerHTML='';
+    var warns=[];
+    if(kw>12) warns.push(kw+' kW is groter as wat by \u2019n huis ingesit word. Kies die skakelbord self en tik die spesifikasie in.');
+    else if(pk.switch && !sw) warns.push('Tik die omsetter se kW in, anders kan die skakelbord se spesifikasie nie uitgewerk word nie.');
+    var strWarn=stringWarning_(); if(strWarn) warns.push(strWarn);
+    w.innerHTML=warns.map(function(x){return '<div class="warn2">'+esc(x)+'</div>';}).join('');
   }
   renderPicks();
 }
@@ -3784,9 +3877,9 @@ function renderPicks(){
   set('sRoof', pk.roof ? (pk.roof.description+(np2?' \u00d7 '+np2:'')) : '\u2014');
   var swx=switchFor(vpNum('invkw'));
   set('sSw', swx?switchDesc(swx):'\u2014');
-  var ns=stringCount(), np=vpNum('panels');
+  var ns=stringCount(), np=vpNum('panels'), layout=stringLayout_();
   set('sStr', ns? (ns+(ns===1?' string':' strings')+
-    (np?' \u00b7 '+Math.ceil(np/ns)+' panele elk':'')) : '\u2014');
+    (np?' \u00b7 '+layout.join(' + ')+' '+(VP.lang==='en'?'panels':'panele'):'')) : '\u2014');
   if(pk.battery) set('sBat', pk.battery.description);
 }
 
@@ -3836,6 +3929,10 @@ document.querySelectorAll('#screenProp [data-p]').forEach(function(el){
     vpSave();
   });
 });
+
+var vpStrMinus=document.getElementById('vpStrMinus'), vpStrPlus=document.getElementById('vpStrPlus');
+if(vpStrMinus) vpStrMinus.addEventListener('click',function(){ setStringCount_(Math.max(0,stringCount()-1)); });
+if(vpStrPlus) vpStrPlus.addEventListener('click',function(){ setStringCount_(stringCount()+1); });
 
 document.getElementById('vpShow').addEventListener('change',function(){
   VP.showPrices=this.checked; vpSave();
@@ -3983,7 +4080,15 @@ function vpLines(){
     });
     row.querySelector('.x').addEventListener('click',function(){
       if(!confirm('Remove "'+it.desc+'"?')) return;
-      if(it.role && VP.pick) delete VP.pick[it.role];
+      if(/^dc\d+$/.test(String(it.role||''))){
+        /* Removing a managed DC row changes the selected string count.
+           vpSync may then rebuild the numbered rows, but it will not put the
+           removed string back. */
+        VP.strings=String(Math.max(0,stringCount()-1));
+        var se=document.getElementById('ipStr'); if(se)se.value=VP.strings;
+      } else if(it.role && VP.pick) {
+        delete VP.pick[it.role];
+      }
       VP.items.splice(i,1); vpSync(); vpLines(); vpTotals(); vpSave();
     });
     row.querySelector('.amt').textContent=money((it.qty===undefined?1:it.qty)*it.sell);
