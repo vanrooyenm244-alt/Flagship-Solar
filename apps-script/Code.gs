@@ -42,6 +42,8 @@ var SHEETS = {
   Workers: ['Name', 'Active', 'Added'],
   Prices: ['ID', 'Category', 'Supplier', 'Code', 'Description', 'Unit',
            'Cost', 'Type', 'Markup %', 'Install Cost', 'Spec', 'Active', 'Updated'],
+  PriceUpdates: ['Timestamp', 'User', 'Source', 'Processed', 'Updated', 'Created',
+                 'Unchanged', 'Conflicts', 'Failed', 'Report PDF'],
   Log: ['Timestamp', 'User', 'Action', 'Detail', 'Was', 'Now'],
   Proposals: ['Token','Proposal No','Customer','Customer Email','Status','Created','Updated','Accepted At','Xero Quote ID','Xero Quote Number','Data JSON'],
   JobCards: ['ID','Job Card No','Customer','Site / Job','Date','Technicians','Types','Status','Created By','Created','Updated','Data JSON'],
@@ -312,6 +314,92 @@ function sheet_(name) {
 function log_(user, action, detail, was, now) {
   try { sheet_('Log').appendRow([new Date(), user || '', action, detail || '', was || '', now || '']); }
   catch (e) {}
+}
+
+/* Build an audit PDF for one supplier-price import. The original supplier
+   filename is recorded as the source; the report itself is kept in Drive and
+   linked from the PriceUpdates sheet. */
+function priceUpdateReportPdf_(user, body) {
+  var when = new Date();
+  var tz = Session.getScriptTimeZone() || 'Africa/Johannesburg';
+  var stamp = Utilities.formatDate(when, tz, 'yyyy-MM-dd HH:mm');
+  var source = String(body.source || 'supplier list');
+  var summary = body.summary || {};
+  var changes = Array.isArray(body.changes) ? body.changes : [];
+  var creates = Array.isArray(body.creates) ? body.creates : [];
+  var conflicts = Array.isArray(body.conflicts) ? body.conflicts : [];
+
+  var doc = DocumentApp.create('Flagship Price Update - ' + stamp);
+  var b = doc.getBody();
+  b.appendParagraph('FLAGSHIP SOLAR — SUPPLIER PRICE UPDATE REPORT')
+    .setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  b.appendParagraph('Date: ' + stamp);
+  b.appendParagraph('User: ' + String(user || ''));
+  b.appendParagraph('Source: ' + source);
+
+  b.appendParagraph('Summary').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  b.appendTable([
+    ['Processed', String(summary.processed || 0)],
+    ['Existing prices updated', String(summary.updated || 0)],
+    ['New products created', String(summary.created || 0)],
+    ['Unchanged / already existing', String(summary.unchanged || 0)],
+    ['Conflicts left for review', String(summary.conflicts || 0)],
+    ['Failed', String(summary.failed || 0)]
+  ]);
+
+  if (changes.length) {
+    b.appendParagraph('Existing price changes').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    var ct = [['Code','Description','Old cost','New cost']];
+    changes.slice(0, 750).forEach(function (x) {
+      ct.push([
+        String(x.code || ''),
+        String(x.description || ''),
+        String(Number(x.old) || 0),
+        String(Number(x.now) || 0)
+      ]);
+    });
+    b.appendTable(ct);
+  }
+
+  if (creates.length) {
+    b.appendParagraph('New supplier products').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    var nt = [['Code','Description','Cost','Status']];
+    creates.slice(0, 750).forEach(function (x) {
+      nt.push([
+        String(x.code || ''),
+        String(x.description || ''),
+        String(Number(x.cost) || 0),
+        String(x.status || '')
+      ]);
+    });
+    b.appendTable(nt);
+  }
+
+  if (conflicts.length) {
+    b.appendParagraph('Review / conflicts').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    var rt = [['Code','Reason','Supplier value(s)']];
+    conflicts.slice(0, 300).forEach(function (x) {
+      var vals = (x.incoming || []).map(function (r) {
+        return String(r.description || '') + ' @ ' + String(Number(r.price) || 0);
+      }).join(' | ');
+      rt.push([String(x.code || ''), String(x.reason || 'Review required'), vals]);
+    });
+    b.appendTable(rt);
+  }
+
+  doc.saveAndClose();
+
+  var folders = DriveApp.getFoldersByName('Flagship Price Update Reports');
+  var folder = folders.hasNext() ? folders.next() : DriveApp.createFolder('Flagship Price Update Reports');
+  var sourceDoc = DriveApp.getFileById(doc.getId());
+  try { sourceDoc.moveTo(folder); } catch (e) {}
+  var safe = source.replace(/[\\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (safe.length > 80) safe = safe.slice(0, 80);
+  var pdfName = 'Price Update - ' + Utilities.formatDate(when, tz, 'yyyy-MM-dd HHmm') +
+                (safe ? ' - ' + safe : '') + '.pdf';
+  var pdf = folder.createFile(sourceDoc.getAs(MimeType.PDF).setName(pdfName));
+  sourceDoc.setTrashed(true);
+  return pdf.getUrl();
 }
 
 function out_(obj) {
@@ -1528,6 +1616,22 @@ function doPost(e) {
 
       return out_({ ok: true, updated: updated, unchanged: unchanged,
                     notFound: notFound, changes: changed });
+    }
+
+    if (body.action === 'logPriceUpdate') {
+      var lpu = auth_(body, 'Admin');
+      var sm = body.summary || {};
+      var reportUrl = priceUpdateReportPdf_(lpu.username, body);
+      sheet_('PriceUpdates').appendRow([
+        new Date(), lpu.username, body.source || 'supplier list',
+        Number(sm.processed) || 0, Number(sm.updated) || 0, Number(sm.created) || 0,
+        Number(sm.unchanged) || 0, Number(sm.conflicts) || 0, Number(sm.failed) || 0,
+        reportUrl
+      ]);
+      log_(lpu.username, 'priceUpdateReport', body.source || 'supplier list', '',
+           (Number(sm.updated)||0)+' updated; '+(Number(sm.created)||0)+' created; '+
+           (Number(sm.conflicts)||0)+' review; '+(Number(sm.failed)||0)+' failed');
+      return out_({ ok: true, reportUrl: reportUrl });
     }
 
     if (body.action === 'deletePrice') {
