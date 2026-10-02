@@ -3145,6 +3145,53 @@ function openPriceUpdater_(){
   box.scrollIntoView({block:'start',behavior:'smooth'});
 }
 
+async function savePriceFallback_(items, mode){
+  var results={updated:0,created:0,unchanged:0,notFound:0,failed:0,changes:[],results:[]};
+  for(var i=0;i<items.length;i++){
+    var x=items[i]||{};
+    try{
+      if(mode==='update'){
+        var code=normCode_(x.code);
+        var p=PRICES.filter(function(z){return normCode_(z.code)===code;})[0];
+        if(!p){ results.notFound++; results.results.push({code:x.code||'',status:'notFound'}); continue; }
+        var oldCost=Number(p.cost)||0, newCost=Number(x.price);
+        if(!isFinite(newCost) || newCost<0){ results.failed++; results.results.push({code:x.code||'',status:'failed',error:'invalid price'}); continue; }
+        if(Math.abs(oldCost-newCost)<0.005){ results.unchanged++; results.results.push({code:p.code||x.code||'',status:'unchanged'}); continue; }
+        var item={
+          id:p.id||'', category:p.category||'Other', supplier:p.supplier||'',
+          code:p.code||x.code||'', description:p.description||p.code||x.code||'',
+          unit:p.unit||'each', cost:newCost, type:p.type||'Cost',
+          markup:(p.markup==null?'':p.markup), install:Number(p.install)||0,
+          spec:p.spec||'', active:p.active!==false
+        };
+        await api({action:'savePrice',item:item});
+        p.cost=newCost;
+        results.updated++;
+        results.changes.push({code:item.code,description:item.description,old:oldCost,now:newCost});
+        results.results.push({code:item.code,status:'updated'});
+      }else{
+        var existing=PRICES.filter(function(z){return normCode_(z.code)===normCode_(x.code);})[0];
+        if(existing){ results.unchanged++; results.results.push({code:x.code||'',status:'existing'}); continue; }
+        var item2={
+          id:'',category:x.category||'Other',supplier:x.supplier||'',
+          code:x.code||'',description:x.description||x.code||'',unit:x.unit||'each',
+          cost:Number(x.cost)||0,type:'Cost',markup:(x.markup==null?'':x.markup),
+          install:Number(x.install)||0,spec:x.spec||'',active:x.active!==false
+        };
+        var sj=await api({action:'savePrice',item:item2});
+        if(sj&&sj.id) item2.id=sj.id;
+        PRICES.push(item2);
+        results.created++;
+        results.results.push({code:item2.code,status:'created'});
+      }
+    }catch(err){
+      results.failed++;
+      results.results.push({code:x.code||'',status:'failed',error:String(err&&err.message||err)});
+    }
+  }
+  return results;
+}
+
 function applyPriceUpdate_(){
   if(!PU_PREVIEW || (!PU_PREVIEW.changes.length && !PU_PREVIEW.notFound.length)) return;
   var updates=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
@@ -3162,7 +3209,7 @@ function applyPriceUpdate_(){
   prog.innerHTML='<b id="puApplyLabel">Updating supplier prices…</b><div class="puprogress-track"><div class="puprogress-fill" id="puApplyFill"></div></div><div class="puprogress-meta"><span id="puApplyCount">0 / '+n+'</span><span id="puApplyPct">0%</span></div>';
   box.querySelector('.pubox').appendChild(prog);
   var done=0,updated=0,created=0,unchanged=0,notFound=0,failed=0,batchSize=40;
-  var reportChanges=[], reportCreates=[];
+  var reportChanges=[], reportCreates=[], failureDetails=[];
   function draw(label){
     var pct=n?Math.round(done/n*100):100;
     var f=document.getElementById('puApplyFill'),ct=document.getElementById('puApplyCount'),pc=document.getElementById('puApplyPct'),lab=document.getElementById('puApplyLabel');
@@ -3172,18 +3219,33 @@ function applyPriceUpdate_(){
     for(var i=0;i<updates.length;i+=batchSize){
       var part=updates.slice(i,i+batchSize);
       try{
-        var j=await api({action:'updatePriceList',updates:part,source:PU_FILE?PU_FILE.name:''});
+        var j;
+        try{
+          j=await api({action:'updatePriceList',updates:part,source:PU_FILE?PU_FILE.name:''});
+        }catch(batchErr){
+          j=await savePriceFallback_(part,'update');
+        }
         updated+=Number(j.updated)||0; unchanged+=Number(j.unchanged)||0; notFound+=Number(j.notFound)||0;
+        failed+=Number(j.failed)||0;
         (j.changes||[]).forEach(function(x){reportChanges.push(x);});
-      }catch(e){failed+=part.length;}
+        (j.results||[]).forEach(function(x){if(x.status==='failed')failureDetails.push((x.code||'(no code)')+': '+(x.error||'failed'));});
+      }catch(e){
+        failed+=part.length;
+        failureDetails.push('Price update batch failed: '+String(e.message||e));
+      }
       done+=part.length; draw('Updating existing supplier prices…');
     }
     // Create supplier products in one server batch. The backend de-duplicates by supplier code,
     // so retrying the same invoice cannot create a second copy of products already saved.
-    var failureDetails=[];
     if(creates.length){
       try{
-        var cj=await api({action:'createSupplierPrices',items:creates,source:PU_FILE?PU_FILE.name:''});
+        var cj;
+        try{
+          cj=await api({action:'createSupplierPrices',items:creates,source:PU_FILE?PU_FILE.name:''});
+        }catch(batchCreateErr){
+          cj=await savePriceFallback_(creates,'create');
+          cj.existing=cj.unchanged||0;
+        }
         created+=Number(cj.created)||0;
         unchanged+=Number(cj.existing)||0;
         failed+=Number(cj.failed)||0;
@@ -3194,7 +3256,7 @@ function applyPriceUpdate_(){
         });
       }catch(e){
         failed+=creates.length;
-        failureDetails.push('Batch create failed: '+String(e.message||e));
+        failureDetails.push('Create products failed: '+String(e.message||e));
       }
       done+=creates.length; draw('Creating new supplier products…');
     }
