@@ -1,6 +1,6 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v113-dcstrings-priceaudit';
+const CACHE = 'flagship-completion-v114-price-import-saveprice';
 const SHELL = [
   './',
   './index.html',
