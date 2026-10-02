@@ -3219,12 +3219,7 @@ function applyPriceUpdate_(){
     for(var i=0;i<updates.length;i+=batchSize){
       var part=updates.slice(i,i+batchSize);
       try{
-        var j;
-        try{
-          j=await api({action:'updatePriceList',updates:part,source:PU_FILE?PU_FILE.name:''});
-        }catch(batchErr){
-          j=await savePriceFallback_(part,'update');
-        }
+        var j=await savePriceFallback_(part,'update');
         updated+=Number(j.updated)||0; unchanged+=Number(j.unchanged)||0; notFound+=Number(j.notFound)||0;
         failed+=Number(j.failed)||0;
         (j.changes||[]).forEach(function(x){reportChanges.push(x);});
@@ -3239,13 +3234,8 @@ function applyPriceUpdate_(){
     // so retrying the same invoice cannot create a second copy of products already saved.
     if(creates.length){
       try{
-        var cj;
-        try{
-          cj=await api({action:'createSupplierPrices',items:creates,source:PU_FILE?PU_FILE.name:''});
-        }catch(batchCreateErr){
-          cj=await savePriceFallback_(creates,'create');
-          cj.existing=cj.unchanged||0;
-        }
+        var cj=await savePriceFallback_(creates,'create');
+        cj.existing=cj.unchanged||0;
         created+=Number(cj.created)||0;
         unchanged+=Number(cj.existing)||0;
         failed+=Number(cj.failed)||0;
@@ -3272,6 +3262,7 @@ function applyPriceUpdate_(){
     var msg='Price list update complete.\n\nProcessed: '+done+'\nExisting prices updated: '+updated+'\nNew products created: '+created+'\nUnchanged / already existing: '+unchanged+'\nConflicts left for review: '+((PU_PREVIEW.conflicts||[]).length)+'\nNot found during update: '+notFound+'\nFailed: '+failed;
     if(reportUrl)msg+='\n\nA PDF change report was saved to the PriceUpdates history.';
     if(reportError)msg+='\n\nPrices were updated, but the history PDF could not be created: '+reportError;
+    if(failed && !failureDetails.length)failureDetails.push('One or more items could not be saved. Please retry after reloading the app.');
     if(failureDetails.length)msg+='\n\nFailure details:\n'+failureDetails.join('\n');
     alert(msg);
     PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;loadPrices();setTimeout(renderPriceUpdater_,600);
