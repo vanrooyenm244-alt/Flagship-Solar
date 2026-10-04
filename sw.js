@@ -1,9 +1,9 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v115-price-import-v2';
+const CACHE = 'flagship-completion-v118-privileges';
 const SHELL = [
   './',
-  './index.html',
+  './index.html', './stock-count.js','./user-privileges.js',
   './supabase-client.js',
   './timesheet-sync.js',
   './manifest.webmanifest',
@@ -45,7 +45,10 @@ self.addEventListener('fetch', (e) => {
 
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request, { cache: 'no-store' }).catch(() =>
+      fetch(e.request, { cache: 'no-store' }).then((res) => {
+        if (!res || !res.ok) throw new Error('Navigation failed');
+        return res;
+      }).catch(() =>
         caches.match('./index.html')
       )
     );

@@ -36,7 +36,7 @@ function fixture() {
 }
 function test(name,fn){fn();passed++;console.log('PASS '+name);}
 function blocked(f,fn){assert.throws(fn,/Worker tab protection:/);assert.deepEqual(f.writes,[]);assert.ok(f.errors.length);}
-const reserved=['Users','Timesheets','Workers','Prices','Log','Proposals','JobCards','Calendar','Summary','Sheet1','Stock'];
+const reserved=['Users','Timesheets','Workers','Prices','Log','Proposals','JobCards','Calendar','Summary','Sheet1','Stock','PriceUpdates','Stock_Counts','UserPermissions'];
 for(const name of reserved)for(const variant of [name,name.toLowerCase(),name.toUpperCase(),'  '+name+'  ']) {
   test('reserved '+JSON.stringify(variant),()=>{
     const f=fixture();if(name!=='Timesheets')f.sheet(name,[['important'],['keep']]);

@@ -344,13 +344,14 @@ function priceUpdateReportPdf_(user, body) {
     ['New products created', String(summary.created || 0)],
     ['Unchanged / already existing', String(summary.unchanged || 0)],
     ['Conflicts left for review', String(summary.conflicts || 0)],
+    ['Not found / skipped', String(summary.notFound || 0)],
     ['Failed', String(summary.failed || 0)]
   ]);
 
   if (changes.length) {
     b.appendParagraph('Existing price changes').setHeading(DocumentApp.ParagraphHeading.HEADING2);
     var ct = [['Code','Description','Old cost','New cost']];
-    changes.slice(0, 750).forEach(function (x) {
+    changes.forEach(function (x) {
       ct.push([
         String(x.code || ''),
         String(x.description || ''),
@@ -378,7 +379,7 @@ function priceUpdateReportPdf_(user, body) {
   if (conflicts.length) {
     b.appendParagraph('Review / conflicts').setHeading(DocumentApp.ParagraphHeading.HEADING2);
     var rt = [['Code','Reason','Supplier value(s)']];
-    conflicts.slice(0, 300).forEach(function (x) {
+    conflicts.forEach(function (x) {
       var vals = (x.incoming || []).map(function (r) {
         return String(r.description || '') + ' @ ' + String(Number(r.price) || 0);
       }).join(' | ');
@@ -509,6 +510,18 @@ function findUser_(username) {
   return null;
 }
 
+/* Per-user, per-company checkbox privileges. Existing role/assignment rules remain. */
+var APP_PERMISSION_CATALOG_={"Flagship Solar": [{"key": "inspections.view", "label": "Inspections \u2014 view / capture"}, {"key": "job_cards.view", "label": "Job Cards \u2014 view"}, {"key": "job_cards.edit", "label": "Job Cards \u2014 save / submit"}, {"key": "calendar.view", "label": "Calendar \u2014 view"}, {"key": "calendar.edit", "label": "Calendar \u2014 schedule / change"}, {"key": "stock.view", "label": "Stock \u2014 view"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.manage", "label": "Stock \u2014 add items / receive file"}, {"key": "stock.report", "label": "Stock \u2014 reports"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 own entries"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "timesheets.view_all", "label": "Timesheets \u2014 all employees"}, {"key": "prices.view", "label": "Price List \u2014 sell prices"}, {"key": "prices.cost", "label": "Price List \u2014 supplier costs / markup"}, {"key": "prices.manage", "label": "Price List \u2014 edit / import"}, {"key": "quotes.view", "label": "Quotes \u2014 build / view"}, {"key": "quotes.create", "label": "Quotes \u2014 create in Xero"}, {"key": "proposals.view", "label": "Value Proposals \u2014 build / view"}, {"key": "proposals.send", "label": "Value Proposals \u2014 send / publish"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}], "Hi Service": [{"key": "stock.view", "label": "Stock \u2014 view / count screen"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.overview", "label": "Stock \u2014 overview / totals"}, {"key": "stock.report", "label": "Stock \u2014 daily reports / PDF"}, {"key": "stock.manage", "label": "Stock \u2014 add items / file import"}, {"key": "stock.transfer", "label": "Stock \u2014 transfer between locations"}, {"key": "stock.receive", "label": "Stock \u2014 receive / invoices"}, {"key": "stock.adjust", "label": "Stock \u2014 adjust quantities"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 view"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "estimates.view", "label": "Cost Estimation \u2014 build / share"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}]};
+var APP_PERMISSION_ACTIONS_={"jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit"};
+function permissionCompany_(body){return /^hi[A-Z]/.test(String(body.action||''))?'Hi Service':(['userAccess','userPermissions','saveUserPermissions','me','login'].indexOf(body.action)>=0&&body.company==='Hi Service'?'Hi Service':'Flagship Solar');}
+function permissionRecord_(username,company){var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(!sh||sh.getLastRow()<2)return null;var rows=sh.getRange(2,1,sh.getLastRow()-1,5).getValues(),key=String(username).toLowerCase();for(var i=0;i<rows.length;i++)if(String(rows[i][0]).toLowerCase()===key&&rows[i][1]===company){var permissions;try{permissions=JSON.parse(rows[i][2]);}catch(e){throw Error('Invalid stored user permissions; ask an Admin to repair.');}if(!Array.isArray(permissions))throw Error('Invalid stored user permissions');return {row:i+2,permissions:permissions};}return null;}
+function permissionDefaults_(u,company){var keys=APP_PERMISSION_CATALOG_[company].map(function(x){return x.key;});if(u.role==='Admin')return keys;if(company==='Hi Service')return keys.filter(function(k){return k!=='users.manage';});var worker=['inspections.view','job_cards.view','job_cards.edit','calendar.view','stock.view','stock.count','stock.report','timesheets.view_own','timesheets.submit'];return u.role==='Technician'?keys.filter(function(k){return ['users.manage','prices.cost','prices.manage'].indexOf(k)<0;}):worker;}
+function permissionKeys_(u,company){var rec=permissionRecord_(u.username,company);return rec?rec.permissions:permissionDefaults_(u,company);}
+function permissionAllowed_(u,company,key){return permissionKeys_(u,company).indexOf(key)>=0;}
+function permissionCheck_(u,body){var needed=APP_PERMISSION_ACTIONS_[body.action];if(!needed)return;var company=permissionCompany_(body),keys=permissionKeys_(u,company);if(![].concat(needed).some(function(k){return keys.indexOf(k)>=0;}))throw Error('Permission denied: '+[].concat(needed).join(' / '));}
+function permissionGet_(p,body){if(['userAccess','userPermissions'].indexOf(p.action)<0)return null;var u=auth_(body),company=permissionCompany_(body);if(p.action==='userAccess')return out_({ok:true,user:{username:u.username,name:u.name,role:u.role},company:company,permissions:permissionKeys_(u,company),catalog:APP_PERMISSION_CATALOG_[company]});if(u.role!=='Admin')throw Error('Admin access required to manage privileges');var sh=sheet_('Users'),users=[];if(sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,4).getValues().forEach(function(r){if(r[0]){var t={username:String(r[0]),name:String(r[1]||''),role:String(r[2]||''),status:String(r[3]||'')};t.permissions=permissionKeys_(t,company);users.push(t);}});return out_({ok:true,company:company,catalog:APP_PERMISSION_CATALOG_[company],users:users});}
+function permissionSave_(body){var u=auth_(body,'Admin'),company=permissionCompany_(body),target=findUser_(body.target||'');if(!target)throw Error('No such user');if(!Array.isArray(body.permissions))throw Error('Permissions must be a list');var allowed=APP_PERMISSION_CATALOG_[company].map(function(x){return x.key;}),keys=body.permissions;if(keys.some(function(k){return allowed.indexOf(k)<0;}))throw Error('Unknown permission');if(target.role!=='Admin'&&keys.indexOf('users.manage')>=0)throw Error('User management requires an Admin role');if(target.username.toLowerCase()===u.username.toLowerCase()&&keys.indexOf('users.manage')<0)throw Error('You cannot remove your own permission-management access');var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('UserPermissions')||ss.insertSheet('UserPermissions');if(!sh.getLastRow())sh.appendRow(['Username','Company','Permissions JSON','Updated','By']);var old=permissionRecord_(target.username,company),values=[target.username,company,JSON.stringify(keys),new Date(),u.username];if(old)sh.getRange(old.row,1,1,5).setValues([values]);else sh.appendRow(values);log_(u.username,'userPermissions',company+' / '+target.username,old?JSON.stringify(old.permissions):'role defaults',JSON.stringify(keys));return out_({ok:true,target:target.username,company:company,permissions:keys});}
+
 /** Every request goes through here. Returns the user or throws. */
 function auth_(body, needRole) {
   var u = findUser_(body.user || '');
@@ -516,9 +529,10 @@ function auth_(body, needRole) {
   if (u.hash !== hash_(u.username, body.pass || '')) throw new Error('unknown user or password');
   if (u.status.toLowerCase() !== 'active') throw new Error('account not approved yet');
 
+  permissionCheck_(u,body);
   if (needRole) {
     var need = [].concat(needRole);
-    if (need.indexOf(u.role) === -1) throw new Error('not allowed');
+    if (need.indexOf(u.role) === -1){var required=APP_PERMISSION_ACTIONS_[body.action],explicit=permissionRecord_(u.username,permissionCompany_(body));if(!required||[].concat(required).indexOf('users.manage')>=0||!explicit)throw new Error('not allowed');}
   }
   return u;
 }
@@ -566,8 +580,9 @@ function workerTabError_(message) {
 }
 function workerTabKey_(name) { return String(name).trim().toLowerCase(); }
 function reservedWorkerTabs_() {
-  return Object.keys(SHEETS).concat(['Summary', 'Sheet1',
-    typeof STOCK_SHEET === 'string' ? STOCK_SHEET : 'Stock']).map(workerTabKey_);
+  return Object.keys(SHEETS).concat(['Summary', 'Sheet1','UserPermissions',
+    typeof STOCK_SHEET === 'string' ? STOCK_SHEET : 'Stock',
+    typeof STOCK_COUNT_SHEET === 'string' ? STOCK_COUNT_SHEET : 'Stock_Counts']).map(workerTabKey_);
 }
 function workerMasterRows_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Timesheets');
@@ -1282,7 +1297,8 @@ function doGet(e) {
     if (p.action === 'proposalView') return proposalPublicHtml_(p.token||'');
     if (p.action === 'proposalAccept') { var pa=proposalAccept_(p.token||'',p.name||''); return HtmlService.createHtmlOutput('<h2>'+ (pa.ok?'Proposal accepted':'Acceptance failed') +'</h2><p>'+escXeroHtml_(pa.ok?'Your acceptance has been recorded. Flagship Solar will now process the accepted proposal.':(pa.error||'Unknown error'))+'</p>'); }
 
-    var body = { user: p.user, pass: p.pass };
+    var body = { user:p.user,pass:p.pass,action:p.action,company:p.company };
+    var access=permissionGet_(p,body);if(access)return access;
 
     if (p.action === 'me') {
       var u = auth_(body);
@@ -1375,7 +1391,7 @@ function doGet(e) {
       if (p.category) all = all.filter(function (x) { return x.category === p.category; });
       // Technicians see sell prices only — cost and markup stay with the Admin
       var me3 = findUser_(body.user);
-      var hideCost = me3 && me3.role !== 'Admin';
+      var hideCost = me3 && !permissionAllowed_(me3,'Flagship Solar','prices.cost');
       var list3 = all.map(function (x) {
         var o = { id: x.id, category: x.category, supplier: x.supplier, code: x.code,
                   description: x.description, descriptionEn: x.descriptionEn || x.description, unit: x.unit, install: x.install,
@@ -1400,6 +1416,7 @@ function doGet(e) {
       });
       return out_({ ok: true, users: list2, roles: ROLES });
     }
+ if(typeof hiServiceGet_==='function'){var hg=hiServiceGet_(p,body);if(hg)return hg;}
  var sg = stockGet_(p, body); if (sg) return sg;
     return out_({ ok: false, error: 'unknown action' });
   } catch (err) {
@@ -1419,6 +1436,7 @@ function doPost(e) {
   try { lock.waitLock(25000); } catch (err) { return out_({ ok: false, error: 'busy, try again' }); }
 
   try {
+    if(body.action==='saveUserPermissions')return permissionSave_(body);
     if (body.action === 'register') return out_(register_(body));
 
     if (body.action === 'login') {
@@ -1533,6 +1551,15 @@ function doPost(e) {
                  it.spec || '', it.active === false ? 'No' : 'Yes', new Date()];
 
       var ex = it.id ? findPrice_(it.id) : null;
+      if(body.existingOnly&&!ex)return out_({ok:false,error:'Existing price ID no longer exists; refresh Prices.'});
+      if(body.costOnly){
+        if(priceRows_().filter(function(p){return p.id===it.id;}).length!==1)return out_({ok:false,error:'Duplicate or missing price ID; review required.'});
+        if(!ex||ex.type==='Sell')return out_({ok:false,error:'Only existing supplier costs may be updated.'});
+        if(!isFinite(Number(it.cost))||Number(it.cost)<0)return out_({ok:false,error:'Invalid supplier cost'});
+        sh.getRange(ex.row,7).setValue(Number(it.cost));sh.getRange(ex.row,13).setValue(new Date());
+        log_(pu.username,'supplierCost',ex.description,ex.cost,Number(it.cost));
+        return out_({ok:true,id:ex.id,updated:true});
+      }
       if (ex) {
         var was = ex.description + ' @ ' + ex.cost + ' ' + ex.type +
                   (ex.markup === '' ? '' : ' +' + ex.markup + '%');
@@ -1621,17 +1648,20 @@ function doPost(e) {
     if (body.action === 'logPriceUpdate') {
       var lpu = auth_(body, 'Admin');
       var sm = body.summary || {};
-      var reportUrl = priceUpdateReportPdf_(lpu.username, body);
-      sheet_('PriceUpdates').appendRow([
+      var history=sheet_('PriceUpdates');
+      history.appendRow([
         new Date(), lpu.username, body.source || 'supplier list',
         Number(sm.processed) || 0, Number(sm.updated) || 0, Number(sm.created) || 0,
         Number(sm.unchanged) || 0, Number(sm.conflicts) || 0, Number(sm.failed) || 0,
-        reportUrl
+        'PDF pending'
       ]);
+      var historyRow=history.getLastRow(),reportUrl='',reportError='';
+      try{reportUrl=priceUpdateReportPdf_(lpu.username,body);history.getRange(historyRow,10).setValue(reportUrl);}
+      catch(err){reportError=String(err.message||err);history.getRange(historyRow,10).setValue('PDF failed: '+reportError);}
       log_(lpu.username, 'priceUpdateReport', body.source || 'supplier list', '',
            (Number(sm.updated)||0)+' updated; '+(Number(sm.created)||0)+' created; '+
            (Number(sm.conflicts)||0)+' review; '+(Number(sm.failed)||0)+' failed');
-      return out_({ ok: true, reportUrl: reportUrl });
+      return out_({ ok: true, reportUrl: reportUrl, reportError:reportError });
     }
 
     if (body.action === 'deletePrice') {
@@ -1678,6 +1708,7 @@ function doPost(e) {
       if (t2.username.toLowerCase() === admin2.username.toLowerCase()) {
         return out_({ ok: false, error: 'you cannot delete yourself' });
       }
+      var privilegeSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(privilegeSheet&&privilegeSheet.getLastRow()>1){var privilegeUsers=privilegeSheet.getRange(2,1,privilegeSheet.getLastRow()-1,1).getValues();for(var pi=privilegeUsers.length-1;pi>=0;pi--)if(String(privilegeUsers[pi][0]).toLowerCase()===t2.username.toLowerCase())privilegeSheet.deleteRow(pi+2);}
       sheet_('Users').deleteRow(t2.row);
       log_(admin2.username, 'deleteUser', t2.username, t2.role + ' / ' + t2.status, 'deleted');
       return out_({ ok: true });
@@ -1702,6 +1733,7 @@ function doPost(e) {
       log_(me2.username, 'changePassword', '', '', '');
       return out_({ ok: true });
     }
+if(typeof hiServicePost_==='function'){var hp=hiServicePost_(body);if(hp)return hp;}
 var sp = stockPost_(body); if (sp) return sp;
     return out_({ ok: false, error: 'unknown action' });
   } catch (err) {

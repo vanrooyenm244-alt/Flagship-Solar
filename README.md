@@ -260,3 +260,31 @@ SANS 10142-1, conductor sizing.
 
 Fill the clause number in from your own copy once, using *Add your own*. It
 saves on the phone and is there from then on.
+
+## Stock count journal and supplier import verification (4 October 2026)
+
+Stock Count now lists counted items above the stock list, saves each edit synchronously on the device per user/company/location, and uploads batches of 20 with acknowledged progress. Unknown/rejected items and failed batches remain in the draft. Switching locations preserves separate drafts. Flagship Stock reports reads `Stock_Counts`; Hi Service's existing daily report reads its count history with new Old and Movement columns. Reports can be printed/saved as PDF.
+
+Deploy updated `apps-script/Code.gs`, `apps-script/Stock.gs` and Hi Service's `google-apps-script/HiService.gs` together in the existing shared Apps Script project. Retain the Hi Service GET/POST router hooks described in that repository. GitHub Pages code changes alone cannot deploy Apps Script.
+
+Verification used a read-only snapshot of the existing Timesheets workbook's Prices tab (542 records). Synthetic cost changes were simulated through the actual preview/fallback functions: 439 eligible existing rows; 29 conflicts, including duplicate codes and IDs. No live prices or stock were changed. Snapshot data is not committed.
+
+Confirmed defects and fixes:
+- `index.html`, `renderPriceUpdater_`: incorrectly promised to create unmatched products. Now explicitly says skipped.
+- `index.html`, `applyPriceUpdate_` / `savePriceFallback_`: matched existing rows using code alone, so a description match to a blank code could target the wrong record; missing IDs could create a row. Updates carry existing ID, require an update acknowledgement and block missing/duplicate IDs and Sell-price rows.
+- `apps-script/Code.gs`, `savePrice`: existing-only/cost-only requests now reject missing/duplicate IDs and write only Cost and Updated, preserving markup, description and other fields.
+- Current Prices data has duplicate ID `PMT64H8DT626` (Deye 125kW / Solis 18kW) and `PMT64H8DT454` (Hina PowerGem / Volta S3). These require unique IDs in the Sheet; the importer now exposes conflicts rather than updating either row. Sheet data was not edited.
+- `apps-script/Code.gs`, `priceUpdateReportPdf_`: silently limited changes to 750 and conflicts to 300; includes all changes/conflicts and skipped count now. `logPriceUpdate` records history before PDF generation and stores explicit PDF failure status.
+- `apps-script/Stock.gs`, `stockSave_`: previously only logged the total number changed; now records each accepted count, its previous value, movement, user, place and time.
+
+Validation: 11 targeted checks passed, including live-data simulation, blank-code matching, rejected writes, draft restart, partial upload and PDF content beyond 750 rows. Full suite: 224/224 passed after repairing the HTTP-error offline fallback and aligning outdated tests with the current v3 inspection/commissioning models, active cache version and protected audit-sheet names. Worker-tab protection now also reserves Stock_Counts. PDF content was verified with an Apps Script service mock; live Google PDF generation, deployed backend and mobile UI are not yet verified.
+
+## Username checkbox privileges for both apps
+
+Admin → Users shows actual usernames and separate view/action checkboxes, with Save privileges per user. Privileges are stored centrally in UserPermissions as one row per username/company; saving Hi Service rights does not alter Flagship rights. Existing role defaults remain until an administrator saves an override. Suspended/Pending accounts cannot authenticate; only active Admin users can manage privileges. Self-removal of permission management is blocked. Deleting a username also clears its stored grants.
+
+The shared Apps Script enforces mapped reads and mutations before accepting a request; explicit grants can enable selected operations without promoting the user to Admin. Existing own-timesheet, assignment and other endpoint checks remain. Public proposal links keep their existing token access. Local files already downloaded to a device are not remotely removed by a permission change. Supabase's independent RLS policies remain separate; this editor controls the current Google Apps Script app access.
+
+Deployment: replace the complete apps-script/Code.gs and apps-script/Stock.gs in the shared Apps Script project, retain/add Hi Service's HiService.gs, and deploy a new version of the existing /exec deployment. No setup reset or changes to the Users schema are required. UserPermissions is created on the first successful save. Until this backend is deployed, the checkbox screens report that deployment is needed and cannot save privileges.
+
+Validation: 230/230 Flagship regression tests pass, including real endpoint tests for Admin-only changes, revoked writes, company-forgery prevention, explicit grants, persistence/revocation, invalid permission keys, self-lockout and deletion cleanup. The published frontend/backend integration still requires the above Apps Script deployment.

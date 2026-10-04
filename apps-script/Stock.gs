@@ -26,6 +26,7 @@
  */
 
 var STOCK_SHEET = 'Stock';
+var STOCK_COUNT_SHEET = 'Stock_Counts';
 var STOCK_PLACES = ['Store', 'GWM', 'NP200'];
 var STOCK_HEAD = ['Item', 'Category', 'Unit', 'Last Price',
                   'Store', 'GWM', 'NP200', 'Total', 'Counted', 'By'];
@@ -115,6 +116,7 @@ function stockSave_(user, place, counts) {
     if (!r) { unknown.push(name); return; }
     var q = Number(counts[name]);
     if (!isFinite(q) || q < 0 || Math.floor(q)!==q) { rejected.push(name); return; }
+    stockCountSheet_().appendRow([now,user.username,place,name,r[place],q,q-r[place]]);
     if (r[place] === q) return;
     sh.getRange(r.row, col).setValue(q);
     sh.getRange(r.row, 9).setValue(now);
@@ -199,7 +201,11 @@ function stockUpload_(user, place, rows, source, reference) {
 /* ================= web app hooks ================= */
 
 /** Returns a response, or null if this was not a stock request. */
+function stockCountSheet_(){var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName(STOCK_COUNT_SHEET)||ss.insertSheet(STOCK_COUNT_SHEET);if(!sh.getLastRow())sh.appendRow(['Timestamp','User','Location','Item','Old','Count','Movement']);return sh;}
+function stockDailyReport_(date){var ss=SpreadsheetApp.getActiveSpreadsheet(),tz=ss.getSpreadsheetTimeZone()||'Africa/Johannesburg',sh=stockCountSheet_(),counts=[];date=date||Utilities.formatDate(new Date(),tz,'yyyy-MM-dd');if(sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,7).getValues().forEach(function(r){if(Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd')===date)counts.push({timestamp:Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd HH:mm:ss'),user:r[1],location:r[2],description:r[3],old:r[4],count:r[5],delta:r[6]});});return {date:date,counts:counts,movements:counts.filter(function(x){return x.delta!==0;})};}
+
 function stockGet_(p, body) {
+  if(p.action==='stockReport'){auth_(body);return out_({ok:true,report:stockDailyReport_(p.date)});}
   if (p.action === 'stock') {
     auth_(body);                       // any active user, workers included
     return out_({ ok: true, stock: stockRows_(), places: STOCK_PLACES,
