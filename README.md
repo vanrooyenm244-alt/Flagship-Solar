@@ -288,3 +288,7 @@ The shared Apps Script enforces mapped reads and mutations before accepting a re
 Deployment: replace the complete apps-script/Code.gs and apps-script/Stock.gs in the shared Apps Script project, retain/add Hi Service's HiService.gs, and deploy a new version of the existing /exec deployment. No setup reset or changes to the Users schema are required. UserPermissions is created on the first successful save. Until this backend is deployed, the checkbox screens report that deployment is needed and cannot save privileges.
 
 Validation: 230/230 Flagship regression tests pass, including real endpoint tests for Admin-only changes, revoked writes, company-forgery prevention, explicit grants, persistence/revocation, invalid permission keys, self-lockout and deletion cleanup. The published frontend/backend integration still requires the above Apps Script deployment.
+
+## 4 October audit repairs
+
+See [AUDIT-2026-10-04.md](AUDIT-2026-10-04.md) for confirmed faults, exact functions, read-only live data findings and deployment requirements.
