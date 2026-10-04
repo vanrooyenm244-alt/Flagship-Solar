@@ -968,7 +968,7 @@ table.page{border-collapse:collapse}
 <div class="wrap hidden" id="screenStock">
   <section class="sheet">
     <div class="sheet-head"><h2>Stock count</h2><span class="tag" id="stTag"></span></div>
-    <div id="stWarn"></div>
+    <div id="stJournal" class="queued"></div><div id="stUploadStatus"></div><div id="stWarn"></div><div class="queued"><b>Stock reports</b> <input id="stReportDate" type="date"><button type="button" id="stLoadReport">Load report</button><button type="button" id="stPrintReport">Print / Save PDF</button><div id="stReport"></div></div>
     <div class="setrow" style="margin-bottom:12px">
       <label for="stCompany">Company stock</label>
       <select id="stCompany"><option value="Flagship Solar">Flagship Solar</option><option value="Hi Service">Hi Service</option></select>
@@ -1354,7 +1354,7 @@ table.page{border-collapse:collapse}
 </div>
 
 
-<script>
+<script src="stock-count.js"></script><script>
 (function(){
 "use strict";
 
@@ -3283,6 +3283,8 @@ function buildPricePreview_(rows){
     }
 
     if(!p){notFound.push(r);return;}
+    if(!p.id||PRICES.filter(function(z){return z.id===p.id;}).length!==1){conflicts.push({code:code,reason:'Existing price ID is missing or duplicated in Prices; fix ID before importing',incoming:[r],current:[p]});return;}
+    if(p.type==='Sell'){conflicts.push({code:code,reason:'Matched item is a Sell price, not a supplier cost',incoming:[r],current:[p]});return;}
     var old=Number(p.cost)||0,neu=Number(r.price);
     if(!isFinite(neu)||neu<0){conflicts.push({code:code,reason:'Supplier price is invalid',incoming:[r],current:[p]});return;}
     var rec={incoming:r,current:p,old:old,newPrice:neu,matchType:matchType};
@@ -3324,7 +3326,7 @@ function renderPriceUpdater_(){
     html+='</tbody></table></div>';
   }
   if(p.notFound.length){
-    html+='<div class="puwarn"><b>'+p.notFound.length+' new supplier products will be created.</b> They will use the supplier description/code, Cost price, unit "each", category "Other", and the normal default markup.</div>';
+    html+='<div class="puwarn"><b>'+p.notFound.length+' supplier products are not in the current list and will be skipped.</b> Only existing supplier costs will be updated.</div>';
     html+='<div class="pupreview"><table><thead><tr><th>Supplier code</th><th>Description</th><th>Supplier cost</th></tr></thead><tbody>';
     p.notFound.slice(0,200).forEach(function(x){html+='<tr><td>'+esc(x.code)+'</td><td>'+esc(x.description||'')+'</td><td class="num"><b>'+money(x.price)+'</b></td></tr>';});
     html+='</tbody></table></div>';
@@ -3371,7 +3373,9 @@ async function savePriceFallback_(items, mode){
     try{
       if(mode==='update'){
         var code=normCode_(x.code);
-        var p=PRICES.filter(function(z){return normCode_(z.code)===code;})[0];
+        var matches=PRICES.filter(function(z){return x.id?z.id===x.id:normCode_(z.code)===code;});
+        if(matches.length>1)throw Error('Duplicate price code; review required');
+        var p=matches[0];
         if(!p){ results.notFound++; results.results.push({code:x.code||'',status:'notFound'}); continue; }
         var oldCost=Number(p.cost)||0, newCost=Number(x.price);
         if(!isFinite(newCost) || newCost<0){ results.failed++; results.results.push({code:x.code||'',status:'failed',error:'invalid price'}); continue; }
@@ -3383,7 +3387,11 @@ async function savePriceFallback_(items, mode){
           markup:(p.markup==null?'':p.markup), install:Number(p.install)||0,
           spec:p.spec||'', active:p.active!==false
         };
-        await api({action:'savePrice',item:item});
+        if(!p.id)throw Error('Existing price ID missing; refresh Prices before importing');
+        if(!p.id||PRICES.filter(function(z){return z.id===p.id;}).length!==1){conflicts.push({code:code,reason:'Existing price ID is missing or duplicated in Prices; fix ID before importing',incoming:[r],current:[p]});return;}
+    if(p.type==='Sell')throw Error('Sell-price item cannot be updated as supplier cost');
+        var ack=await api({action:'savePrice',item:item,existingOnly:true,costOnly:true});
+        if(!ack||!ack.updated||ack.id!==p.id)throw Error('Supplier cost update not acknowledged');
         p.cost=newCost;
         results.updated++;
         results.changes.push({code:item.code,description:item.description,old:oldCost,now:newCost});
@@ -3413,7 +3421,7 @@ async function savePriceFallback_(items, mode){
 
 function applyPriceUpdate_(){
   if(!PU_PREVIEW||!PU_PREVIEW.changes.length)return;
-  var updates=PU_PREVIEW.changes.map(function(x){return {code:x.current.code,price:x.newPrice};});
+  var updates=PU_PREVIEW.changes.map(function(x){return {id:x.current.id,code:x.current.code,price:x.newPrice};});
   var n=updates.length;
   if(!confirm('Apply '+n+' supplier cost update'+(n===1?'':'s')+'?\n\nOnly EXISTING Flagship price-list items will be updated.\nUnmatched supplier items will NOT be created.\nStock quantities and existing quotes will not be changed.'))return;
   var b=document.getElementById('puApply');if(!b)return;
@@ -3447,7 +3455,7 @@ function applyPriceUpdate_(){
       var rr=await api({action:'logPriceUpdate',source:PU_FILE?PU_FILE.name:'supplier list',
         summary:{processed:PU_PREVIEW.total,updated:updated,created:0,unchanged:PU_PREVIEW.unchanged.length+unchanged,notFound:PU_PREVIEW.notFound.length+notFound,conflicts:(PU_PREVIEW.conflicts||[]).length,failed:failed},
         changes:reportChanges,creates:[],conflicts:PU_PREVIEW.conflicts||[]});
-      reportUrl=rr.reportUrl||'';
+      reportUrl=rr.reportUrl||'';reportError=rr.reportError||'';
     }catch(re){reportError=String(re.message||re);}
 
     var msg='Price list update complete.\n\nSupplier products read: '+PU_PREVIEW.total+
@@ -4766,16 +4774,7 @@ function showStock(){if(!hasPermission_('stock.view')){showHome();return;}
   loadStock();
   stockShowAdminTools_();
   get1('cfg','stockdraft-'+ST.company).then(function(d){
-    if(d && d.place && d.counts && Object.keys(d.counts).length){
-      setTimeout(function(){
-        if(!confirm('You have '+Object.keys(d.counts).length+
-          ' numbers counted for '+d.place+' that were never sent. Carry on with them?')){
-          put('cfg',{id:'stockdraft-'+ST.company,company:ST.company,place:'',counts:{}}).catch(function(){});
-          return;
-        }
-        pickPlace(d.place); ST.counts=d.counts; renderStock();
-      },600);
-    }
+    if(d&&d.place){var saved=StockJournal.read(ME&&ME.username,ST.company,d.place);pickPlace(d.place);if(!saved){ST.counts=d.counts||{};saveStockDraft();renderStock();}}
   }).catch(function(){});
 }
 
@@ -4863,9 +4862,8 @@ function renderPlaces(){
 }
 
 function pickPlace(pl){
-  if(ST.place && ST.place!==pl && Object.keys(ST.counts).length &&
-     !confirm('Switch to '+pl+'? What you counted for '+ST.place+' and did not send will be lost.')) return;
-  ST.place=pl; ST.counts={};
+  if(ST.place)saveStockDraft();
+  ST.place=pl;var draft=StockJournal.read(ME&&ME.username,ST.company,pl);ST.counts=draft?draft.counts:{};
   renderPlaces();
   renderCatsStock();
   renderStock();
@@ -4927,6 +4925,7 @@ function renderStock(){
 
 function stockBar(){
   document.getElementById('stCount').textContent=Object.keys(ST.counts).length;
+  StockJournal.draw(document.getElementById('stJournal'),ST.counts);
 }
 
 document.getElementById('stQ').addEventListener('input',function(){
@@ -4934,13 +4933,16 @@ document.getElementById('stQ').addEventListener('input',function(){
 });
 
 document.getElementById('stCompany').addEventListener('change',function(){
-  if(Object.keys(ST.counts).length&&!confirm('Switch company? Unsent stock counts on this screen will be cleared.')){this.value=ST.company;return;}
+  if(ST.place)saveStockDraft();
   ST.company=this.value;ST.place='';ST.counts={};ST.items=[];ST.cats=[];ST.places=[];
   document.getElementById('stBody').classList.remove('hidden');loadStock();
 });
 
 var stDraft=null;
-function saveStockDraft(){return put('cfg',{id:'stockdraft-'+ST.company,company:ST.company,place:ST.place,counts:ST.counts}).catch(function(){alert('Stock draft could not be saved on this phone.');});}
+function saveStockDraft(){
+  var snapshot;try{snapshot=StockJournal.save(ME&&ME.username,ST.company,ST.place,ST.counts);}catch(e){alert('Stock draft could not be saved: '+e.message);return Promise.reject(e);}
+  return put('cfg',{id:'stockdraft-'+ST.company,company:ST.company,place:ST.place,counts:snapshot}).catch(function(){document.getElementById('stUploadStatus').textContent='Draft saved locally; database copy unavailable.';});
+}
 
 document.getElementById('stClear').addEventListener('click',function(){
   var n=Object.keys(ST.counts).length;
@@ -4949,39 +4951,27 @@ document.getElementById('stClear').addEventListener('click',function(){
   ST.counts={}; saveStockDraft(); renderStock();
 });
 
-document.getElementById('stSend').addEventListener('click',function(){
-  var n=Object.keys(ST.counts).length;
-  if(!n){ alert('Nothing counted yet.'); return; }
-  if(!confirm('Send '+n+(n===1?' item':' items')+' for '+ST.place+'?'+
-    '\n\nOnly '+ST.place+' is written. The other places are left alone.')) return;
-
-  var btn=document.getElementById('stSend');
-  btn.disabled=true; btn.textContent='Sending\u2026';
-
-  var sentPlace=ST.place,sentCounts=JSON.parse(JSON.stringify(ST.counts)),owner=ME;
-  api({action:ST.company==='Hi Service'?'hiStockCount':'stockCount',company:ST.company,place:sentPlace,counts:sentCounts}).then(function(j){
-    if(!Array.isArray(j.unknown)||(j.rejected!=null&&!Array.isArray(j.rejected))||typeof j.changed!=='number')throw new Error('Invalid stock acknowledgement; counts retained.');
-    var rejected=Array.isArray(j.rejected)?j.rejected:[];
-    btn.disabled=false; btn.textContent='Send count';
-    /* keep the screen honest: the numbers just sent are now the last count */
-    Object.keys(sentCounts).forEach(function(name){
-      if(j.unknown.indexOf(name)>=0||rejected.indexOf(name)>=0)return;
-      for(var i=0;i<ST.items.length;i++){if(ST.items[i].item===name){ST.items[i][sentPlace]=sentCounts[name];break;}}
-      if(ME===owner&&ST.place===sentPlace&&ST.counts[name]===sentCounts[name])delete ST.counts[name];
-    });
-    put('cfg',{id:'stockcache-'+ST.company,company:ST.company,list:ST.items,places:ST.places,cats:ST.cats}).catch(function(){});
-    saveStockDraft();
-    var msg=j.changed+(j.changed===1?' item updated':' items updated');
-    if(j.unknown && j.unknown.length) msg+=', '+j.unknown.length+' not on the list';
-    if(rejected.length) msg+=', '+rejected.length+' invalid count'+(rejected.length===1?'':'s')+' kept for correction';
-    alert(msg+'.');
-    renderPlaces(); renderStock();
-  }).catch(function(e){
-    btn.disabled=false; btn.textContent='Send count';
-    alert('Could not send \u2014 '+String(e.message||e)+
-      '\n\nWhat you counted is still on this phone. Try again with signal.');
-  });
+document.getElementById('stSend').addEventListener('click',async function(){
+  var n=Object.keys(ST.counts).length;if(!n||!ST.place){alert('Choose a place and count items first.');return;}
+  if(!confirm('Send '+n+' items for '+ST.place+'?'))return;
+  var btn=this,company=ST.company,place=ST.place,owner=ME,counts=JSON.parse(JSON.stringify(ST.counts));
+  btn.disabled=true;
+  var locks=Array.from(document.querySelectorAll('#screenStock input,#screenStock button,#screenStock select')).filter(function(e){return !e.disabled;});locks.forEach(function(e){e.disabled=true;});
+  try{
+    await saveStockDraft();
+    var result=await StockJournal.send(counts,function(batch){return api({action:company==='Hi Service'?'hiStockCount':'stockCount',company:company,place:place,counts:batch});},async function(names,batch){
+      names.forEach(function(name){var it=ST.items.find(function(x){return x.item===name||x.code===name;});if(it)it[place]=batch[name];if(ME===owner&&ST.company===company&&ST.place===place&&ST.counts[name]===batch[name])delete ST.counts[name];});
+      await saveStockDraft();
+    },function(done,total){StockJournal.draw(document.getElementById('stJournal'),ST.counts,done,total);});
+    document.getElementById('stUploadStatus').textContent=result.accepted+' / '+n+' confirmed. '+(result.unknown.length+result.rejected.length)+' kept for correction. Open Stock reports to view movement.';
+    await put('cfg',{id:'stockcache-'+company,list:ST.items,places:ST.places,cats:ST.cats});
+  }catch(e){document.getElementById('stUploadStatus').textContent='Upload stopped: '+e.message+'. Unconfirmed counts remain on this phone.';}
+  finally{locks.forEach(function(e){e.disabled=false;});btn.disabled=false;renderPlaces();renderStock();}
 });
+var STOCK_DAILY_REPORT=null;
+document.getElementById('stReportDate').value=new Date().toLocaleDateString('en-CA');
+document.getElementById('stLoadReport').onclick=function(){var el=document.getElementById('stReport');el.textContent='Loading…';apiGet({action:ST.company==='Hi Service'?'hiStockReport':'stockReport',date:document.getElementById('stReportDate').value}).then(function(j){STOCK_DAILY_REPORT=j.report;var r=j.report;el.innerHTML='<h3>'+esc(ST.company)+' · '+esc(r.date)+'</h3><table><tr><th>Time</th><th>User</th><th>Place</th><th>Item</th><th>Count</th><th>Old</th><th>Movement</th></tr>'+(r.counts||[]).map(function(x){return '<tr><td>'+esc(x.timestamp)+'</td><td>'+esc(x.user)+'</td><td>'+esc(x.location)+'</td><td>'+esc(x.description)+'</td><td>'+x.count+'</td><td>'+esc(x.old==null?'—':x.old)+'</td><td>'+esc(x.delta==null?'—':x.delta)+'</td></tr>';}).join('')+'</table>';}).catch(function(e){el.textContent='Report failed: '+e.message;});};
+document.getElementById('stPrintReport').onclick=function(){if(!STOCK_DAILY_REPORT)return;var w=window.open('','_blank');if(!w){alert('Allow pop-ups for PDF printing.');return;}w.document.write('<html><head><title>Stock Report</title><style>body{font:12px Arial}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ddd}@page{size:A4 landscape}</style></head><body>'+document.getElementById('stReport').innerHTML+'</body></html>');w.document.close();setTimeout(function(){w.print();},300);};
 
 /* ============ admin ============ */
 function showAdmin(){if(!hasPermission_('users.manage')){showHome();return;}

@@ -344,13 +344,14 @@ function priceUpdateReportPdf_(user, body) {
     ['New products created', String(summary.created || 0)],
     ['Unchanged / already existing', String(summary.unchanged || 0)],
     ['Conflicts left for review', String(summary.conflicts || 0)],
+    ['Not found / skipped', String(summary.notFound || 0)],
     ['Failed', String(summary.failed || 0)]
   ]);
 
   if (changes.length) {
     b.appendParagraph('Existing price changes').setHeading(DocumentApp.ParagraphHeading.HEADING2);
     var ct = [['Code','Description','Old cost','New cost']];
-    changes.slice(0, 750).forEach(function (x) {
+    changes.forEach(function (x) {
       ct.push([
         String(x.code || ''),
         String(x.description || ''),
@@ -378,7 +379,7 @@ function priceUpdateReportPdf_(user, body) {
   if (conflicts.length) {
     b.appendParagraph('Review / conflicts').setHeading(DocumentApp.ParagraphHeading.HEADING2);
     var rt = [['Code','Reason','Supplier value(s)']];
-    conflicts.slice(0, 300).forEach(function (x) {
+    conflicts.forEach(function (x) {
       var vals = (x.incoming || []).map(function (r) {
         return String(r.description || '') + ' @ ' + String(Number(r.price) || 0);
       }).join(' | ');
@@ -1533,6 +1534,15 @@ function doPost(e) {
                  it.spec || '', it.active === false ? 'No' : 'Yes', new Date()];
 
       var ex = it.id ? findPrice_(it.id) : null;
+      if(body.existingOnly&&!ex)return out_({ok:false,error:'Existing price ID no longer exists; refresh Prices.'});
+      if(body.costOnly){
+        if(priceRows_().filter(function(p){return p.id===it.id;}).length!==1)return out_({ok:false,error:'Duplicate or missing price ID; review required.'});
+        if(!ex||ex.type==='Sell')return out_({ok:false,error:'Only existing supplier costs may be updated.'});
+        if(!isFinite(Number(it.cost))||Number(it.cost)<0)return out_({ok:false,error:'Invalid supplier cost'});
+        sh.getRange(ex.row,7).setValue(Number(it.cost));sh.getRange(ex.row,13).setValue(new Date());
+        log_(pu.username,'supplierCost',ex.description,ex.cost,Number(it.cost));
+        return out_({ok:true,id:ex.id,updated:true});
+      }
       if (ex) {
         var was = ex.description + ' @ ' + ex.cost + ' ' + ex.type +
                   (ex.markup === '' ? '' : ' +' + ex.markup + '%');
@@ -1621,17 +1631,20 @@ function doPost(e) {
     if (body.action === 'logPriceUpdate') {
       var lpu = auth_(body, 'Admin');
       var sm = body.summary || {};
-      var reportUrl = priceUpdateReportPdf_(lpu.username, body);
-      sheet_('PriceUpdates').appendRow([
+      var history=sheet_('PriceUpdates');
+      history.appendRow([
         new Date(), lpu.username, body.source || 'supplier list',
         Number(sm.processed) || 0, Number(sm.updated) || 0, Number(sm.created) || 0,
         Number(sm.unchanged) || 0, Number(sm.conflicts) || 0, Number(sm.failed) || 0,
-        reportUrl
+        'PDF pending'
       ]);
+      var historyRow=history.getLastRow(),reportUrl='',reportError='';
+      try{reportUrl=priceUpdateReportPdf_(lpu.username,body);history.getRange(historyRow,10).setValue(reportUrl);}
+      catch(err){reportError=String(err.message||err);history.getRange(historyRow,10).setValue('PDF failed: '+reportError);}
       log_(lpu.username, 'priceUpdateReport', body.source || 'supplier list', '',
            (Number(sm.updated)||0)+' updated; '+(Number(sm.created)||0)+' created; '+
            (Number(sm.conflicts)||0)+' review; '+(Number(sm.failed)||0)+' failed');
-      return out_({ ok: true, reportUrl: reportUrl });
+      return out_({ ok: true, reportUrl: reportUrl, reportError:reportError });
     }
 
     if (body.action === 'deletePrice') {
