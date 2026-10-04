@@ -908,7 +908,7 @@ function sellPrice_(item, overrideMarkup) {
 }
 
 function priceId_() {
-  return 'P' + Date.now().toString(36).toUpperCase() + Math.floor(Math.random() * 900 + 100);
+  return 'P-'+Utilities.getUuid().toUpperCase();
 }
 
 var XERO_TOKEN_URL_='https://identity.xero.com/connect/token';
@@ -1587,7 +1587,7 @@ function doPost(e) {
       items.forEach(function(it){
         it = it || {}; var code = String(it.code || '').trim(), key = code.toUpperCase();
         var desc = String(it.description || '').trim(), cost = Number(it.cost);
-        if (!code || !desc || !isFinite(cost) || cost < 0) { results.push({code:code,status:'failed',error:'invalid code, description or cost'}); return; }
+        if (!code || !desc || (typeof it.cost!=='number'&&typeof it.cost!=='string') || String(it.cost).trim()==='' || !isFinite(cost) || cost < 0) { results.push({code:code,status:'failed',error:'invalid code, description or cost'}); return; }
         if (existing[key]) { results.push({code:code,status:'existing'}); return; }
         var category = (it.category && CATEGORIES.indexOf(it.category) !== -1) ? it.category : 'Other';
         rows.push([priceId_(),category,it.supplier||'',code,desc,it.unit||'each',cost,'Cost','',Number(it.install)||0,it.spec||'','Yes',now]);
