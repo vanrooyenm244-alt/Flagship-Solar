@@ -2566,7 +2566,7 @@ function showPrices(){if(!hasPermission_('prices.view')){showHome();return;}
   loadPrices();
 }
 
-var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null;
+var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null, PU_CHOICES={};
 
 function loadScript_(src, globalName){
   return new Promise(function(resolve,reject){
@@ -2767,10 +2767,10 @@ async function puParseApple_(pdf,onProgress){
     var p=await pdf.getPage(pg),tc=await p.getTextContent(),rows=puPdfRows_(tc.items,2.0);
     sourceItems+=(tc.items||[]).length;
     var h=null;
-    rows.some(function(g){var t=puRowText_(g);if(/Barcode/i.test(t)&&/Item\s*Code/i.test(t)&&/Description/i.test(t)&&/Quantity/i.test(t)&&/UnitPrice/i.test(t)&&/Line\s*Total/i.test(t)){h=g;return true;}return false;});
+    rows.some(function(g){var t=puRowText_(g);if(/Barcode/i.test(t)&&/Item\s*Code/i.test(t)&&/Description/i.test(t)&&/Quantity/i.test(t)&&/Unit\s*Price/i.test(t)&&/Line\s*Total/i.test(t)){h=g;return true;}return false;});
     if(!h)continue;
     var a=h.a;
-    var barcodeX=puFirstX_(a,/^Barcode$/i),itemX=puFirstX_(a,/^Item$/i),descX=puFirstX_(a,/^Description$/i),unitX=puFirstX_(a,/^UNIT$/),qtyX=puFirstX_(a,/^Quantity$/i),priceX=puFirstX_(a,/^UnitPrice$/i),lineX=puFirstX_(a,/^Line$/i);
+    var barcodeX=puFirstX_(a,/^Barcode$/i),itemX=puFirstX_(a,/^Item$/i),descX=puFirstX_(a,/^Description$/i),unitX=puFirstX_(a,/^UNIT$/),qtyX=puFirstX_(a,/^Quantity$/i),priceX=puFirstX_(a,/^Unit\s*Price(?:\s+Incl)?$/i),lineX=puFirstX_(a,/^Line(?:\s+Total)?$/i);
     if(itemX==null){itemX=puFirstX_(a,/^Item\s*Code$/i);}
     if(barcodeX==null||itemX==null||descX==null||unitX==null||qtyX==null||priceX==null||lineX==null)continue;
     barcodeX-=4;itemX-=4;descX-=4;unitX-=4;qtyX-=5;priceX-=5;lineX-=5;
@@ -2807,25 +2807,23 @@ async function puParseITS_(pdf,onProgress){
     onProgress({phase:'read',current:pg,total:pdf.numPages,label:'Reading ITS dealer price list page '+pg+' of '+pdf.numPages});
     var p=await pdf.getPage(pg),tc=await p.getTextContent(),rows=puPdfRows_(tc.items,2.0);
     sourceItems+=(tc.items||[]).length;
+    var tokens=rows.reduce(function(a,g){return a.concat(g.a);},[]);
     rows.forEach(function(g){
       var rs=g.a.filter(function(z){return /^R$/i.test(z.t);}).sort(function(a,b){return a.x-b.x;});
       if(rs.length<3)return;
-      var r1=rs[0],r2=rs[1],r3=rs[2];
-      if(!(r1.x<r2.x&&r2.x<r3.x))return;
-      var product=puField_(g.a,0,190),desc=puField_(g.a,190,r1.x);
-      var dealer=numPrice_(puField_(g.a,r2.x+0.1,r3.x));
-      if(!product||!isFinite(dealer)||dealer<=0)return;
-      if(/^(Product Name|Rec Retail|Dealer|Bulk|Please Note|Price)$/i.test(product))return;
-      var key=product.toUpperCase().replace(/\s+/g,' ').trim();
-      if(seen[key])return;
-      seen[key]=true;
-      var strong=puStrongKeys_(product);
-      out.push({code:product,price:dealer,description:puCleanDesc_(product+' '+desc),supplier:'ITS Heat Pumps & Solar',matchKeys:strong});
+      var r1=rs[0],r2=rs[1],r3=rs[2],dealer=numPrice_(puField_(g.a,r2.x+0.1,r3.x));
+      // Product labels in this PDF can sit 6.3 points below the price baseline.
+      var near=tokens.filter(function(z){return z.x<190&&Math.abs(z.y-g.y)<=8;}).sort(function(a,b){return Math.abs(a.y-g.y)-Math.abs(b.y-g.y);});
+      if(!near.length||!isFinite(dealer)||dealer<=0)return;
+      var productY=near[0].y,product=puField_(near.filter(function(z){return Math.abs(z.y-productY)<=2;}),0,190);
+      var desc=tokens.filter(function(z){return z.x>=190&&z.x<r1.x&&Math.abs(z.y-g.y)<=8;}).sort(function(a,b){return b.y-a.y||a.x-b.x;}).map(function(z){return z.t;}).join(' ');
+      if(!product||/^(Product Name|Rec Retail|Dealer|Bulk|Please Note|Price)$/i.test(product))return;
+      var key=product.toUpperCase().replace(/\s+/g,' ').trim();if(seen[key])return;seen[key]=true;
+      out.push({code:product,price:dealer,description:puCleanDesc_(product+' '+desc),supplier:'ITS Heat Pumps & Solar',matchKeys:puStrongKeys_(product)});
     });
   }
   if(!out.length)throw new Error('ITS dealer price list opened, but no dealer-price product rows were recognised.');
-  out._diagnostics={sourceItems:sourceItems,productRows:out.length,products:out.length,rejected:0,parser:'ITS dealer price list v2',codes:out.map(function(x){return x.code+' — '+money(x.price);})};
-  return out;
+  out._diagnostics={sourceItems:sourceItems,products:out.length,parser:'ITS dealer price list v3',codes:out.map(function(x){return x.code+' — '+money(x.price);})};return out;
 }
 function puNormText_(s){
   return String(s||'').toUpperCase().replace(/[–—]/g,'-').replace(/&/g,' AND ')
@@ -2844,9 +2842,11 @@ function puDice_(a,b){
 function puCandidateScore_(r,p){
   var rc=puCompact_(r.code),pc=puCompact_(p.code);
   if(rc&&pc&&rc===pc)return 1;
-  var rkeys=(r.matchKeys||[]).concat(puStrongKeys_(r.code+' '+r.description));
-  var pkeys=puStrongKeys_(String(p.code||'')+' '+String(p.description||'')+' '+String(p.spec||''));
+  // Compatibility descriptions/specs must never identify the product itself.
+  var rkeys=(r.matchKeys||[]).concat(puStrongKeys_(r.code));
+  var pkeys=puStrongKeys_(p.code||p.description||'');
   for(var i=0;i<rkeys.length;i++)if(pkeys.indexOf(rkeys[i])>=0)return 0.98;
+  if(rkeys.length&&pkeys.length)return 0;
   var rd=puNormText_(r.description||r.code),pd=puNormText_(p.description||p.code);
   if(rd&&pd&&rd===pd)return 0.97;
   if(rd.length>=12&&pd.length>=12&&(rd.indexOf(pd)>=0||pd.indexOf(rd)>=0)){
@@ -3249,7 +3249,8 @@ async function readSupplierFile_(file,onProgress){
 }
 
 function normCode_(s){ return String(s==null?'':s).trim().toUpperCase(); }
-function buildPricePreview_(rows){
+function buildPricePreview_(rows,choices){
+  choices=choices||{};
   var byCode={};
   PRICES.forEach(function(p){
     var c=normCode_(p.code);if(c)(byCode[c]||(byCode[c]=[])).push(p);
@@ -3267,6 +3268,7 @@ function buildPricePreview_(rows){
       var same=ins.every(function(x){return Math.abs((Number(x.price)||0)-(Number(r.price)||0))<0.005&&puNormText_(x.description)===puNormText_(r.description);});
       if(!same){conflicts.push({code:code,reason:'Supplier file contains the same code more than once with different values',incoming:ins,current:exact});return;}
     }
+    if(exact.length>1&&choices[code]){var selected=exact.filter(function(z){return z.id===choices[code];});if(selected.length===1)exact=selected;}
     if(exact.length>1){conflicts.push({code:code,reason:'Your Prices sheet contains this code more than once',incoming:[r],current:exact});return;}
 
     var p=exact[0]||null,matchType=p?'exact code':'';
@@ -3291,6 +3293,8 @@ function buildPricePreview_(rows){
     if(Math.abs(old-neu)<0.005)unchanged.push(rec);else changes.push(rec);
   });
 
+  var targets={};changes.concat(unchanged).forEach(function(x){(targets[x.current.id]||(targets[x.current.id]=[])).push(x);});
+  Object.keys(targets).forEach(function(id){if(targets[id].length<2)return;targets[id].forEach(function(x){conflicts.push({code:x.incoming.code,reason:'Several supplier rows matched the same existing item; review required',incoming:[x.incoming],current:[x.current]});});changes=changes.filter(function(x){return x.current.id!==id;});unchanged=unchanged.filter(function(x){return x.current.id!==id;});});
   var increases=0,decreases=0;
   changes.forEach(function(x){if(x.newPrice>x.old)increases++;else if(x.newPrice<x.old)decreases++;});
   return {changes:changes,notFound:notFound,unchanged:unchanged,conflicts:conflicts,total:rows.length,
@@ -3317,11 +3321,15 @@ function renderPriceUpdater_(){
   }
   html+=diag;
   if(p.conflicts.length){
-    html+='<div class="puwarn"><b>'+p.conflicts.length+' item'+(p.conflicts.length===1?' needs':'s need')+' review.</b> These are deliberately not auto-updated. Fix the duplicate/ambiguous code in Prices or the supplier file, then import again.</div>';
+    html+='<div class="puwarn"><b>'+p.conflicts.length+' item'+(p.conflicts.length===1?' needs':'s need')+' review.</b> These are deliberately not auto-updated. Choose an existing record below for duplicate codes, or fix ambiguous codes before importing. Only the selected record is updated.</div>';
     html+='<div class="pupreview"><table><thead><tr><th>Code</th><th>Why review</th><th>Supplier value(s)</th></tr></thead><tbody>';
     p.conflicts.slice(0,200).forEach(function(x){
       var vals=(x.incoming||[]).map(function(r){return (r.description||'')+' · '+money(r.price);}).join('<br>');
-      html+='<tr><td>'+esc(x.code||'—')+'</td><td>'+esc(x.reason||'Review required')+'</td><td>'+vals+'</td></tr>';
+      var choice='';
+      if(x.reason==='Your Prices sheet contains this code more than once'){
+        choice='<select class="puChoice" data-code="'+esc(x.code)+'"><option value="">Choose existing record…</option>'+(x.current||[]).map(function(z){return '<option value="'+esc(z.id)+'">'+esc((z.description||z.code)+' · '+(z.supplier||'')+' · '+money(z.cost)+' · ID '+z.id)+'</option>';}).join('')+'</select>';
+      }
+      html+='<tr><td>'+esc(x.code||'—')+'</td><td>'+esc(x.reason||'Review required')+choice+'</td><td>'+vals+'</td></tr>';
     });
     html+='</tbody></table></div>';
   }
@@ -3337,9 +3345,11 @@ function renderPriceUpdater_(){
     html+='</tbody></table></div>';
     if(p.changes.length>200) html+='<div class="sub" style="margin-top:6px">Showing first 200 changes. All '+p.changes.length+' matched changes will be updated.</div>';
   }
+  if(!p.changes.length)html+='<p class="puwarn">No prices to upload: '+p.unchanged.length+' already unchanged; '+p.conflicts.length+' need review.</p>';
   html+='<div class="puactions"><button class="btn ghost" type="button" id="puCancel">Cancel</button>'+
     '<button class="btn" type="button" id="puApply" '+(p.changes.length?'':'disabled')+'>Update Prices</button></div></div>';
   box.innerHTML=html;
+  box.querySelectorAll('.puChoice').forEach(function(el){el.addEventListener('change',function(){PU_CHOICES[el.dataset.code]=el.value;PU_PREVIEW=buildPricePreview_(PU_ROWS,PU_CHOICES);renderPriceUpdater_();});});
   document.getElementById('puCancel').addEventListener('click',function(){PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;renderPriceUpdater_();});
   document.getElementById('puApply').addEventListener('click',applyPriceUpdate_);
 }
@@ -3350,7 +3360,7 @@ function openPriceUpdater_(){
   box.innerHTML='<div class="pubox"><h3>Update Price List</h3><p class="sub">Upload the supplier list. Nothing changes until you press <b>Update Prices</b>.</p><input class="pufile" id="puFile" type="file" accept=".csv,.xlsx,.xls,.pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf"><div id="puMsg"></div></div>';
   document.getElementById('puFile').addEventListener('change',function(e){
     var file=e.target.files&&e.target.files[0]; if(!file) return;
-    PU_FILE=file; PU_ROWS=[]; PU_PREVIEW=null;
+    PU_FILE=file; PU_ROWS=[]; PU_PREVIEW=null; PU_CHOICES={};
     var msg=document.getElementById('puMsg'); msg.className='';
     msg.innerHTML='<div class="puprogress"><b id="puProgLabel">Reading file…</b><div class="puprogress-track"><div class="puprogress-fill" id="puProgFill"></div></div><div class="puprogress-meta"><span id="puProgCount">Preparing…</span><span id="puProgPct">0%</span></div></div>';
     readSupplierFile_(file,function(p){
@@ -3388,8 +3398,8 @@ async function savePriceFallback_(items, mode){
           spec:p.spec||'', active:p.active!==false
         };
         if(!p.id)throw Error('Existing price ID missing; refresh Prices before importing');
-        if(!p.id||PRICES.filter(function(z){return z.id===p.id;}).length!==1){conflicts.push({code:code,reason:'Existing price ID is missing or duplicated in Prices; fix ID before importing',incoming:[r],current:[p]});return;}
-    if(p.type==='Sell')throw Error('Sell-price item cannot be updated as supplier cost');
+        if(PRICES.filter(function(z){return z.id===p.id;}).length!==1)throw Error('Duplicate price ID; review required');
+        if(p.type==='Sell')throw Error('Sell-price item cannot be updated as supplier cost');
         var ack=await api({action:'savePrice',item:item,existingOnly:true,costOnly:true});
         if(!ack||!ack.updated||ack.id!==p.id)throw Error('Supplier cost update not acknowledged');
         p.cost=newCost;
@@ -3420,7 +3430,7 @@ async function savePriceFallback_(items, mode){
 }
 
 function applyPriceUpdate_(){
-  if(!PU_PREVIEW||!PU_PREVIEW.changes.length)return;
+  if(!PU_PREVIEW)return;if(!PU_PREVIEW.changes.length){alert('No safe cost updates are available. '+PU_PREVIEW.conflicts.length+' items need review; no prices were changed.');return;}
   var updates=PU_PREVIEW.changes.map(function(x){return {id:x.current.id,code:x.current.code,price:x.newPrice};});
   var n=updates.length;
   if(!confirm('Apply '+n+' supplier cost update'+(n===1?'':'s')+'?\n\nOnly EXISTING Flagship price-list items will be updated.\nUnmatched supplier items will NOT be created.\nStock quantities and existing quotes will not be changed.'))return;
