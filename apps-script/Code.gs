@@ -568,7 +568,8 @@ function workerTabError_(message) {
 function workerTabKey_(name) { return String(name).trim().toLowerCase(); }
 function reservedWorkerTabs_() {
   return Object.keys(SHEETS).concat(['Summary', 'Sheet1',
-    typeof STOCK_SHEET === 'string' ? STOCK_SHEET : 'Stock']).map(workerTabKey_);
+    typeof STOCK_SHEET === 'string' ? STOCK_SHEET : 'Stock',
+    typeof STOCK_COUNT_SHEET === 'string' ? STOCK_COUNT_SHEET : 'Stock_Counts']).map(workerTabKey_);
 }
 function workerMasterRows_() {
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Timesheets');

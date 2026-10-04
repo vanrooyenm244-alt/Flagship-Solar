@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const html=fs.readFileSync('index.html','utf8');
 test('Job Cards expose full field-service work types',()=>{for(const x of ['Full Solar Installation / Commissioning','Solar Service / Fault Finding','Generator / Changeover Integration','Electrical Work','Heat Pump Installation / Repair','Gas Work','Plumbing Work','Fault Finding / Repair'])assert.ok(html.includes(x),x);});
 test('Job Cards support repeatable site evidence',()=>{for(const x of ['jcEvidence_','data-jc-ev-add','data-jc-ev-note','data-jc-ev-photo','data-jc-ev-cap','data-jc-ev-remove'])assert.ok(html.includes(x),x);});
-test('solar commissioning captures core evidence',()=>{for(const x of ['inverterSerial','batterySerials','strings','pvVoc','pvCurrent','gridFrequency','gridCode','antiIsland','protection','monitoring'])assert.ok(html.includes(x),x);});
+test('solar commissioning captures core evidence',()=>{for(const x of ['inverterSerial','batterySerials','strings','pvVoc','pvCurrent','gridFrequency','gridCode','earthBonding','acProtection','dcProtection','firmwarePhoto','changeoverBackup','monitoring'])assert.ok(html.includes(x),x);});
 test('disciplines capture commissioning tests',()=>{for(const x of ['Earth fault loop impedance','Insulation resistance','Earth leakage / RCD result','Pressure test / operating pressure','Leak / soundness test','Water IN temperature','Water OUT temperature','Tempering / mixing valve'])assert.ok(html.includes(x),x);});
 test('PDF waits for images and protects blocks',()=>{assert.ok(html.includes('img.complete&&img.naturalWidth'));assert.ok(html.includes("querySelectorAll('.rphoto,.rblock,tr,h2')"));});
 
