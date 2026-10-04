@@ -1,6 +1,6 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v120-supplier-parser';
+const CACHE = 'flagship-completion-v121-upload-feedback';
 const SHELL = [
   './',
   './index.html', './stock-count.js','./user-privileges.js',
