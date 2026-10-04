@@ -319,6 +319,16 @@ function log_(user, action, detail, was, now) {
 /* Build an audit PDF for one supplier-price import. The original supplier
    filename is recorded as the source; the report itself is kept in Drive and
    linked from the PriceUpdates sheet. */
+// Run once in the Apps Script editor and approve Google's requested permissions.
+// This creates only a temporary document; it does not change any price or stock data.
+function authorizePriceReports() {
+  var doc = DocumentApp.create('Flagship report permission check');
+  var id = doc.getId();
+  doc.saveAndClose();
+  DriveApp.getFileById(id).setTrashed(true);
+  return 'Report permissions authorized. Deploy a new version of the existing web app.';
+}
+
 function priceUpdateReportPdf_(user, body) {
   var when = new Date();
   var tz = Session.getScriptTimeZone() || 'Africa/Johannesburg';
