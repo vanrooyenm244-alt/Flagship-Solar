@@ -656,6 +656,7 @@ table.page{border-collapse:collapse}
 .pupreview td.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .puactions{display:flex;gap:8px;margin-top:10px}
 .puactions .btn{flex:1}
+.puactions .btn:disabled{background:#e2e8f0;color:#64748b;cursor:not-allowed;opacity:1}
 .puprogress{margin-top:10px;border:1px solid var(--rule);border-radius:9px;padding:10px;background:#fff}
 .puprogress-track{height:12px;background:#E7ECF1;border-radius:999px;overflow:hidden;margin:7px 0}
 .puprogress-fill{height:100%;width:0;background:var(--navy);transition:width .2s ease}
@@ -3334,7 +3335,7 @@ function renderPriceUpdater_(){
     html+='</tbody></table></div>';
   }
   if(p.notFound.length){
-    html+='<div class="puwarn"><b>'+p.notFound.length+' supplier products are not in the current list and will be skipped.</b> Only existing supplier costs will be updated.</div>';
+    html+='<div class="puwarn"><b>'+p.notFound.length+' supplier products are not in the current list and will be skipped.</b> Only existing supplier costs will be updated. Add genuinely new products using New Item, then import again; this import does not add them.</div>';
     html+='<div class="pupreview"><table><thead><tr><th>Supplier code</th><th>Description</th><th>Supplier cost</th></tr></thead><tbody>';
     p.notFound.slice(0,200).forEach(function(x){html+='<tr><td>'+esc(x.code)+'</td><td>'+esc(x.description||'')+'</td><td class="num"><b>'+money(x.price)+'</b></td></tr>';});
     html+='</tbody></table></div>';
@@ -3347,7 +3348,7 @@ function renderPriceUpdater_(){
   }
   if(!p.changes.length)html+='<p class="puwarn">No prices to upload: '+p.unchanged.length+' already unchanged; '+p.conflicts.length+' need review.</p>';
   html+='<div class="puactions"><button class="btn ghost" type="button" id="puCancel">Cancel</button>'+
-    '<button class="btn" type="button" id="puApply" '+(p.changes.length?'':'disabled')+'>Update Prices</button></div></div>';
+    '<button class="btn" type="button" id="puApply" '+(p.changes.length?'':'disabled')+'>'+(p.changes.length?'Update '+p.changes.length+' Prices':p.conflicts.length?'Review required':'No existing prices to update')+'</button></div></div>';
   box.innerHTML=html;
   box.querySelectorAll('.puChoice').forEach(function(el){el.addEventListener('change',function(){PU_CHOICES[el.dataset.code]=el.value;PU_PREVIEW=buildPricePreview_(PU_ROWS,PU_CHOICES);renderPriceUpdater_();});});
   document.getElementById('puCancel').addEventListener('click',function(){PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;renderPriceUpdater_();});
@@ -3367,7 +3368,10 @@ function openPriceUpdater_(){
       var pct=p.total?Math.round((p.current/p.total)*100):0;
       var f=document.getElementById('puProgFill'), l=document.getElementById('puProgLabel'), ct=document.getElementById('puProgCount'), pc=document.getElementById('puProgPct');
       if(f)f.style.width=pct+'%'; if(l)l.textContent=p.label||'Reading…'; if(ct)ct.textContent=(p.current||0)+' / '+(p.total||0); if(pc)pc.textContent=pct+'%';
-    }).then(function(rows){
+    }).then(async function(rows){
+      var label=document.getElementById('puProgLabel');if(label)label.textContent='Checking current Prices sheet…';
+      var count=document.getElementById('puProgCount');if(count)count.textContent='Waiting for Google; no prices have been changed.';
+      await puRefreshPrices_();
       PU_ROWS=rows; PU_PREVIEW=buildPricePreview_(rows); renderPriceUpdater_();
     }).catch(function(err){
       msg.className='puerr'; msg.textContent=String(err.message||err);
@@ -3376,10 +3380,22 @@ function openPriceUpdater_(){
   box.scrollIntoView({block:'start',behavior:'smooth'});
 }
 
-async function savePriceFallback_(items, mode){
+async function puRefreshPrices_(){
+  var timer;
+  try{
+    var j=await Promise.race([apiGet({action:'prices',fresh:Date.now()}),new Promise(function(resolve,reject){timer=setTimeout(function(){reject(new Error('Google did not respond within 45 seconds. No import was started. Check your connection and try the file again.'));},45000);})]);
+    if(!j||!Array.isArray(j.prices))throw Error('Current Prices sheet could not be read. No import was started.');
+    PRICES=j.prices;PCACHE=PRICES;
+    put('cfg',{id:'pricecache',list:PCACHE}).catch(function(){});
+    renderCats();renderPrices();
+  }finally{clearTimeout(timer);}
+}
+
+async function savePriceFallback_(items, mode, onProgress){
   var results={updated:0,created:0,unchanged:0,notFound:0,failed:0,changes:[],results:[]};
   for(var i=0;i<items.length;i++){
     var x=items[i]||{};
+    if(onProgress)onProgress(i,items.length,x.code||'');
     try{
       if(mode==='update'){
         var code=normCode_(x.code);
@@ -3424,7 +3440,7 @@ async function savePriceFallback_(items, mode){
     }catch(err){
       results.failed++;
       results.results.push({code:x.code||'',status:'failed',error:String(err&&err.message||err)});
-    }
+    }finally{if(onProgress)onProgress(i+1,items.length,x.code||'');}
   }
   return results;
 }
@@ -3440,6 +3456,8 @@ function applyPriceUpdate_(){
   var prog=document.createElement('div');prog.className='puprogress';
   prog.innerHTML='<b id="puApplyLabel">Updating supplier costs…</b><div class="puprogress-track"><div class="puprogress-fill" id="puApplyFill"></div></div><div class="puprogress-meta"><span id="puApplyCount">0 / '+n+'</span><span id="puApplyPct">0%</span></div>';
   box.querySelector('.pubox').appendChild(prog);
+  var waitingSince=Date.now(),waitingLabel='';
+  var waitTimer=setInterval(function(){var lab=document.getElementById('puApplyLabel');if(lab&&waitingLabel)lab.textContent=waitingLabel+' · '+Math.floor((Date.now()-waitingSince)/1000)+'s waiting for Google';},1000);
   var done=0,updated=0,unchanged=0,notFound=0,failed=0,batchSize=40,reportChanges=[],failureDetails=[];
   function draw(label){
     var pct=n?Math.round(done/n*100):100;
@@ -3450,16 +3468,18 @@ function applyPriceUpdate_(){
     for(var i=0;i<updates.length;i+=batchSize){
       var part=updates.slice(i,i+batchSize);
       try{
-        var j=await savePriceFallback_(part,'update');
+        var batchStart=done;
+        var j=await savePriceFallback_(part,'update',function(count,total,code){done=batchStart+count;waitingSince=Date.now();waitingLabel='Saving '+(code||'supplier cost');draw(waitingLabel);});
         updated+=Number(j.updated)||0;unchanged+=Number(j.unchanged)||0;notFound+=Number(j.notFound)||0;failed+=Number(j.failed)||0;
         (j.changes||[]).forEach(function(x){reportChanges.push(x);});
         (j.results||[]).forEach(function(x){if(x.status==='failed'||x.status==='notFound')failureDetails.push((x.code||'(no code)')+': '+(x.error||x.status));});
       }catch(e){
         failed+=part.length;failureDetails.push('Price update batch failed: '+String(e.message||e));
       }
-      done+=part.length;draw('Updating existing supplier costs…');
+      done=i+part.length;draw('Updating existing supplier costs…');
     }
     draw((failed||notFound)?'Finished with items needing attention':'Price list update complete');
+    waitingSince=Date.now();waitingLabel='Saving audit history and creating PDF';draw(waitingLabel);
     var reportUrl='',reportError='';
     try{
       var rr=await api({action:'logPriceUpdate',source:PU_FILE?PU_FILE.name:'supplier list',
@@ -3468,6 +3488,7 @@ function applyPriceUpdate_(){
       reportUrl=rr.reportUrl||'';reportError=rr.reportError||'';
     }catch(re){reportError=String(re.message||re);}
 
+    clearInterval(waitTimer);waitingLabel='';draw('Price update finished');
     var msg='Price list update complete.\n\nSupplier products read: '+PU_PREVIEW.total+
       '\nExisting prices updated: '+updated+
       '\nAlready unchanged: '+PU_PREVIEW.unchanged.length+
@@ -3480,7 +3501,7 @@ function applyPriceUpdate_(){
     alert(msg);
     PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;loadPrices();setTimeout(renderPriceUpdater_,600);
   }
-  run().catch(function(e){b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
+  run().catch(function(e){clearInterval(waitTimer);b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
 }
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
