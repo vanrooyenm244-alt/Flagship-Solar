@@ -2567,7 +2567,7 @@ function showPrices(){if(!hasPermission_('prices.view')){showHome();return;}
   loadPrices();
 }
 
-var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null, PU_CHOICES={};
+var PU_FILE=null, PU_ROWS=[], PU_PREVIEW=null, PU_CHOICES={}, PU_NEW_CATEGORY='Other', PU_APPLYING=false;
 
 function loadScript_(src, globalName){
   return new Promise(function(resolve,reject){
@@ -3285,7 +3285,7 @@ function buildPricePreview_(rows,choices){
       }
     }
 
-    if(!p){notFound.push(r);return;}
+    if(!p){if(!isFinite(Number(r.price))||Number(r.price)<0){conflicts.push({code:code,reason:'Supplier price is invalid',incoming:[r],current:[]});return;}notFound.push(r);return;}
     if(!p.id||PRICES.filter(function(z){return z.id===p.id;}).length!==1){conflicts.push({code:code,reason:'Existing price ID is missing or duplicated in Prices; fix ID before importing',incoming:[r],current:[p]});return;}
     if(p.type==='Sell'){conflicts.push({code:code,reason:'Matched item is a Sell price, not a supplier cost',incoming:[r],current:[p]});return;}
     var old=Number(p.cost)||0,neu=Number(r.price);
@@ -3307,12 +3307,12 @@ function renderPriceUpdater_(){
   var p=PU_PREVIEW;
   var html='<div class="pubox">'+
     '<h3>Update Price List</h3>'+
-    '<p class="sub"><b>'+esc(PU_FILE.name)+'</b> · '+p.total+' supplier products found. Prices are matched by supplier code first, then by a safe model/description match. Unmatched items are never auto-created.</p>'+
+    '<p class="sub"><b>'+esc(PU_FILE.name)+'</b> · '+p.total+' supplier products found. Prices are matched by supplier code first, then by a safe model/description match. New products will be added when you apply this import. Conflicts remain for review.</p>'+
     '<div class="pustats">'+
       '<div class="pustat"><b>'+p.changes.length+'</b><span>Will change</span></div>'+
       '<div class="pustat"><b>'+p.increases+'</b><span>Increases</span></div>'+
       '<div class="pustat"><b>'+p.decreases+'</b><span>Decreases</span></div>'+
-      '<div class="pustat"><b>'+p.notFound.length+'</b><span>Not in list</span></div>'+
+      '<div class="pustat"><b>'+p.notFound.length+'</b><span>New products</span></div>'+
       '<div class="pustat"><b>'+p.unchanged.length+'</b><span>Unchanged</span></div>'+
       '<div class="pustat"><b>'+p.conflicts.length+'</b><span>Review</span></div>'+
     '</div>';
@@ -3335,7 +3335,8 @@ function renderPriceUpdater_(){
     html+='</tbody></table></div>';
   }
   if(p.notFound.length){
-    html+='<div class="puwarn"><b>'+p.notFound.length+' supplier products are not in the current list and will be skipped.</b> Only existing supplier costs will be updated. Add genuinely new products using New Item, then import again; this import does not add them.</div>';
+    html+='<div class="puwarn"><b>'+p.notFound.length+' new supplier products will be added.</b> Supplier codes, descriptions and costs come from the file. New products use the selected category, your default markup and zero installation cost.</div>';
+    html+='<label>New product category <select id="puNewCategory">'+(typeof PCATS!=='undefined'&&PCATS.length?PCATS:['Other']).concat(['Other']).filter(function(x,i,a){return a.indexOf(x)===i;}).map(function(x){return '<option '+(x===PU_NEW_CATEGORY?'selected ':'')+'value="'+esc(x)+'">'+esc(x)+'</option>';}).join('')+'</select></label>';
     html+='<div class="pupreview"><table><thead><tr><th>Supplier code</th><th>Description</th><th>Supplier cost</th></tr></thead><tbody>';
     p.notFound.slice(0,200).forEach(function(x){html+='<tr><td>'+esc(x.code)+'</td><td>'+esc(x.description||'')+'</td><td class="num"><b>'+money(x.price)+'</b></td></tr>';});
     html+='</tbody></table></div>';
@@ -3346,22 +3347,24 @@ function renderPriceUpdater_(){
     html+='</tbody></table></div>';
     if(p.changes.length>200) html+='<div class="sub" style="margin-top:6px">Showing first 200 changes. All '+p.changes.length+' matched changes will be updated.</div>';
   }
-  if(!p.changes.length)html+='<p class="puwarn">No prices to upload: '+p.unchanged.length+' already unchanged; '+p.conflicts.length+' need review.</p>';
+  if(!p.changes.length&&!p.notFound.length)html+='<p class="puwarn">No prices to upload: '+p.unchanged.length+' already unchanged; '+p.conflicts.length+' need review.</p>';
   html+='<div class="puactions"><button class="btn ghost" type="button" id="puCancel">Cancel</button>'+
-    '<button class="btn" type="button" id="puApply" '+(p.changes.length?'':'disabled')+'>'+(p.changes.length?'Update '+p.changes.length+' Prices':p.conflicts.length?'Review required':'No existing prices to update')+'</button></div></div>';
+    '<button class="btn" type="button" id="puApply" '+(p.changes.length+p.notFound.length?'':'disabled')+'>'+(p.changes.length+p.notFound.length?'Apply import ('+p.changes.length+' updates, '+p.notFound.length+' new)':p.conflicts.length?'Review required':'Prices already up to date')+'</button></div></div>';
   box.innerHTML=html;
+  var category=document.getElementById('puNewCategory');if(category)category.addEventListener('change',function(){PU_NEW_CATEGORY=category.value;});
   box.querySelectorAll('.puChoice').forEach(function(el){el.addEventListener('change',function(){PU_CHOICES[el.dataset.code]=el.value;PU_PREVIEW=buildPricePreview_(PU_ROWS,PU_CHOICES);renderPriceUpdater_();});});
   document.getElementById('puCancel').addEventListener('click',function(){PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;renderPriceUpdater_();});
   document.getElementById('puApply').addEventListener('click',applyPriceUpdate_);
 }
 
 function openPriceUpdater_(){
+  if(PU_APPLYING){alert('The supplier import is still running. Its progress is shown below.');return;}
   if(!hasPermission_('prices.manage')) return;
   var box=document.getElementById('prUpdater');
   box.innerHTML='<div class="pubox"><h3>Update Price List</h3><p class="sub">Upload the supplier list. Nothing changes until you press <b>Update Prices</b>.</p><input class="pufile" id="puFile" type="file" accept=".csv,.xlsx,.xls,.pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf"><div id="puMsg"></div></div>';
   document.getElementById('puFile').addEventListener('change',function(e){
     var file=e.target.files&&e.target.files[0]; if(!file) return;
-    PU_FILE=file; PU_ROWS=[]; PU_PREVIEW=null; PU_CHOICES={};
+    PU_FILE=file; PU_ROWS=[]; PU_PREVIEW=null; PU_CHOICES={}; PU_NEW_CATEGORY='Other';
     var msg=document.getElementById('puMsg'); msg.className='';
     msg.innerHTML='<div class="puprogress"><b id="puProgLabel">Reading file…</b><div class="puprogress-track"><div class="puprogress-fill" id="puProgFill"></div></div><div class="puprogress-meta"><span id="puProgCount">Preparing…</span><span id="puProgPct">0%</span></div></div>';
     readSupplierFile_(file,function(p){
@@ -3432,7 +3435,8 @@ async function savePriceFallback_(items, mode, onProgress){
           install:Number(x.install)||0,spec:x.spec||'',active:x.active!==false
         };
         var sj=await api({action:'savePrice',item:item2});
-        if(sj&&sj.id) item2.id=sj.id;
+        if(!sj||!sj.added||!sj.id)throw Error('New product creation not acknowledged');
+        item2.id=sj.id;
         PRICES.push(item2);
         results.created++;
         results.results.push({code:item2.code,status:'created'});
@@ -3445,20 +3449,33 @@ async function savePriceFallback_(items, mode, onProgress){
   return results;
 }
 
+async function puCreateProducts_(rows,category){
+  var items=rows.map(function(r){return {code:r.code,description:r.description||r.code,cost:Number(r.price),supplier:r.supplier||'',category:r.category||category||'Other',unit:r.unit||'each',install:0};});
+  var j=await api({action:'createSupplierPrices',items:items,source:PU_FILE?PU_FILE.name:'supplier list'});
+  if(!j||!Array.isArray(j.results)||j.results.length!==items.length)throw Error('New product creation was not confirmed. Refresh Prices before retrying.');
+  var report=[],existing=0,failed=0,details=[];
+  j.results.forEach(function(r,i){var item=items[i];if(normCode_(r.code)!==normCode_(item.code))throw Error('New product response does not match the import. Refresh Prices before retrying.');if(r.status==='created')report.push(Object.assign({},item,{status:'created'}));else if(r.status==='existing')existing++;else{failed++;details.push(item.code+': '+(r.error||'Creation failed'));}});
+  return {created:report.length,existing:existing,failed:failed,creates:report,details:details};
+}
+
 function applyPriceUpdate_(){
-  if(!PU_PREVIEW)return;if(!PU_PREVIEW.changes.length){alert('No safe cost updates are available. '+PU_PREVIEW.conflicts.length+' items need review; no prices were changed.');return;}
+  if(PU_APPLYING)return;
+  if(!PU_PREVIEW)return;if(!PU_PREVIEW.changes.length&&!PU_PREVIEW.notFound.length){alert('No safe cost updates are available. '+PU_PREVIEW.conflicts.length+' items need review; no prices were changed.');return;}
   var updates=PU_PREVIEW.changes.map(function(x){return {id:x.current.id,code:x.current.code,price:x.newPrice};});
-  var n=updates.length;
-  if(!confirm('Apply '+n+' supplier cost update'+(n===1?'':'s')+'?\n\nOnly EXISTING Flagship price-list items will be updated.\nUnmatched supplier items will NOT be created.\nStock quantities and existing quotes will not be changed.'))return;
+  var newRows=PU_PREVIEW.notFound;
+  var n=updates.length+newRows.length;
+  if(!confirm('Apply supplier import?\n\n'+updates.length+' existing cost updates\n'+newRows.length+' new products\n'+PU_PREVIEW.conflicts.length+' conflicts remain for review'))return;
   var b=document.getElementById('puApply');if(!b)return;
   b.disabled=true;b.textContent='Updating…';
+  PU_APPLYING=true;
   var box=document.getElementById('prUpdater');
+  box.querySelectorAll('button,select,input').forEach(function(el){el.disabled=true;});
   var prog=document.createElement('div');prog.className='puprogress';
   prog.innerHTML='<b id="puApplyLabel">Updating supplier costs…</b><div class="puprogress-track"><div class="puprogress-fill" id="puApplyFill"></div></div><div class="puprogress-meta"><span id="puApplyCount">0 / '+n+'</span><span id="puApplyPct">0%</span></div>';
   box.querySelector('.pubox').appendChild(prog);
   var waitingSince=Date.now(),waitingLabel='';
   var waitTimer=setInterval(function(){var lab=document.getElementById('puApplyLabel');if(lab&&waitingLabel)lab.textContent=waitingLabel+' · '+Math.floor((Date.now()-waitingSince)/1000)+'s waiting for Google';},1000);
-  var done=0,updated=0,unchanged=0,notFound=0,failed=0,batchSize=40,reportChanges=[],failureDetails=[];
+  var done=0,updated=0,created=0,unchanged=0,notFound=0,failed=0,batchSize=40,reportChanges=[],reportCreates=[],failureDetails=[];
   function draw(label){
     var pct=n?Math.round(done/n*100):100;
     var f=document.getElementById('puApplyFill'),ct=document.getElementById('puApplyCount'),pc=document.getElementById('puApplyPct'),lab=document.getElementById('puApplyLabel');
@@ -3478,21 +3495,28 @@ function applyPriceUpdate_(){
       }
       done=i+part.length;draw('Updating existing supplier costs…');
     }
+    for(var k=0;k<newRows.length;k+=batchSize){
+      var fresh=newRows.slice(k,k+batchSize);
+      waitingSince=Date.now();waitingLabel='Adding new products '+(k+1)+'–'+(k+fresh.length)+' of '+newRows.length;draw(waitingLabel);
+      try{var added=await puCreateProducts_(fresh,PU_NEW_CATEGORY);created+=added.created;unchanged+=added.existing;failed+=added.failed;reportCreates=reportCreates.concat(added.creates);failureDetails=failureDetails.concat(added.details);}
+      catch(e){failed+=fresh.length;failureDetails.push('New product batch: '+String(e.message||e));}
+      done=updates.length+k+fresh.length;draw(waitingLabel);
+    }
     draw((failed||notFound)?'Finished with items needing attention':'Price list update complete');
     waitingSince=Date.now();waitingLabel='Saving audit history and creating PDF';draw(waitingLabel);
     var reportUrl='',reportError='';
     try{
       var rr=await api({action:'logPriceUpdate',source:PU_FILE?PU_FILE.name:'supplier list',
-        summary:{processed:PU_PREVIEW.total,updated:updated,created:0,unchanged:PU_PREVIEW.unchanged.length+unchanged,notFound:PU_PREVIEW.notFound.length+notFound,conflicts:(PU_PREVIEW.conflicts||[]).length,failed:failed},
-        changes:reportChanges,creates:[],conflicts:PU_PREVIEW.conflicts||[]});
+        summary:{processed:PU_PREVIEW.total,updated:updated,created:created,unchanged:PU_PREVIEW.unchanged.length+unchanged,notFound:notFound,conflicts:(PU_PREVIEW.conflicts||[]).length,failed:failed},
+        changes:reportChanges,creates:reportCreates,conflicts:PU_PREVIEW.conflicts||[]});
       reportUrl=rr.reportUrl||'';reportError=rr.reportError||'';
     }catch(re){reportError=String(re.message||re);}
 
-    clearInterval(waitTimer);waitingLabel='';draw('Price update finished');
+    clearInterval(waitTimer);PU_APPLYING=false;waitingLabel='';draw('Price update finished');
     var msg='Price list update complete.\n\nSupplier products read: '+PU_PREVIEW.total+
       '\nExisting prices updated: '+updated+
-      '\nAlready unchanged: '+PU_PREVIEW.unchanged.length+
-      '\nNot in Flagship price list (not created): '+PU_PREVIEW.notFound.length+
+      '\nAlready unchanged / existing: '+(PU_PREVIEW.unchanged.length+unchanged)+
+      '\nNew products added: '+created+
       '\nConflicts left for review: '+((PU_PREVIEW.conflicts||[]).length)+
       '\nFailed while saving: '+failed;
     if(reportUrl)msg+='\n\nA PDF change report was saved to the PriceUpdates history.';
@@ -3501,7 +3525,7 @@ function applyPriceUpdate_(){
     alert(msg);
     PU_FILE=null;PU_ROWS=[];PU_PREVIEW=null;loadPrices();setTimeout(renderPriceUpdater_,600);
   }
-  run().catch(function(e){clearInterval(waitTimer);b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
+  run().catch(function(e){clearInterval(waitTimer);PU_APPLYING=false;box.querySelectorAll('button,select,input').forEach(function(el){el.disabled=false;});b.disabled=false;b.textContent='Update Prices';alert(e.message||e);});
 }
 
 document.getElementById('prUpdate').addEventListener('click',openPriceUpdater_);
