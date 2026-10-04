@@ -1,9 +1,9 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v117-offline-recovery';
+const CACHE = 'flagship-completion-v118-privileges';
 const SHELL = [
   './',
-  './index.html', './stock-count.js',
+  './index.html', './stock-count.js','./user-privileges.js',
   './supabase-client.js',
   './timesheet-sync.js',
   './manifest.webmanifest',

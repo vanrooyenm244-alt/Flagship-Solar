@@ -278,3 +278,13 @@ Confirmed defects and fixes:
 - `apps-script/Stock.gs`, `stockSave_`: previously only logged the total number changed; now records each accepted count, its previous value, movement, user, place and time.
 
 Validation: 11 targeted checks passed, including live-data simulation, blank-code matching, rejected writes, draft restart, partial upload and PDF content beyond 750 rows. Full suite: 224/224 passed after repairing the HTTP-error offline fallback and aligning outdated tests with the current v3 inspection/commissioning models, active cache version and protected audit-sheet names. Worker-tab protection now also reserves Stock_Counts. PDF content was verified with an Apps Script service mock; live Google PDF generation, deployed backend and mobile UI are not yet verified.
+
+## Username checkbox privileges for both apps
+
+Admin → Users shows actual usernames and separate view/action checkboxes, with Save privileges per user. Privileges are stored centrally in UserPermissions as one row per username/company; saving Hi Service rights does not alter Flagship rights. Existing role defaults remain until an administrator saves an override. Suspended/Pending accounts cannot authenticate; only active Admin users can manage privileges. Self-removal of permission management is blocked. Deleting a username also clears its stored grants.
+
+The shared Apps Script enforces mapped reads and mutations before accepting a request; explicit grants can enable selected operations without promoting the user to Admin. Existing own-timesheet, assignment and other endpoint checks remain. Public proposal links keep their existing token access. Local files already downloaded to a device are not remotely removed by a permission change. Supabase's independent RLS policies remain separate; this editor controls the current Google Apps Script app access.
+
+Deployment: replace the complete apps-script/Code.gs and apps-script/Stock.gs in the shared Apps Script project, retain/add Hi Service's HiService.gs, and deploy a new version of the existing /exec deployment. No setup reset or changes to the Users schema are required. UserPermissions is created on the first successful save. Until this backend is deployed, the checkbox screens report that deployment is needed and cannot save privileges.
+
+Validation: 230/230 Flagship regression tests pass, including real endpoint tests for Admin-only changes, revoked writes, company-forgery prevention, explicit grants, persistence/revocation, invalid permission keys, self-lockout and deletion cleanup. The published frontend/backend integration still requires the above Apps Script deployment.

@@ -1354,7 +1354,7 @@ table.page{border-collapse:collapse}
 </div>
 
 
-<script src="stock-count.js"></script><script>
+<script src="user-privileges.js"></script><script src="stock-count.js"></script><script>
 (function(){
 "use strict";
 
@@ -1665,9 +1665,9 @@ function show(id){
 }
 
 var EFFECTIVE_PERMISSIONS=null;
-function hasPermission_(key){return (typeof EFFECTIVE_PERMISSIONS==='undefined'||!EFFECTIVE_PERMISSIONS)||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
+function hasPermission_(key){if(ME&&Array.isArray(ME.permissions))return ME.permissions.indexOf(key)>=0;return (typeof EFFECTIVE_PERMISSIONS==='undefined'||!EFFECTIVE_PERMISSIONS)||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
 var TILE_PERMISSION_={jobs:'inspections.view',jobcards:'job_cards.view',calendar:'calendar.view',stock:'stock.view',time:'timesheets.view_own',prices:'prices.view',quote:'quotes.view',props:'proposals.view',admin:'users.manage'};
-function applyModulePermissions_(){document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
+function applyModulePermissions_(){var controls={stSend:'stock.count',stAddItem:'stock.manage',stLoadReport:'stock.report',stPrintReport:'stock.report',prUpdate:'prices.manage',jcSubmit:'job_cards.edit',calSave:'calendar.edit',qbXeroCreate:'quotes.create',prNew:'prices.manage',tsSend:'timesheets.submit',vpPublish:'proposals.send',vpPublish2:'proposals.send'};Object.keys(controls).forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=hasPermission_(controls[id])?'':'none';});document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
 function refreshSupabasePermissions_(){var a=window.FlagshipSupabase;if(!(a&&a.getSession&&a.getSession&&a.getSession()&&a.memberships&&a.permissionsForMembership))return Promise.resolve();return a.memberships().then(function(ms){var m=ms&&ms[0];if(!m)return;var id=m.id||m.membership_id;if(!id)return;return a.permissionsForMembership(id).then(function(p){EFFECTIVE_PERMISSIONS=p;});}).catch(function(){EFFECTIVE_PERMISSIONS=null;});}
 function showHome(){
   currentId=null;
@@ -1677,7 +1677,7 @@ function showHome(){
 
   // The script enforces these too — hiding a tile only tidies the screen.
   document.querySelectorAll('.tile[data-role]').forEach(function(t){
-    var ok = ME && t.getAttribute('data-role').split(',').indexOf(ME.role)>=0;
+    var key=TILE_PERMISSION_[t.getAttribute('data-go')];var ok=ME&&(Array.isArray(ME.permissions)&&key?hasPermission_(key):t.getAttribute('data-role').split(',').indexOf(ME.role)>=0);
     t.classList[ok?'remove':'add']('hidden');
   });
   applyModulePermissions_();
@@ -2530,7 +2530,7 @@ document.getElementById('auGo').addEventListener('click',function(){
       ME={username:j.user.username, pass:pass, name:j.user.name, role:j.user.role};
       saveSession();
       document.getElementById('auPass').value='';
-      refreshSupabasePermissions_().then(showHome);
+      refreshSheetPrivileges_().then(refreshSupabasePermissions_).then(showHome);
     })
     .catch(function(e){
       btn.disabled=false; setAuthMode(AUTHMODE);
@@ -3345,7 +3345,7 @@ function renderPriceUpdater_(){
 }
 
 function openPriceUpdater_(){
-  if(!(ME&&ME.role==='Admin')) return;
+  if(!hasPermission_('prices.manage')) return;
   var box=document.getElementById('prUpdater');
   box.innerHTML='<div class="pubox"><h3>Update Price List</h3><p class="sub">Upload the supplier list. Nothing changes until you press <b>Update Prices</b>.</p><input class="pufile" id="puFile" type="file" accept=".csv,.xlsx,.xls,.pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/pdf"><div id="puMsg"></div></div>';
   document.getElementById('puFile').addEventListener('change',function(e){
@@ -3577,7 +3577,7 @@ function renderPrices(){
 function priceCard(p){
   var el=document.createElement('div');
   el.className='pitem'+(p.active?'':' off');
-  var admin = ME && ME.role==='Admin';
+  var admin=hasPermission_('prices.manage');
 
   var bits=[];
   bits.push('<span class="tag2'+(p.type==='Sell'?' sellt':'')+'">'+esc(p.type||'Sell')+'</span>');
@@ -3585,7 +3585,7 @@ function priceCard(p){
   if(p.supplier) bits.push(esc(p.supplier));
   if(p.code) bits.push(esc(p.code));
   if(p.unit) bits.push('per '+esc(p.unit).replace(/^per /,''));
-  if(admin && p.type==='Cost') bits.push('cost '+money(p.cost)+' +'+(p.markup===''?PDEF+'% (default)':p.markup+'%'));
+  if(hasPermission_('prices.cost') && p.type==='Cost') bits.push('cost '+money(p.cost)+' +'+(p.markup===''?PDEF+'% (default)':p.markup+'%'));
   if(p.install) bits.push('install '+money(p.install));
   if(!p.active) bits.push('inactive');
 
@@ -4978,10 +4978,12 @@ function showAdmin(){if(!hasPermission_('users.manage')){showHome();return;}
   backTo='screenHome';
   document.getElementById('savedTag').textContent='users';
   show('screenAdmin');
-  loadUsers(); loadSupabasePermissionManager_();
+  loadUsers(); loadSheetPrivileges_();
 }
-document.getElementById('usrRefresh').addEventListener('click',function(){loadUsers();loadSupabasePermissionManager_();});
+document.getElementById('usrRefresh').addEventListener('click',function(){loadUsers();loadSheetPrivileges_();});
 
+function loadSheetPrivileges_(){return UserPrivilegeEditor.mount(document.getElementById('usrPerms'),'Flagship Solar',apiGet,api);}
+function refreshSheetPrivileges_(){var owner=ME;return apiGet({action:'userAccess',company:'Flagship Solar'}).then(function(j){if(ME!==owner)return;if(!Array.isArray(j.permissions))throw Error('Invalid permissions response');ME.permissions=j.permissions;saveSession();applyModulePermissions_();}).catch(function(e){var box=document.getElementById('usrPerms');if(box)box.textContent='Checkbox privileges require deploying the current Code.gs: '+e.message;});}
 var USER_PERM_LABELS={'inspections.view':'Inspections','job_cards.view':'Job Cards','calendar.view':'Calendar','stock.view':'Stock','timesheets.view_own':'Timesheets','prices.view':'Prices','quotes.view':'Quotes','proposals.view':'Value Proposals','users.manage':'Users / permissions'};
 function loadSupabasePermissionManager_(){
   var box=document.getElementById('usrPerms'),a=window.FlagshipSupabase;
@@ -5577,6 +5579,7 @@ function boot(){
       if(!j.user || !j.user.name || !j.user.role)throw new Error('Invalid session response; retry later.');
       ME.name = j.user.name;
       ME.role = j.user.role;
+      refreshSheetPrivileges_().then(showHome);
       document.querySelectorAll('.tile[data-role]').forEach(function(t){t.classList.toggle('hidden',t.getAttribute('data-role').split(',').indexOf(ME.role)<0);});
       saveSession();
       xeroStatus_();
@@ -5631,7 +5634,7 @@ function stockShowAdminTools_(){
   var tools=document.getElementById('stAdminTools');
   if(!tools) return;
   var role=String((ME&&ME.role)||'').toLowerCase();
-  tools.style.display=(role==='admin'||role==='technician')?'block':'none';
+  tools.style.display=hasPermission_('stock.manage')?'block':'none';
 }
 
 function stockForm_(){
