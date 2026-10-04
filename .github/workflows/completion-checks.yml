@@ -26,3 +26,6 @@ jobs:
           node-version: '22'
       - name: Run Flagship regression suite
         run: node --test tests/*.test.cjs
+
+      - name: Check script and manifest syntax
+        run: node tests/check-static.cjs

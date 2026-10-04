@@ -4773,15 +4773,17 @@ function showStock(){if(!hasPermission_('stock.view')){showHome();return;}
   show('screenStock');
   loadStock();
   stockShowAdminTools_();
-  get1('cfg','stockdraft-'+ST.company).then(function(d){
+  get1('cfg','stockdraft-'+JSON.stringify([ME&&ME.username,ST.company])).then(function(d){
     if(d&&d.place){var saved=StockJournal.read(ME&&ME.username,ST.company,d.place);pickPlace(d.place);if(!saved){ST.counts=d.counts||{};saveStockDraft();renderStock();}}
   }).catch(function(){});
 }
 
 function loadStock(){
+  var company=ST.company,owner=ME;function current(){return ST.company===company&&ME===owner;}
   var box=document.getElementById('stPlaces');
 
-  get1('cfg','stockcache-'+ST.company).then(function(c){
+  get1('cfg','stockcache-'+company).then(function(c){
+    if(!current())return;
 
     var have=c && c.list && c.list.length;
 
@@ -4801,6 +4803,7 @@ function loadStock(){
     }
 
     apiGet({action:ST.company==='Hi Service'?'hiStock':'stock',company:ST.company}).then(function(j){
+      if(!current())return;
 
       ST.items=j.stock||[];
       ST.places=j.places||(ST.company==='Hi Service'?['Stoor','CEY 59799','CEY 67212']:['Store','GWM','NP200']);
@@ -4825,6 +4828,7 @@ function loadStock(){
       document.getElementById('stWarn').innerHTML='';
 
     }).catch(function(e){
+      if(!current())return;
 
       if(have){
         document.getElementById('stWarn').innerHTML=
@@ -4839,6 +4843,7 @@ function loadStock(){
     });
 
   }).catch(function(e){
+      if(!current())return;
     box.innerHTML=
       '<div class="calc bad">Could not open saved stock list.<br>'+
       esc(String(e.message||e))+'</div>';
@@ -4915,7 +4920,7 @@ function renderStock(){
     inp.addEventListener('input',function(){
       var v=inp.value.trim();
       if(v===''){ delete ST.counts[it.item]; row.classList.remove('done'); }
-      else { ST.counts[it.item]=Math.max(0,Number(v)||0); row.classList.add('done'); }
+      else { ST.counts[it.item]=Number(v); row.classList.add('done'); }
       stockBar(); saveStockDraft();
     });
     box.appendChild(row);
@@ -4934,14 +4939,14 @@ document.getElementById('stQ').addEventListener('input',function(){
 
 document.getElementById('stCompany').addEventListener('change',function(){
   if(ST.place)saveStockDraft();
-  ST.company=this.value;ST.place='';ST.counts={};ST.items=[];ST.cats=[];ST.places=[];
+  STOCK_DAILY_REPORT=null;document.getElementById('stReport').innerHTML='';ST.company=this.value;ST.place='';ST.counts={};ST.items=[];ST.cats=[];ST.places=[];
   document.getElementById('stBody').classList.remove('hidden');loadStock();
 });
 
 var stDraft=null;
 function saveStockDraft(){
   var snapshot;try{snapshot=StockJournal.save(ME&&ME.username,ST.company,ST.place,ST.counts);}catch(e){alert('Stock draft could not be saved: '+e.message);return Promise.reject(e);}
-  return put('cfg',{id:'stockdraft-'+ST.company,company:ST.company,place:ST.place,counts:snapshot}).catch(function(){document.getElementById('stUploadStatus').textContent='Draft saved locally; database copy unavailable.';});
+  return put('cfg',{id:'stockdraft-'+JSON.stringify([ME&&ME.username,ST.company]),company:ST.company,place:ST.place,counts:snapshot}).catch(function(){document.getElementById('stUploadStatus').textContent='Draft saved locally; database copy unavailable.';});
 }
 
 document.getElementById('stClear').addEventListener('click',function(){
@@ -4970,7 +4975,7 @@ document.getElementById('stSend').addEventListener('click',async function(){
 });
 var STOCK_DAILY_REPORT=null;
 document.getElementById('stReportDate').value=new Date().toLocaleDateString('en-CA');
-document.getElementById('stLoadReport').onclick=function(){var el=document.getElementById('stReport');el.textContent='Loading…';apiGet({action:ST.company==='Hi Service'?'hiStockReport':'stockReport',date:document.getElementById('stReportDate').value}).then(function(j){STOCK_DAILY_REPORT=j.report;var r=j.report;el.innerHTML='<h3>'+esc(ST.company)+' · '+esc(r.date)+'</h3><table><tr><th>Time</th><th>User</th><th>Place</th><th>Item</th><th>Count</th><th>Old</th><th>Movement</th></tr>'+(r.counts||[]).map(function(x){return '<tr><td>'+esc(x.timestamp)+'</td><td>'+esc(x.user)+'</td><td>'+esc(x.location)+'</td><td>'+esc(x.description)+'</td><td>'+x.count+'</td><td>'+esc(x.old==null?'—':x.old)+'</td><td>'+esc(x.delta==null?'—':x.delta)+'</td></tr>';}).join('')+'</table>';}).catch(function(e){el.textContent='Report failed: '+e.message;});};
+document.getElementById('stLoadReport').onclick=function(){var el=document.getElementById('stReport'),company=ST.company,owner=ME;STOCK_DAILY_REPORT=null;el.textContent='Loading…';apiGet({action:ST.company==='Hi Service'?'hiStockReport':'stockReport',date:document.getElementById('stReportDate').value}).then(function(j){if(ST.company!==company||ME!==owner)return;STOCK_DAILY_REPORT=j.report;var r=j.report;el.innerHTML='<h3>'+esc(ST.company)+' · '+esc(r.date)+'</h3><table><tr><th>Time</th><th>User</th><th>Place</th><th>Item</th><th>Count</th><th>Old</th><th>Movement</th></tr>'+(r.counts||[]).map(function(x){return '<tr><td>'+esc(x.timestamp)+'</td><td>'+esc(x.user)+'</td><td>'+esc(x.location)+'</td><td>'+esc(x.description)+'</td><td>'+x.count+'</td><td>'+esc(x.old==null?'—':x.old)+'</td><td>'+esc(x.delta==null?'—':x.delta)+'</td></tr>';}).join('')+'</table>';}).catch(function(e){el.textContent='Report failed: '+e.message;});};
 document.getElementById('stPrintReport').onclick=function(){if(!STOCK_DAILY_REPORT)return;var w=window.open('','_blank');if(!w){alert('Allow pop-ups for PDF printing.');return;}w.document.write('<html><head><title>Stock Report</title><style>body{font:12px Arial}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ddd}@page{size:A4 landscape}</style></head><body>'+document.getElementById('stReport').innerHTML+'</body></html>');w.document.close();setTimeout(function(){w.print();},300);};
 
 /* ============ admin ============ */

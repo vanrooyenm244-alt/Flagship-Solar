@@ -105,17 +105,18 @@ function stockSave_(user, place, counts) {
 
   var sh = sheet_(STOCK_SHEET);
   var all = stockRows_();
-  var byName = {};
-  all.forEach(function (r) { byName[r.item.toLowerCase()] = r; });
+  var byName = Object.create(null);
+  all.forEach(function(r){var k=r.item.trim().toLowerCase();byName[k]=byName[k]===undefined?r:null;});
 
   var now = new Date();
   var changed = 0, unknown = [], rejected = [];
 
   Object.keys(counts || {}).forEach(function (name) {
-    var r = byName[String(name).toLowerCase()];
+    var r = byName[String(name).trim().toLowerCase()];
+    if(r===null){rejected.push(name);return;}
     if (!r) { unknown.push(name); return; }
-    var q = Number(counts[name]);
-    if (!isFinite(q) || q < 0 || Math.floor(q)!==q) { rejected.push(name); return; }
+    var raw=counts[name],q=Number(raw);
+    if (raw===null||raw===undefined||typeof raw==='boolean'||String(raw).trim()===''||!isFinite(q) || q < 0 || Math.floor(q)!==q) { rejected.push(name); return; }
     stockCountSheet_().appendRow([now,user.username,place,name,r[place],q,q-r[place]]);
     if (r[place] === q) return;
     sh.getRange(r.row, col).setValue(q);
@@ -163,8 +164,9 @@ function stockUpload_(user, place, rows, source, reference) {
 
   var sh = sheet_(STOCK_SHEET);
   var all = stockRows_();
-  var byName = {};
-  all.forEach(function(r) { byName[stockNorm_(r.item)] = r; });
+  var byName = Object.create(null);
+  all.forEach(function(r){var k=stockNorm_(r.item);byName[k]=byName[k]===undefined?r:null;});
+  rows.forEach(function(x){var k=stockNorm_(x.item||x.description);if(byName[k]===null)throw new Error('Duplicate stock description: '+(x.item||x.description)+'; review the stock sheet');});
 
   var col = 5 + STOCK_PLACES.indexOf(place);
   var now = new Date();
@@ -185,6 +187,7 @@ function stockUpload_(user, place, rows, source, reference) {
     if (seen[rowKey]) return;
     seen[rowKey] = true;
     var oldQty = Number(r[place]) || 0;
+    stockCountSheet_().appendRow([now,user.username,place,r.item,oldQty,oldQty+qty,qty]);
     sh.getRange(r.row, col).setValue(oldQty + qty);
     sh.getRange(r.row, 9).setValue(now);
     sh.getRange(r.row, 10).setValue(user.username);

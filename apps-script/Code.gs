@@ -892,9 +892,9 @@ function supabasePriceRows_() {
 }
 
 function findPrice_(id) {
-  var all = priceRows_();
-  for (var i = 0; i < all.length; i++) if (all[i].id === String(id)) return all[i];
-  return null;
+  var matches=priceRows_().filter(function(p){return p.id===String(id);});
+  if(matches.length>1)throw new Error('Duplicate price ID: '+id+'; review Prices before editing/deleting');
+  return matches[0]||null;
 }
 
 /** Sell price for one item at a given markup override. */
@@ -1387,7 +1387,8 @@ function doGet(e) {
 
     if (p.action === 'prices') {
       auth_(body, ['Admin', 'Technician']);
-      var all = supabasePriceRows_();
+      // Read the same Prices sheet that savePrice/updatePriceList write.
+      var all = priceRows_();
       if (p.category) all = all.filter(function (x) { return x.category === p.category; });
       // Technicians see sell prices only — cost and markup stay with the Admin
       var me3 = findUser_(body.user);
@@ -1555,7 +1556,7 @@ function doPost(e) {
       if(body.costOnly){
         if(priceRows_().filter(function(p){return p.id===it.id;}).length!==1)return out_({ok:false,error:'Duplicate or missing price ID; review required.'});
         if(!ex||ex.type==='Sell')return out_({ok:false,error:'Only existing supplier costs may be updated.'});
-        if(!isFinite(Number(it.cost))||Number(it.cost)<0)return out_({ok:false,error:'Invalid supplier cost'});
+        if((typeof it.cost!=='number'&&typeof it.cost!=='string')||String(it.cost).trim()===''||!isFinite(Number(it.cost))||Number(it.cost)<0)return out_({ok:false,error:'Invalid supplier cost'});
         sh.getRange(ex.row,7).setValue(Number(it.cost));sh.getRange(ex.row,13).setValue(new Date());
         log_(pu.username,'supplierCost',ex.description,ex.cost,Number(it.cost));
         return out_({ok:true,id:ex.id,updated:true});
@@ -1606,43 +1607,24 @@ function doPost(e) {
       var pn = psh.getLastRow() - 1;
       if (pn < 1) return out_({ ok: false, error: 'Prices tab is empty' });
       var pvals = psh.getRange(2, 1, pn, 13).getValues();
-      var byCode = {};
-      for (var pi = 0; pi < pvals.length; pi++) {
-        var pc = String(pvals[pi][3] || '').trim().toUpperCase();
-        if (pc && !byCode[pc]) byCode[pc] = pi;
-      }
-
-      var updated = 0, unchanged = 0, notFound = 0;
-      var changed = [];
-      for (var ui = 0; ui < updates.length; ui++) {
-        var uitem = updates[ui] || {};
-        var ucode = String(uitem.code || '').trim().toUpperCase();
-        if ((typeof uitem.price !== 'number' && typeof uitem.price !== 'string') ||
-            String(uitem.price).trim() === '') continue;
-        var uprice = Number(uitem.price);
-        if (!ucode || !isFinite(uprice) || uprice < 0) continue;
-        if (byCode[ucode] === undefined) { notFound++; continue; }
-
-        var idx = byCode[ucode];
-        var oldPrice = Number(pvals[idx][6]) || 0;
-        var type = String(pvals[idx][7] || 'Cost');
-        if (Math.abs(oldPrice - uprice) < 0.005) { unchanged++; continue; }
-
-        pvals[idx][6] = uprice;          // Cost only
-        pvals[idx][12] = new Date();     // Updated
-        updated++;
-        changed.push({ code: ucode, description: String(pvals[idx][4] || ''), old: oldPrice, now: uprice });
-      }
-
-      if (updated) {
-        psh.getRange(2, 1, pn, 13).setValues(pvals);
-        log_(upu.username, 'updatePriceList',
-             (body.source || 'supplier list') + ' — ' + updated + ' prices updated',
-             '',updated + ' updated; ' + unchanged + ' unchanged; ' + notFound + ' not found',);
-      }
-
-      return out_({ ok: true, updated: updated, unchanged: unchanged,
-                    notFound: notFound, changes: changed });
+      var byCode=Object.create(null),byId=Object.create(null);
+      pvals.forEach(function(r,i){var code=String(r[3]||'').trim().toUpperCase(),id=String(r[0]||'');if(code){if(!byCode[code])byCode[code]=[];byCode[code].push(i);}if(id)byId[id]=(byId[id]||0)+1;});
+      var updated=0,unchanged=0,notFound=0,changed=[],conflicts=[],seen=Object.create(null);
+      updates.forEach(function(uitem){
+        uitem=uitem||{};var code=String(uitem.code||'').trim().toUpperCase(),raw=uitem.price,price=Number(raw);
+        if(!code||(typeof raw!=='number'&&typeof raw!=='string')||String(raw).trim()===''||!isFinite(price)||price<0)return;
+        if(!byCode[code]){notFound++;return;}
+        if(byCode[code].length!==1){conflicts.push({code:code,reason:'Duplicate supplier code'});return;}
+        var idx=byCode[code][0],r=pvals[idx],id=String(r[0]||'');
+        if(!id||byId[id]!==1||String(r[7]||'Cost')!=='Cost'){conflicts.push({code:code,reason:'Duplicate/missing ID or sell-price row'});return;}
+        if(seen[code]){conflicts.push({code:code,reason:'Repeated incoming supplier code'});return;}seen[code]=true;
+        var old=Number(r[6])||0;if(Math.abs(old-price)<0.005){unchanged++;return;}
+        // Write only supplier cost and timestamp; preserve metadata and formulas.
+        psh.getRange(idx+2,7).setValue(price);psh.getRange(idx+2,13).setValue(new Date());updated++;
+        changed.push({id:id,code:code,description:String(r[4]||''),old:old,now:price});
+      });
+      if(updated)log_(upu.username,'updatePriceList',(body.source||'supplier list')+' — '+updated+' prices updated','',updated+' updated; '+conflicts.length+' conflicts');
+      return out_({ok:true,updated:updated,unchanged:unchanged,notFound:notFound,changes:changed,conflicts:conflicts});
     }
 
     if (body.action === 'logPriceUpdate') {

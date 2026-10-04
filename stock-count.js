@@ -10,7 +10,7 @@
       for(var i=0;i<names.length;i+=20){
         var batch={};names.slice(i,i+20).forEach(function(k){batch[k]=counts[k];});
         var j=await post(batch);
-        if(!j||!Array.isArray(j.unknown)||!Array.isArray(j.rejected)||typeof j.changed!=='number')throw Error('Invalid stock acknowledgement; unconfirmed counts retained.');
+        if(!j||!Array.isArray(j.unknown)||!Array.isArray(j.rejected)||!Number.isInteger(j.changed)||j.changed<0||j.changed>Object.keys(batch).length||j.unknown.concat(j.rejected).some(function(k){return !Object.prototype.hasOwnProperty.call(batch,k);}))throw Error('Invalid stock acknowledgement; unconfirmed counts retained.');
         var ok=Object.keys(batch).filter(function(k){return j.unknown.indexOf(k)<0&&j.rejected.indexOf(k)<0;});
         await onAck(ok,batch,j);
         accepted+=ok.length;unknown=unknown.concat(j.unknown);rejected=rejected.concat(j.rejected);
