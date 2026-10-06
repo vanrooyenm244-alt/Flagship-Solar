@@ -1472,7 +1472,9 @@ function makeSlot(cap,sans,img){
       '<circle cx="12" cy="12.8" r="3.6"/></svg><span>Tap &rarr; Camera</span></span>')+
       '<input class="pk" type="file" accept="image/*" capture="environment" id="'+id+'">'+
     '</div>'+
-    '<div class="tools"><label class="retake" for="'+id+'">Retake</label>'+
+    '<div class="tools"><label class="retake" for="'+id+'">Camera</label>'+
+      '<label class="retake" for="'+id+'-gallery">Upload photo</label>'+
+      '<input type="file" accept="image/*" id="'+id+'-gallery" class="gallery" style="display:none">'+
       '<button type="button" class="del">Remove</button></div>'+
     '<div class="caps">'+
       '<div class="cap" contenteditable data-ph="What does this photo show?">'+textToHtml(htmlToText(cap))+'</div>'+
@@ -1481,12 +1483,13 @@ function makeSlot(cap,sans,img){
   if(img) slot.querySelector('img').src=img;
 
   var input = slot.querySelector('.pk');
-  input.addEventListener('change', function(){
-    var f = input.files && input.files[0];
+  function choosePhoto(){
+    var chosen=this;
+    var f = chosen.files && chosen.files[0];
     if(!f) return;
     if(f.type.indexOf('image/') !== 0){
       alert('That is not a picture. Tap again and choose Camera, or pick a photo from the gallery.');
-      input.value = '';
+      chosen.value = '';
       return;
     }
     var photoJob=currentId;
@@ -1503,9 +1506,11 @@ function makeSlot(cap,sans,img){
       im.src = url;
       slot.classList.remove('empty'); slot.classList.add('filled');
       renumber(); renderInspectionRemedial_(); save();
-      input.value = '';
+      chosen.value = '';
     });
-  });
+  }
+  input.addEventListener('change',choosePhoto);
+  slot.querySelector('.gallery').addEventListener('change',choosePhoto);
 
   slot.querySelector('.del').addEventListener('click',function(){
     if(slot.classList.contains('empty')||confirm('Remove this photo?')){slot.remove();renumber();renderInspectionRemedial_();save()}
