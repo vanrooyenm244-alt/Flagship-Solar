@@ -1,9 +1,9 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v123-inspection-gallery';
+const CACHE = 'flagship-completion-v124-timetree';
 const SHELL = [
   './',
-  './index.html', './stock-count.js','./user-privileges.js',
+  './index.html', './vendor/rrule.min.js', './timetree-calendar.js', './stock-count.js','./user-privileges.js',
   './supabase-client.js',
   './timesheet-sync.js',
   './manifest.webmanifest',
