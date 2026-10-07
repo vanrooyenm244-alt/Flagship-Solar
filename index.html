@@ -5141,6 +5141,8 @@ function userCard(u,roles){
    in over several sittings, then sent in one go. */
 
 var WORKERS=[], CYCLE=null, ENTRIES={}, OPEN=null;
+var TIMESHEET_WORKER_ALIASES={'mj89':'Michael','frank':'Frank','jacobus':'Jacobus','sangwannyasulu':'Sangwani','ian':'Ian','der101':'Derrick','reino04':'Andre'};
+function canonicalWorkerName_(){var u=String((ME&&ME.username)||'').trim().toLowerCase();return TIMESHEET_WORKER_ALIASES[u]||String((ME&&ME.name)||ME&&ME.username||'').trim();}
 var TSOWNER=null, TSCYCLE=null, TSLOAD=0, TSSAVE=Promise.resolve(), TSFLUSH=null, TSBASE={}, TSFAILED={};
 function tsOwner_(){return ME&&CFG.url?FlagshipTimesheetSync.owner(ME.username,CFG.url):null;}
 function tsRecord_(account){return 'timesheet-v2:'+account;}
@@ -5309,15 +5311,6 @@ function fetchTimesheetAll(){
     if(body.cycle!==cycle.slice(3)||!body.entries||typeof body.entries!=='object'||Array.isArray(body.entries))throw new Error('Mismatched Timesheet cycle response.');
     // Normalize account usernames to the worker/display names used by Timesheets.
     // This keeps admin read-back consistent even when a login differs from the worker name.
-    var TIMESHEET_WORKER_ALIASES={
-      'mj89':'Michael',
-      'frank':'Frank',
-      'jacobus':'Jacobus',
-      'sangwannyasulu':'Sangwani',
-      'ian':'Ian',
-      'der101':'Derrick',
-      'reino04':'Andre'
-    };
     Object.keys(body.entries).forEach(function(source){
       var target=TIMESHEET_WORKER_ALIASES[String(source).trim().toLowerCase()];
       if(!target||target===source)return;
@@ -5360,14 +5353,14 @@ function showTime(){if(!hasPermission_('timesheets.view_own')){showHome();return
   }).then(function(c){
     WORKERS=(c&&c.list)||[];
     if(ME && ME.role==='Worker'){
-      WORKERS=[ME.name];
-      OPEN=ME.name;
+      WORKERS=[canonicalWorkerName_()];
+      OPEN=canonicalWorkerName_();
       renderCycle();
       return;
     }
     renderCycle();
     if(CFG.url) Promise.all([fetchWorkers(),fetchTimesheetAll()]).then(function(){
-      if(ME && ME.role==='Worker') WORKERS=[ME.name];
+      if(ME && ME.role==='Worker') WORKERS=[canonicalWorkerName_()];
       renderCycle();
     }).catch(function(){});
   }).catch(tsError_);
@@ -5576,7 +5569,7 @@ document.getElementById('tsClearAll').addEventListener('click',function(){
 function collectAll(onlyUnsent){
   var rows=[];
   Object.keys(ENTRIES).forEach(function(name){
-    if(ME&&ME.role==='Worker'&&name.trim().toLowerCase()!==ME.name.trim().toLowerCase())return;
+    if(ME&&ME.role==='Worker'&&name.trim().toLowerCase()!==canonicalWorkerName_().trim().toLowerCase())return;
     Object.keys(ENTRIES[name]).sort().forEach(function(k){
       var r=ENTRIES[name][k];if(!r||!r.on||onlyUnsent&&['accepted','recorded'].indexOf(r.syncState)>=0)return;
       rows.push({worker:name,date:k,revision:r.revision});
