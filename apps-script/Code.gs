@@ -71,6 +71,8 @@ var WORKER_COLS = [
 ];
 
 var SEED_WORKERS = ['Frank', 'Michael', 'Jacobus', 'Ian', 'Sangwani'];
+var WORKER_USERNAME_ALIASES_ = {'mj89':'Michael','frank':'Frank','jacobus':'Jacobus','sangwannyasulu':'Sangwani','ian':'Ian','der101':'Derrick','reino04':'Andre'};
+function canonicalWorkerForUser_(u){return WORKER_USERNAME_ALIASES_[String((u&&u.username)||'').trim().toLowerCase()]||String((u&&u.name)||(u&&u.username)||'').trim();}
 var MONTHS_ = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 var DAYS_ = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
@@ -1492,7 +1494,7 @@ function doPost(e) {
         // Workers may only file their own hours. Return a row-level result
         // so the phone never marks a rejected entry as successfully sent.
         if (user.role === 'Worker' &&
-            workerName.toLowerCase() !== String(user.name).trim().toLowerCase()) {
+            workerName.toLowerCase() !== canonicalWorkerForUser_(user).toLowerCase()) {
           blocked++;
           results.push({index:i, date:String(r.date||''), worker:workerName, status:'blocked', reason:'Workers may only submit their own timesheet.'});
           continue;
