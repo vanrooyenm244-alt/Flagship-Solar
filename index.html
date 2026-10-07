@@ -5627,7 +5627,7 @@ function flushQueue(){
   if(TSFLUSH)return TSFLUSH;
   var account=tsOwner_();if(!account||!navigator.onLine)return Promise.resolve();
   var identity={url:CFG.url,user:ME.username,pass:ME.pass};
-  var run=async function(){await TSSAVE;if(TSFAILED[account])throw TSFAILED[account];if(account!==tsOwner_())return;await TSSYNC.drain(account,identity);await tsRefresh_();};
+  var run=async function(){await TSSAVE;if(TSFAILED[account])throw TSFAILED[account];if(account!==tsOwner_())return;await TSSYNC.recover(account);var latest=await TSSYNC.read(account),byCycle={};latest.queue.forEach(function(q){var r=latest.cycles[q.cycle]&&latest.cycles[q.cycle][q.row.worker]&&latest.cycles[q.cycle][q.row.worker][q.row.date];if(q.status==='failed'&&r&&r.on&&r.revision===q.revision)(byCycle[q.cycle]||(byCycle[q.cycle]=[])).push({worker:q.row.worker,date:q.row.date,revision:q.revision});});for(var c of Object.keys(byCycle))await TSSYNC.enqueue(account,c,byCycle[c]);await TSSYNC.drain(account,identity);await tsRefresh_();};
   TSFLUSH=(navigator.locks?navigator.locks.request('flagship-timesheet-drain',run):Promise.resolve().then(run)).finally(function(){TSFLUSH=null;});
   return TSFLUSH;
 }
@@ -5647,6 +5647,7 @@ function boot(){
   showHome();
   if(resume&&resume.screen==='screenProp'&&resume.proposalId)setTimeout(function(){openProp(resume.proposalId)},0);
   else if(resume&&resume.screen==='screenJobCard'&&resume.jobCardId)setTimeout(function(){jcOpen_(resume.jobCardId)},0);
+  setTimeout(function(){flushQueue().catch(tsError_);},0);
 
   // Validate the session in the background.
   var checking=ME, endpoint=CFG.url;
