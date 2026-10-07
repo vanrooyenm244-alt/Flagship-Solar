@@ -5656,7 +5656,7 @@ function boot(){
       if(!j.user || !j.user.name || !j.user.role)throw new Error('Invalid session response; retry later.');
       ME.name = j.user.name;
       ME.role = j.user.role;
-      refreshSheetPrivileges_().then(showHome);
+      refreshSheetPrivileges_().then(function(){applyModulePermissions_();});
       document.querySelectorAll('.tile[data-role]').forEach(function(t){t.classList.toggle('hidden',t.getAttribute('data-role').split(',').indexOf(ME.role)<0);});
       saveSession();
       xeroStatus_();
