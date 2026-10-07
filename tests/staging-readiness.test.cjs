@@ -12,7 +12,7 @@ test('staging frontend isolates configuration, sources and API destinations',asy
   for(const file of ['/sw.js','/timesheet-sync.js','/xero-customer.js'])assert.equal((await fetch(base+file)).status,200,file);
   for(const file of ['/.git/config','/tests/latest-results.txt','/supabase/migrations/202609080001_flagship_ops.sql'])assert.equal((await fetch(base+file)).status,404,file);
   assert.equal((await fetch(base+'/',{method:'POST'})).status,405);
- }finally{await new Promise(resolve=>server.close(resolve));}
+ }finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
 });
 function guard(sheet=STAGING_SHEET,properties={}){
  const code=stagingCode(),start=code.indexOf('function rcStagingBoundary_(');

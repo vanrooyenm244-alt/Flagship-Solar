@@ -1,0 +1,1 @@
+{"name":"hiservice-timetree-connector","version":"1.0.0","private":true,"engines":{"node":">=22"},"scripts":{"sync":"node sync.cjs","test":"node --test *.test.cjs"},"dependencies":{"rrule":"2.8.1"}}

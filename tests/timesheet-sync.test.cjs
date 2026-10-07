@@ -70,7 +70,7 @@ function frontend(){
  const html=fs.readFileSync('index.html','utf8'),elements={};
  const ctx={FlagshipTimesheetSync:Sync,ME:{username:'Michael',name:'Michael',role:'Admin'},CFG:{url:'https://sheet-a/exec'},MEM:false,DB:null,
    navigator:{onLine:true},window:{addEventListener(){}},get1:async()=>undefined,
-   document:{getElementById:id=>elements[id]||(elements[id]={addEventListener(){},style:{},textContent:'',innerHTML:''})},
+   document:{addEventListener(){},getElementById:id=>elements[id]||(elements[id]={addEventListener(){},style:{},textContent:'',innerHTML:''})},
    confirm:()=>false,alert(){},console,fetch:async()=>{throw Error('unexpected fetch');}};
  ctx.FlagshipTimesheetSync={...Sync,create:io=>{ctx.transport=io;return Sync.create(io);}};
  vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('var WORKERS=[], CYCLE='),html.indexOf('/* ============ boot ============ */')),ctx);
