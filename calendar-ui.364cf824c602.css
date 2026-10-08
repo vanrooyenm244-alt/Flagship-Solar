@@ -1,0 +1,25 @@
+
+.schedule{--cal-accent:#159447;--cal-soft:#eaf6ee;--cal-line:#dce6df;color:#172b22}
+#screenCalendar.schedule{--cal-accent:#08783c;--cal-soft:#edf7ef}
+.schedule .cal-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0 12px}
+.schedule .cal-toolbar h3,.schedule .cal-toolbar b{margin:0 auto 0 6px;font-size:19px}
+.schedule .cal-switch{display:inline-flex;padding:3px;border-radius:12px;background:#f0f4f1;gap:3px}
+.schedule .cal-switch button{border:0;padding:8px 12px;border-radius:9px;background:transparent;color:#53645a;cursor:pointer;font:inherit;font-size:13px;font-weight:700}
+.schedule .cal-switch button[aria-pressed=true]{background:#fff;color:var(--cal-accent);box-shadow:0 2px 5px #173d2012}
+.schedule .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.schedule .cal-weekday{color:#65756b;font-size:11px;letter-spacing:.06em;text-align:center;padding:8px}
+.schedule .cal-day{min-height:108px;padding:7px;border:1px solid var(--cal-line);border-radius:11px;background:#fff;min-width:0}
+.schedule .cal-day.outside{background:#f6f8f6;color:#89968d}.schedule .cal-day.today{border-color:var(--cal-accent);background:var(--cal-soft)}
+.schedule .cal-number{display:inline-grid;place-items:center;min-width:25px;height:25px;font-size:12px;border-radius:50%}.schedule .today .cal-number{background:var(--cal-accent);color:#fff}
+.schedule .cal-event{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--cal-accent);border-radius:7px;margin-top:5px;padding:7px;background:var(--cal-soft);color:#173b29;font:inherit;cursor:pointer;min-width:0}
+.schedule .cal-event strong,.schedule .cal-event small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.schedule .cal-event strong{font-size:12px;line-height:1.5}.schedule .cal-event small{font-size:11px;color:#587363}
+.schedule button:focus-visible,.schedule a:focus-visible{outline:3px solid #69b487;outline-offset:2px}
+.schedule .cal-agenda{display:grid;gap:16px}.schedule .cal-agenda-day{display:grid;grid-template-columns:68px minmax(0,1fr);gap:14px;border-bottom:1px solid var(--cal-line);padding-bottom:16px}
+.schedule .cal-date{font-size:12px;color:#63776a;text-align:center;padding:9px 0}.schedule .cal-date b{display:block;font-size:25px;color:#183c29}
+.schedule .cal-agenda .cal-event{margin:0 0 8px;padding:13px 15px;border-radius:11px}.schedule .cal-agenda .cal-event strong{font-size:15px;white-space:normal}.schedule .cal-agenda .cal-event small{font-size:12px;line-height:1.7;white-space:normal}
+.schedule .cal-empty{padding:35px 20px;text-align:center;border:1px dashed var(--cal-line);border-radius:14px;color:#68796e;background:#f8faf8}
+.schedule [role=status]{color:#64796b;font-size:12px;min-height:18px;margin:12px 0 18px}
+.schedule .cal-details{border:1px solid var(--cal-line);border-radius:16px;padding:20px;margin-top:18px;background:#f7fbf8}.schedule .cal-details pre{line-height:1.6}.schedule .cal-details a{display:inline-block;padding:11px 14px;background:var(--cal-accent);color:white;border-radius:9px;text-decoration:none;font-size:13px;font-weight:700;margin:0 10px 10px 0}
+@media(max-width:600px){.schedule .cal-toolbar{gap:6px}.schedule .cal-toolbar h3,.schedule .cal-toolbar b{font-size:16px}.schedule .cal-switch{margin-left:auto}.schedule .cal-day{min-height:75px;padding:3px;border-radius:7px}.schedule .cal-grid{gap:3px}.schedule .cal-event{padding:4px;border-left-width:2px}.schedule .cal-grid .cal-event small{display:none}.schedule .cal-grid .cal-event strong{font-size:10px}.schedule .cal-weekday{padding:6px 0;font-size:10px}.schedule .cal-agenda-day{grid-template-columns:48px minmax(0,1fr);gap:9px}}
+
+.schedule .cal-date,.schedule .cal-number{border:0;background:transparent;cursor:pointer;font-family:inherit}.schedule .cal-timetree{display:block;color:var(--cal-accent);font-size:12px;font-weight:700;padding:5px 12px 12px;text-decoration:none}.schedule .cal-grid .cal-timetree{display:none}.schedule .cal-booking{background:var(--cal-soft);border-radius:11px;margin-bottom:8px}.schedule .cal-booking .cal-event{margin-bottom:0}.schedule .cal-toolbar a{color:var(--cal-accent);text-decoration:none;font-size:13px;font-weight:700}

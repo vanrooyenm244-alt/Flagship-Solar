@@ -1,9 +1,10 @@
+/* Calendar release filenames contain content hashes; keep them in sync with source files. */
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v126-calendar-tags';
+const CACHE = 'flagship-completion-v127-calendar-cache-fix';
 const SHELL = [
   './',
-  './index.html', './calendar-ui.css', './vendor/rrule.min.js', './timetree-calendar.js', './stock-count.js','./user-privileges.js',
+  './index.html', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
   './supabase-client.js',
   './timesheet-sync.js',
   './manifest.webmanifest',
