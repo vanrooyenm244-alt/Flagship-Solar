@@ -99,3 +99,25 @@ Excel export can be added to the same source archive in the next phase.
   connections so the current Node runtime finishes cleanly.
 - Both calendar screens were checked in an isolated browser preview using synthetic
   data. Live Apps Script deployment and cross-device production behavior await activation.
+
+## Tag filtering update — 8 October 2026
+
+The phone views now route Scheduling Calender labels as follows (case, accents,
+trailing spaces and spaces around slashes/hyphens are normalized):
+
+- Flagship Solar: `Flagship Electric` and `Jacobus`. Jacobus sees both lists.
+- Hi Service: `Allaistair - Kai`, `Andre`, and `Freddie / Andre`.
+- TimeTree source records and history remain unchanged; unrelated labels are hidden.
+- Each existing source event has one `label_id`. The two Flagship labels are a union,
+  not a requirement for two labels on one event.
+- Both apps have clickable dates, a day list and original event links. The general
+  TimeTree button opens the existing Scheduling Calender. Native app opening depends
+  on the phone's TimeTree link handling; the same link works in a web browser.
+
+To activate the same filtering on API reads, replace **only** `TimeTree.gs` in the
+existing shared Apps Script project with `apps-script/TimeTree.gs` from this release.
+Save, then edit the existing web-app deployment, select **New version**, and deploy.
+Keep the current URL/access settings, timer, other source files and workbook.
+No source re-import or reset is needed: existing mirror rows already contain `jobType`.
+The phone filter applies immediately after the frontend update, including saved rows;
+API filtering requires that Apps Script version update.

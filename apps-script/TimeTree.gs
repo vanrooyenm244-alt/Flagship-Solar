@@ -57,10 +57,23 @@ function timeTreeList_(u,company){
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TT_EVENTS_),events=[];
   if(sh&&sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,5).getValues().forEach(function(r){
     var e=JSON.parse(r[3]);if(e.targets.indexOf(company)<0)return;
-    if(u.role==='Worker'&&!jobCardAssigned_(e.technician,u.name))return;
+    if(!ttTagVisible_(e,company,u))return;
     // Raw source remains protected in the archive/history; return only view fields.
     delete e.raw;e.updatedAt=r[4] instanceof Date?r[4].getTime():Number(r[4])||0;events.push(e);
   });
   return {ok:true,events:events,lastImportAt:PropertiesService.getScriptProperties().getProperty('TIMETREE_LAST_IMPORT_AT')||null};
 }
 function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);return timeTreeList_(u,'Hi Service');}
+
+function ttTagKey_(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s*([/\-])\s*/g,'$1').replace(/\s+/g,' ');}
+function ttEventTags_(e){return (Array.isArray(e.tags)&&e.tags.length?e.tags:[e.jobType||'']).map(function(t){return ttTagKey_(typeof t==='object'?t.name:t);});}
+function ttTagVisible_(e,company,user){
+  if(e.source!=='timetree')return true;
+  var tags=ttEventTags_(e),flag=['flagship electric','jacobus'],hi=['allaistair-kai','allistair-kai','andre','freddie/andre'];
+  var allowed=company==='Flagship Solar'?flag:company==='Hi Service'?hi:[];
+  var matches=tags.filter(function(t){return allowed.indexOf(t)>=0;});if(!matches.length)return false;
+  if(!user||user.role==='Admin'||(company==='Hi Service'&&user.role!=='Worker'))return true;
+  var names=[user.name,user.username].map(ttTagKey_).map(function(n){return n.split(/\s+/)[0];});
+  if(company==='Flagship Solar')return matches.some(function(t){return t==='flagship electric'?names.some(function(n){return ['jacobus','frank','ian','sangwani','sangwannyasulu','michael'].indexOf(n)>=0;}):names.indexOf(t)>=0;});
+  return matches.some(function(t){return t.split(/[/\-]/).some(function(n){return names.indexOf(n)>=0||(n==='kai'&&names.indexOf('kia')>=0)||(n==='allaistair'&&names.indexOf('allistair')>=0);});});
+}

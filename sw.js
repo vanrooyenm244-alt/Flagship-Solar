@@ -1,6 +1,6 @@
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v125-calendar-ui';
+const CACHE = 'flagship-completion-v126-calendar-tags';
 const SHELL = [
   './',
   './index.html', './calendar-ui.css', './vendor/rrule.min.js', './timetree-calendar.js', './stock-count.js','./user-privileges.js',

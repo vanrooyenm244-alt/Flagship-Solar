@@ -848,7 +848,7 @@ table.page{border-collapse:collapse}
       <button class="btn ghost" id="calPrev" aria-label="Previous month" type="button">‹</button><button class="btn ghost" id="calToday" type="button">Today</button><button class="btn ghost" id="calNext" aria-label="Next month" type="button">›</button>
       <button class="btn ghost" id="calToggleMode" type="button">All jobs</button><button class="btn" id="calNew" type="button">+ Schedule job</button>
     </div>
-    <div class="cal-toolbar"><h3 id="calTitle"></h3><button class="btn ghost" id="calRefresh" type="button">Refresh</button><div class="cal-switch"><button id="calAgenda" aria-pressed="true">Agenda</button><button id="calMonth" aria-pressed="false">Month</button></div></div>
+    <div class="cal-toolbar"><h3 id="calTitle"></h3><a href="https://timetreeapp.com/calendars/tWArSY8T3wtt" target="_blank" rel="noopener noreferrer">Open TimeTree ↗</a><button class="btn ghost" id="calRefresh" type="button">Refresh</button><div class="cal-switch"><button id="calAgenda" aria-pressed="true">Agenda</button><button id="calMonth" aria-pressed="false">Month</button></div></div>
     <p id="calSyncStatus" style="font-size:12px" role="status"></p><div id="calGrid"></div><div id="calTTDetails" class="cal-details hidden"><pre id="calTTText" style="white-space:pre-wrap;font:inherit"></pre><a id="calTTSource" target="_blank" rel="noopener noreferrer">Open booking in TimeTree</a><button class="btn ghost" type="button" onclick="document.getElementById('calTTDetails').classList.add('hidden')">Close</button></div>
     <div id="calForm" class="hidden" style="margin-top:15px;border-top:1px solid #ddd;padding-top:15px">
       <h3>Schedule Job</h3>
@@ -1617,8 +1617,8 @@ var CAL_DATE=new Date(), CAL_ALL=false, CAL_MODE_INIT=false;
 function calPad_(n){return String(n).padStart(2,'0');}
 function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
 function calEsc_(x){return esc(x||'');}
-function calIsMine_(e){if(CAL_ALL)return true; var n=ME&&ME.name?String(ME.name).toLowerCase():''; return !!n && String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
-var CAL_VIEW='agenda',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
+function calIsMine_(e){if(e.source==='timetree')return TimeTreeCalendar.visible(e,'Flagship Solar',ME);if(CAL_ALL)return true;var n=ME&&ME.name?String(ME.name).toLowerCase():'';return !!n&&String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
+var CAL_DAY=null,CAL_VIEW='agenda',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
 function calOwner_(){return JSON.stringify([CFG.url,ME&&ME.username,ME&&ME.pass]);}
 function calMerge_(incoming,owner){
   return getAll('calendar').then(function(saved){
@@ -1664,9 +1664,11 @@ function calRender_(){
     document.getElementById('calToggleMode').textContent=CAL_ALL?'My jobs':'All jobs';
     document.getElementById('calAgenda').setAttribute('aria-pressed',String(CAL_VIEW==='agenda'));
     document.getElementById('calMonth').setAttribute('aria-pressed',String(CAL_VIEW==='month'));
-    var view=TimeTreeCalendar.layout(items,CAL_DATE,CAL_VIEW,'data-cal-open');
+    var view=TimeTreeCalendar.layout(items,CAL_DATE,CAL_VIEW,'data-cal-open',CAL_DAY);
     if(view.errors.length)document.getElementById('calSyncStatus').textContent='Some recurring bookings need review: '+view.errors.join('; ');
     document.getElementById('calGrid').innerHTML=view.html;
+    if(CAL_VIEW==='day')document.getElementById('calTitle').textContent=new Date(CAL_DAY+'T12:00:00').toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
+    document.getElementById('calGrid').querySelectorAll('[data-cal-day]').forEach(function(el){el.onclick=function(){CAL_DAY=el.getAttribute('data-cal-day');CAL_VIEW='day';calRender_();};});
     document.querySelectorAll('[data-cal-open]').forEach(function(el){el.onclick=function(){calOpen_(el.getAttribute('data-cal-open'));};});
   });
 }
@@ -1685,13 +1687,13 @@ function calOpen_(id){
   var type=JC_TYPES.find(function(t){return t.id===e.jobType||t.name===e.jobType;});card.types=type?[type.id]:[];card.calendarEventId=e.id;
   return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id,false,'screenCalendar');});
 }).catch(function(e){alert('Could not open calendar job: '+e.message);}).finally(function(){delete calOpening_[id];});}
-function calShiftMonth_(delta){CAL_DATE.setDate(1);CAL_DATE.setMonth(CAL_DATE.getMonth()+delta);calRender_();}
+function calShiftMonth_(delta){CAL_DATE.setDate(1);CAL_DATE.setMonth(CAL_DATE.getMonth()+delta);if(CAL_VIEW==='day')CAL_VIEW='agenda';calRender_();}
 document.getElementById('calNew').addEventListener('click',function(){document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);});
 document.getElementById('calCancel').addEventListener('click',function(){document.getElementById('calForm').classList.add('hidden');});
 document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
 document.getElementById('calPrev').addEventListener('click',function(){calShiftMonth_(-1);});
 document.getElementById('calNext').addEventListener('click',function(){calShiftMonth_(1);});
-document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();calRender_();});
+document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();CAL_DAY=calDateKey_(CAL_DATE);if(CAL_VIEW==='day')CAL_VIEW='agenda';calRender_();});
 document.getElementById('calSave').addEventListener('click',function(){var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:document.getElementById('calCompany').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job saved on this phone; syncing…';document.getElementById('calForm').classList.add('hidden');calRender_();return api({action:'calendarSave',event:e}).then(function(j){if(!j.id||j.id!==e.id)throw new Error('Invalid calendar acknowledgement.');e.updatedAt=Number(j.updatedAt)||e.updatedAt;e.source='server';return put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled and synced.';calRender_();});}).catch(function(err){document.getElementById('calMsg').textContent='Saved on this phone; calendar sync failed: '+String(err.message||err);});});});
 
 /* ============ screens ============ */

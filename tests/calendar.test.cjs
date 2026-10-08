@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const html=fs.readFileSync('index.html','utf8');
 function block(a,b){return html.slice(html.indexOf(a),html.indexOf(b,html.indexOf(a)));}
 function run(code,extra){const c={Promise,Date,console,...extra};vm.createContext(c);vm.runInContext(code,c);return c;}
-test('calendar month controls cannot skip February from a 31st',()=>{for(const [date,delta,month] of [[new Date(2026,0,31),1,1],[new Date(2026,2,31),-1,1]]){const c=run(block('function calShiftMonth_',"document.getElementById('calNew')"),{CAL_DATE:date,calRender_(){}});c.calShiftMonth_(delta);assert.equal(c.CAL_DATE.getMonth(),month);}});
+test('calendar month controls cannot skip February from a 31st',()=>{for(const [date,delta,month] of [[new Date(2026,0,31),1,1],[new Date(2026,2,31),-1,1]]){const c=run(block('function calShiftMonth_',"document.getElementById('calNew')"),{CAL_DATE:date,CAL_VIEW:'month',calRender_(){}});c.calShiftMonth_(delta);assert.equal(c.CAL_DATE.getMonth(),month);}});
 test('double opening a calendar event creates only one linked card',async()=>{
  let saved=0,linked,opened=[];const c=run(block('var calOpening_=',"document.getElementById('calNew')"),{get1:async()=>({id:'e',customer:'Test',jobType:'Custom Jobs'}),confirm:()=>true,jcBlank:()=>({id:'card'}),JC_TYPES:[{id:'custom',name:'Custom Jobs'}],jcSaveLocal_:async card=>{saved++;assert.deepEqual(Array.from(card.types),['custom']);return true;},put:async(s,e)=>{linked=e.jobCardId;},jcOpen_:async(...args)=>opened.push(args),alert:assert.fail});await Promise.all([c.calOpen_('e'),c.calOpen_('e')]);assert.equal(saved,1);assert.equal(linked,'card');assert.deepEqual(opened,[['card',false,'screenCalendar']]);
 });
