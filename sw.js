@@ -1,7 +1,7 @@
 /* Calendar release filenames contain content hashes; keep them in sync with source files. */
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-completion-v127-calendar-cache-fix';
+const CACHE = 'flagship-completion-v128-job-card-multiple-photos';
 const SHELL = [
   './',
   './index.html', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
