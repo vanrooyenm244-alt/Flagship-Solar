@@ -2037,7 +2037,7 @@ function jcRenderReport_(){
     html+=jcReportHeading_(String(count++).padStart(2,'0'),title.toUpperCase(),'Scope, equipment and technical observations');
     var body=section.work||section.notes||'';
     if(body)html+='<div class="rblock rsummary"><b>WORK DESCRIPTION</b><div>'+jcEscLines_(body)+'</div></div>';
-    var photoKeys={photo:1,before:1,after:1,location:1,roof:1,inverterwall:1,dbBefore:1,changeover:1,earthNeutral:1,dbAfter:1,railEarth:1,roofRoute:1,damagePhoto:1,fusePhoto:1,earthBonding:1,acProtection:1,dcProtection:1,changeoverBackup:1,firmwarePhoto:1,mainDbOpen:1,mainDbClosed:1,changeoverOpen:1,changeoverClosed:1,snagsPhoto:1};
+    var photoKeys={photo:1,before:1,after:1,roof:1,inverterwall:1,dbBefore:1,changeover:1,earthNeutral:1,dbAfter:1,railEarth:1,roofRoute:1,damagePhoto:1,fusePhoto:1,earthBonding:1,acProtection:1,dcProtection:1,changeoverBackup:1,firmwarePhoto:1,mainDbOpen:1,mainDbClosed:1,changeoverOpen:1,changeoverClosed:1,snagsPhoto:1};
     var rows=[];
     Object.keys(section).forEach(function(key){
       if(photoKeys[key]||key==='work'||key==='notes'||key==='evidence'||key==='items')return;
@@ -2081,7 +2081,7 @@ function jcBuildPdf_(){
     var source=document.getElementById('jcReport');
     if(!source)throw new Error('Job Card report was not found.');
     var holder=document.createElement('div');
-    holder.style.cssText='position:fixed;left:-100000px;top:0;width:820px;background:white;display:block;z-index:-1';
+    holder.style.cssText='position:fixed;left:-100000px;top:0;width:820px;background:white;display:block;z-index:-1;pointer-events:none';
     var el=source.cloneNode(true);
     el.style.cssText='display:block;width:820px;max-width:820px;margin:0;padding:20px;box-sizing:border-box;background:#fff';
     holder.appendChild(el);document.body.appendChild(holder);
@@ -2106,16 +2106,22 @@ function jcBuildPdf_(){
         }
       } else push(child);
     });
+    /* Only rasterise units in print order; never rasterise the complete report again. */
     var imgs=Array.prototype.slice.call(el.querySelectorAll('img'));
     return Promise.all(imgs.map(function(img){if(img.complete)return Promise.resolve();return new Promise(function(resolve){img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true});setTimeout(resolve,5000);});})).then(function(){
       var J=window.jspdf.jsPDF,doc=new J({orientation:'p',unit:'mm',format:'a4'});
-      var margin=10,width=190,available=277,pos=margin,page=1,sequence=Promise.resolve();
-      units.forEach(function(unit){
+      var margin=10,width=190,available=268,pos=margin,page=1,sequence=Promise.resolve();
+      var reportNumber=String(JC&&JC.number||'Job Card');
+      function newPage(){doc.addPage();page++;pos=margin;}
+      function footer(){for(var p=1;p<=doc.getNumberOfPages();p++){doc.setPage(p);doc.setDrawColor(210,220,230);doc.line(margin,284,200,284);doc.setFontSize(8);doc.setTextColor(90,106,122);doc.text('FLAGSHIP SOLAR  |  '+reportNumber,margin,289);doc.text('Page '+p+' of '+doc.getNumberOfPages(),200,289,{align:'right'});}doc.setTextColor(0,0,0);}
+      units.forEach(function(unit,index){
         sequence=sequence.then(function(){
           return html2canvas(unit,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#fff',windowWidth:820}).then(function(canvas){
             var h=canvas.height*width/canvas.width;
-            /* A complete unit always goes on the next page if it will not fit. */
-            if(pos+h>margin+available&&pos>margin+0.5){doc.addPage();page++;pos=margin;}
+            var isHeading=unit.matches('h2,h3');
+            /* Leave room for the following content after section/photo headings. */
+            if(isHeading&&pos+h+20>margin+available&&pos>margin+0.5)newPage();
+            if(pos+h>margin+available&&pos>margin+0.5)newPage();
             if(h<=available){
               doc.addImage(canvas.toDataURL('image/jpeg',0.9),'JPEG',margin,pos,width,h);
               pos+=h+2;
@@ -2124,19 +2130,19 @@ function jcBuildPdf_(){
               var pixelsPerMm=canvas.width/width,offset=0;
               while(offset<canvas.height){
                 var take=Math.min(canvas.height-offset,Math.floor((margin+available-pos)*pixelsPerMm));
-                if(take<1){doc.addPage();page++;pos=margin;continue;}
+                if(take<1){newPage();continue;}
                 var part=document.createElement('canvas');part.width=canvas.width;part.height=take;
                 part.getContext('2d').drawImage(canvas,0,offset,canvas.width,take,0,0,canvas.width,take);
                 doc.addImage(part.toDataURL('image/jpeg',0.9),'JPEG',margin,pos,width,take/pixelsPerMm);
                 offset+=take;pos+=take/pixelsPerMm;
-                if(offset<canvas.height){doc.addPage();page++;pos=margin;}
+                if(offset<canvas.height)newPage();
               }
               pos+=2;
             }
           });
         });
       });
-      return sequence.then(function(){holder.remove();return doc;});
+      return sequence.then(function(){footer();holder.remove();return doc;});
     }).catch(function(err){holder.remove();throw err;});
   });
 }
