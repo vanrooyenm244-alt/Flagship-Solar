@@ -2018,6 +2018,12 @@ function jcReportRows_(obj,prefix,rows,depth){
     });
   }
 }
+function jcReportIsImage_(value){
+  if(!value)return false;
+  if(typeof value==='string')return /^(data:image\/|blob:|https?:\/\/|storage:)/i.test(value.trim());
+  if(Array.isArray(value))return value.some(jcReportIsImage_);
+  return typeof value==='object'&&(typeof value.img==='string'||Array.isArray(value.photos));
+}
 function jcReportFieldTable_(rows){
   if(!rows.length)return '';
   return '<table class="rtechnical"><tbody>'+rows.map(function(r){return '<tr><th>'+esc(r[0])+'</th><td>'+jcEscLines_(r[1])+'</td></tr>';}).join('')+'</tbody></table>';
@@ -2041,7 +2047,7 @@ function jcRenderReport_(){
     var rows=[];
     Object.keys(section).forEach(function(key){
       if(photoKeys[key]||key==='work'||key==='notes'||key==='evidence'||key==='items')return;
-      if(jcPhotoItems_(section[key]).length)return;
+      if(jcReportIsImage_(section[key]))return;
       jcReportRows_(section[key],jcPrettyLabel_(key),rows,0);
     });
     if(rows.length){html+='<h3 class="rsubheading">EQUIPMENT & TECHNICAL DETAILS</h3>'+jcReportFieldTable_(rows);}
@@ -2054,7 +2060,7 @@ function jcRenderReport_(){
     var other=[];
     Object.keys(section).forEach(function(key){
       if(key==='before'||key==='after'||key==='evidence'||key==='items')return;
-      if(photoKeys[key]||jcPhotoItems_(section[key]).length){
+      if(photoKeys[key]||jcReportIsImage_(section[key])){
         jcPhotoItems_(section[key]).forEach(function(p){other.push({img:p.img,cap:p.cap||jcPrettyLabel_(key)});});
       }
     });
