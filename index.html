@@ -926,6 +926,7 @@ table.page{border-collapse:collapse}
         <button class="btn" id="jcSubmit" type="button">Submit Job Card</button>
         <button class="btn ghost" id="jcPdf" type="button">Generate PDF</button>
         <button class="btn ghost" id="jcShare" type="button">Share PDF</button>
+        <button class="btn ghost" type="button" onclick="jcSsegGeneratePdf_()">Generate SSEG Test Report</button>
       </div>
       <div id="jcMsg" class="hint" style="margin-top:8px"></div>
       <div class="jc-sign"><h3 style="margin:0 0 5px">Client sign-off</h3><p class="hint">Customer signs with a finger on the phone after the work is complete.</p><canvas id="jcSignature" width="900" height="260"></canvas><div class="sigtools"><button class="btn ghost" id="jcSigClear" type="button">Clear signature</button><button class="btn ghost" id="jcSigDone" type="button">Save signature</button></div></div>
@@ -1825,7 +1826,7 @@ var JC_SSEG_FIELDS=[["1 — LOCATION",[["address","Physical address / building",
 function jcSsegForm_(){
  if(!jcHas_('fullsolar')&&!jcHas_('panels'))return '';
  var solar=(JC.sections&&JC.sections.fullsolar)||{},saved=(JC.sections&&JC.sections.sseg)||{};
- var html='<section class="jc-section"><h3>SSEG Test Report — Sections 1 to 5</h3><p class="hint">Fields are saved to this Job Card. Review all prefilled entries and measure tests; blanks are not compliant by default.</p>';
+ var html='<section class="jc-section"><h3>SSEG Test Report — Sections 1 to 5</h3><p class="hint">Fields are saved to this Job Card. Review all prefilled entries and measure tests; blanks are not compliant by default.</p><button class="btn" id="jcSsegGenerate" type="button" onclick="jcSsegGeneratePdf_()">Generate SSEG Test Report</button>';
  JC_SSEG_FIELDS.forEach(function(group,i){html+='<details class="jc-sseg-group"'+(i===0?' open':'')+'><summary>'+esc(group[0])+'</summary><div class="jc-grid2">';group[1].forEach(function(f){
  var key=f[0],v=Object.prototype.hasOwnProperty.call(saved,key)?saved[key]:(key==='address'?JC.site||'':(key==='reportFor'?'AC / Inverter Combiner DB & DC/PV Combiner DB':solar[key]||''));
  html+='<div class="jc-field"><label>'+esc(f[1])+'</label><input data-jc-sseg="'+esc(key)+'" value="'+esc(v)+'" placeholder="Not yet recorded"><details class="jc-sseg-hint"><summary>ⓘ Test hint</summary><p>'+esc(f[2])+'</p></details></div>';
@@ -2166,6 +2167,56 @@ function jcBuildPdf_(){
     }).catch(function(err){holder.remove();throw err;});
   });
 }
+
+function jcSsegGeneratePdf_(){
+ if(!JC)return;
+ var button=document.getElementById('jcSsegGenerate');
+ var saved=(JC.sections&&JC.sections.sseg)||{},solar=(JC.sections&&JC.sections.fullsolar)||{};
+ function get(k){if(Object.prototype.hasOwnProperty.call(saved,k))return String(saved[k]||'');if(k==='address')return JC.site||'';if(k==='reportFor')return 'AC / Inverter Combiner DB & DC/PV Combiner DB';return String(solar[k]||'');}
+ var required=['address','inverter','inverterKw','panelQty','strings','bonding','earthResistance','pvVoc','acInsulation','dcInsulation','polarity','electrician','registration'];
+ var missing=required.filter(function(k){return !get(k).trim();});
+ if(missing.length&&!confirm('There are '+missing.length+' important SSEG fields not completed: '+missing.join(', ')+'.\n\nGenerate an INCOMPLETE DRAFT for checking? It will not be certified.'))return;
+ if(button){button.disabled=true;button.textContent='Generating SSEG report...';}
+ jcLoadPdfLibs_().then(function(){
+   var doc=new window.jspdf.jsPDF({orientation:'p',unit:'mm',format:'a4'}),W=190,left=10,top=11,bottom=279,y=top,page=1;
+   function line(){doc.setDrawColor(160,165,171);doc.line(left,y,200,y);}
+   function pageBreak(h){if(y+h>bottom){doc.addPage();page++;y=top+5;}}
+   function textWrap(v,x,w,fs){doc.setFontSize(fs||8);return doc.splitTextToSize(String(v||'—'),w);}
+   function row(label,value,unit){pageBreak(9);var l=textWrap(label,left+2,91,7.3),v=textWrap(value||'',left+106,80,7.6);var height=Math.max(7,3+Math.max(l.length,v.length)*3.6);pageBreak(height);
+     doc.setDrawColor(198,202,207);doc.rect(left,y,W,height);doc.line(left+103,y,left+103,y+height);
+     doc.setFont('helvetica','normal');doc.setTextColor(30,37,44);doc.setFontSize(7.3);doc.text(l,left+2,y+3.9);
+     doc.setFont('helvetica','bold');doc.setFontSize(7.6);doc.text(v,left+106,y+3.9);
+     if(unit){doc.setFontSize(6.5);doc.text(unit,198,y+3.8,{align:'right'});}y+=height;}
+   function heading(t){pageBreak(14);y+=2;doc.setFillColor(232,236,240);doc.rect(left,y,W,7,'F');doc.setTextColor(30,39,47);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text(t,left+2,y+5);y+=8;}
+   function note(t){pageBreak(10);doc.setFont('helvetica','normal');doc.setFontSize(6.6);doc.setTextColor(88,94,103);var lines=doc.splitTextToSize(t,W-4);doc.text(lines,left+2,y+3);y+=lines.length*3+3;doc.setTextColor(0);}
+   function flags(){doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(130,38,38);doc.text('DRAFT - SUBJECT TO VERIFICATION / SIGNATURE',200,10,{align:'right'});doc.setTextColor(0);}
+   doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('ADDITIONAL TEST REPORT for SSEG',left,top);
+   y+=5;doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('(Photovoltaic Installations)',left,y);y+=5;
+   flags();
+   row('Certificate of Compliance (CoC) No.',get('cocNumber'));
+   row('Date of issue',get('issueDate'));
+   row('Test report for DB / Supply',get('reportFor'));
+   note('NOTE: Installation and test results must be verified by a registered person. This additional report does not replace the electrical CoC.');
+   JC_SSEG_FIELDS.forEach(function(group,i){
+     heading('SECTION '+(i+1)+' - '+group[0].replace(/^[0-9]+\s+[—-]\s+/,'').toUpperCase());
+     if(i===3){
+       note('Mark inspections and record the actual measured results. Blank values are NOT automatically compliant.');
+     }
+     group[1].forEach(function(f){
+       if(i===0&&['cocNumber','issueDate'].indexOf(f[0])>=0)return;
+       if(i===1&&f[0]==='reportFor')return;
+       row(f[1],get(f[0]));
+     });
+   });
+   heading('SECTION 5 - RESPONSIBILITY / DECLARATION');
+   note('The registered person must inspect and test the installation, verify every result, and sign the legally required declaration. This automatically generated copy is not signed.');
+   row('Registered person signature','NOT SIGNED');
+   var pages=doc.getNumberOfPages();
+   for(var p=1;p<=pages;p++){doc.setPage(p);doc.setDrawColor(200);doc.line(10,285,200,285);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(90);doc.text('SSEG Additional Test Report  |  '+(JC.number||''),10,289);doc.text('Page '+p+' of '+pages,200,289,{align:'right'});}
+   doc.save((JC.number||'Job-Card')+'-SSEG-Test-Report-DRAFT.pdf');
+ }).catch(function(err){alert('SSEG report could not be generated: '+String(err.message||err));}).finally(function(){if(button){button.disabled=false;button.textContent='Generate SSEG Test Report';}});
+}
+
 function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
 var jcPreparedShare_=null;
 function jcDownloadBlob_(blob,name){
