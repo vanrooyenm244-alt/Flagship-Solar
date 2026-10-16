@@ -725,6 +725,26 @@ table.page{border-collapse:collapse}
 .jc-print{display:none}
 .jc-report{font-family:Arial,sans-serif;background:#fff;color:#18212B;padding:20px;max-width:820px;margin:0 auto}
 .jc-report .rhead{display:flex;align-items:center;gap:16px;border-bottom:2px solid #1F4E79;padding-bottom:12px;margin-bottom:16px}.jc-report .rhead img{width:150px;height:auto}.jc-report .rhead .rhinfo{margin-left:auto;text-align:right;font-size:12px;color:#667085}.jc-report h1{font-size:24px;color:#1F4E79;margin:0 0 3px}.jc-report h2{font-size:16px;color:#1F4E79;border-bottom:1px solid #CBD3DC;padding-bottom:5px;margin:20px 0 9px}.jc-report .rmeta{display:grid;grid-template-columns:1fr 1fr;gap:7px 18px;font-size:13px}.jc-report .rmeta b{color:#1F4E79}.jc-report .rblock{font-size:13px;line-height:1.5;white-space:pre-wrap}.jc-report .rphotos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start;margin:8px 0 14px}.jc-report .rphoto{border:1px solid #CBD3DC;padding:7px;break-inside:avoid}.jc-report .rphoto img{display:block;max-width:100%;width:auto;height:auto;max-height:220px;object-fit:contain;margin:0 auto}.jc-report .rphoto .cap{font-size:11px;line-height:1.35;margin-top:5px;overflow-wrap:anywhere}.jc-report .rphoto-group{margin:12px 0 16px}.jc-report .rphoto-group h3{font-size:13px;color:#1F4E79;margin:0 0 6px;break-after:avoid}.jc-report table{width:100%;border-collapse:collapse;font-size:13px}.jc-report th,.jc-report td{border-bottom:1px solid #E4E8ED;padding:7px 5px;text-align:left}.jc-report th{color:#1F4E79}
+.jc-report .rreport-intro{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#586b80;margin:4px 0 17px}
+.jc-report .rhead{border-bottom:3px solid #1F4E79}
+.jc-report .rhinfo h1{font-size:21px}
+.jc-report .rreport-type{font-size:14px;font-weight:700;letter-spacing:2px;color:#1F4E79;padding:3px 0}
+.jc-report h2.rsection{display:flex;align-items:center;gap:10px;font-size:15px;background:#edf3f8;border-left:4px solid #1F4E79;border-bottom:0;padding:10px 12px;margin:18px 0 10px;break-inside:avoid}
+.jc-report .rnum{font-size:14px;font-weight:bold;color:#1F4E79}
+.jc-report h2.rsection small{margin-left:auto;color:#637587;font-size:10px;font-weight:normal;text-transform:none}
+.jc-report h3.rsubheading{font-size:12px;letter-spacing:.8px;color:#1F4E79;border-bottom:1px solid #dce5ec;padding:7px 0 5px;margin:14px 0 9px}
+.jc-report .rmeta{background:#fafbfd;border:1px solid #e2e8ee;border-radius:3px;padding:12px}
+.jc-report .rmeta>div{line-height:1.6}
+.jc-report .rsummary{padding:10px 12px;background:#f7f9fc;border-left:3px solid #1F4E79;margin:7px 0}
+.jc-report .rsummary>b{display:block;font-size:11px;color:#1F4E79;margin-bottom:5px}
+.jc-report table.rtechnical{margin:7px 0 13px;border:1px solid #dbe3ea}
+.jc-report table.rtechnical tr:nth-child(even){background:#f7f9fc}
+.jc-report table.rtechnical th{width:40%;font-weight:600;text-transform:none}
+.jc-report table.rtechnical td{overflow-wrap:anywhere}
+.jc-report .rnotice{font-size:11px;color:#667085;margin:10px 0}
+.jc-report .rphoto-group>h3{font-size:12px;background:#edf3f8;padding:8px 10px;border-left:3px solid #1F4E79}
+.jc-report .rphoto{border-radius:3px;background:#fff}
+.jc-report .rsign{height:95px;border-bottom:1px solid #a9b5c2;padding:5px}.jc-report .rsign img{height:85px;max-width:360px;object-fit:contain}
 @media(max-width:650px){.jc-types,.jc-grid2,.jc-report .rmeta,.jc-report .rphotos{grid-template-columns:1fr}.jc-list-row{align-items:flex-start}.jc-list-row .actions{flex-direction:column}.jc-measure{grid-template-columns:1fr 105px}}
 @media print{
   body.jcprinting{background:#fff!important;padding:0!important}
@@ -1982,22 +2002,78 @@ function jcSubmit_(){
   }).catch(function(e){jcMessage_(card,'Not confirmed as submitted: '+String(e.message||e));}).finally(function(){btn.disabled=false;});
 }
 function jcMetaOnly_(j){var x=JSON.parse(JSON.stringify(j));function strip(v){if(!v||typeof v!=='object')return v;if(Array.isArray(v))return v.map(strip);var o={};Object.keys(v).forEach(function(k){if(k==='img')return;o[k]=strip(v[k]);});return o;}x.sections=strip(x.sections);return x;}
-function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appbar img')||{}).src||'';var html='<div class="rhead"><img src="'+logo+'"><div class="rhinfo"><h1>JOB CARD</h1><div>'+esc(JC.number||'')+'</div><div>'+esc(JC.status||'DRAFT')+'</div></div></div><div class="rmeta"><div><b>Customer</b><br>'+esc(JC.customer||'—')+'</div><div><b>Site / Job</b><br>'+esc(JC.site||'—')+'</div><div><b>Date</b><br>'+esc(JC.date||'—')+'</div><div><b>Technician(s)</b><br>'+esc(JC.technicians||'—')+'</div></div>';
-  JC.types.forEach(function(t){var s=JC.sections[t]||{};var title=(JC_TYPES.find(function(x){return x.id===t})||{name:t}).name;html+='<h2>'+esc(title)+'</h2>';
-    if(t==='panels'||t==='fullsolar')html+='<div class="rblock">'+jcEscLines_(s.work||'')+'</div>';
-    if(t==='descale')html+='<div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.location,{label:'Before work',photos:jcPhotoItems_(s.before)},{label:'After work',photos:jcPhotoItems_(s.after)}]);
-    if(t==='plug')html+='<div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([{label:'Before work',photos:jcPhotoItems_(s.before)},{label:'After work',photos:jcPhotoItems_(s.after)}]);
-    if(t==='firmware')html+='<div class="rmeta"><div><b>Firmware</b><br>'+esc(s.version||'—')+'</div></div><div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.photo]);
-    if(t==='coc'){html+='<div class="rmeta"><div><b>Inverter serial</b><br>'+esc(s.inverterSerial||'—')+'</div><div><b>Battery serial</b><br>'+esc(s.batterySerial||'—')+'</div></div><h2>Measurements</h2><table><tr><th>Measurement</th><th>Value</th></tr>'+[['Live → Neutral','ln'],['Neutral → Earth','ne'],['Live → Earth','le'],['Panels DC Voltage','dc'],['DC Disconnect — Fuse size','fuse']].map(function(a){return '<tr><td>'+a[0]+'</td><td>'+esc(s[a[1]]||'—')+'</td></tr>';}).join('')+'</table><h2>Snags / Damages</h2><div class="rblock"><b>Snags:</b> '+jcEscLines_(s.snags||'—')+'\n\n<b>Damages:</b> '+jcEscLines_(s.damages||'—')+'</div>'+jcReportPhotos_([s.roof,s.inverterwall,s.dbBefore,s.changeover,s.earthNeutral,s.dbAfter,s.railEarth,s.roofRoute,s.damagePhoto,s.fusePhoto]);}
-    if(t==='custom')(s.items||[]).forEach(function(it,i){html+='<div class="rblock"><b>Item '+(i+1)+'</b> — '+jcEscLines_(it.description||'')+'</div>'+jcReportPhotos_([it.photo]);});
-    if(['fullsolar','solarservice','generator','electrical','heatpump','gas','plumbing','fault'].indexOf(t)>=0){var skip={evidence:1,before:1,after:1,photo:1,earthBonding:1,acProtection:1,dcProtection:1,changeoverBackup:1,firmwarePhoto:1,mainDbOpen:1,mainDbClosed:1,changeoverOpen:1,changeoverClosed:1,snagsPhoto:1};Object.keys(s).forEach(function(k){if(skip[k]||!s[k]||typeof s[k]==='object')return;html+='<div class="rblock"><b>'+esc(k.replace(/([A-Z])/g,' $1').replace(/^./,function(x){return x.toUpperCase();}))+'</b><br>'+jcEscLines_(s[k])+'</div>';});}
-    if(t==='panels'||t==='fullsolar'){html+=jcReportPhotos_([s.photo]);html+=jcReportPhotoGroup_('Before installation',s.before);html+=jcReportPhotoGroup_('After installation',s.after);}if(t==='fullsolar')html+=jcReportPhotos_(['earthBonding','acProtection','dcProtection','changeoverBackup','firmwarePhoto','mainDbOpen','mainDbClosed','changeoverOpen','changeoverClosed','snagsPhoto'].map(function(k){return s[k];}));
-    (s.evidence||[]).forEach(function(it,i){if(it.note)html+='<div class="rblock"><b>Site evidence '+(i+1)+'</b><br>'+jcEscLines_(it.note)+'</div>';html+=jcReportPhotos_([it.photo]);});
-
+function jcPrettyLabel_(key){var labels={work:'Work description',notes:'Technician notes',inverter:'Inverter',battery:'Battery',batteryCapacity:'Battery capacity',bms:'BMS',panels:'Solar panels',panelQty:'Panel quantity',strings:'PV strings',inverterSerial:'Inverter serial number',inverterKw:'Inverter rating',acSupply:'AC supply voltage',gridVoltage:'Grid voltage',snags:'Outstanding snags',damages:'Damages',scope:'Scope of work',location:'Location'};return labels[key]||key.replace(/([A-Z])/g,' $1').replace(/[_-]/g,' ').replace(/^./,function(c){return c.toUpperCase();});}
+function jcReportRows_(obj,prefix,rows,depth){
+  if(depth>4||obj==null||obj==='')return;
+  if(typeof obj==='string'||typeof obj==='number'||typeof obj==='boolean'){
+    rows.push([prefix,String(obj)]);return;
+  }
+  if(Array.isArray(obj)){
+    obj.forEach(function(value,i){jcReportRows_(value,prefix+' '+(i+1),rows,depth+1);});return;
+  }
+  if(typeof obj==='object'){
+    Object.keys(obj).forEach(function(k){
+      if(k==='img'||k==='localImg'||k==='storage'||k==='photos'||k==='cap'||k==='signature')return;
+      jcReportRows_(obj[k],prefix?prefix+' — '+jcPrettyLabel_(k):jcPrettyLabel_(k),rows,depth+1);
+    });
+  }
+}
+function jcReportFieldTable_(rows){
+  if(!rows.length)return '';
+  return '<table class="rtechnical"><tbody>'+rows.map(function(r){return '<tr><th>'+esc(r[0])+'</th><td>'+jcEscLines_(r[1])+'</td></tr>';}).join('')+'</tbody></table>';
+}
+function jcReportHeading_(number,title,sub){return '<h2 class="rsection"><span class="rnum">'+number+'</span>'+esc(title)+(sub?'<small>'+esc(sub)+'</small>':'')+'</h2>';}
+function jcRenderReport_(){
+  if(!JC)return;
+  var logo=(document.querySelector('.appbar img')||{}).src||'';
+  var html='<div class="rhead"><img src="'+logo+'"><div class="rhinfo"><h1>FIELD SERVICE REPORT</h1><div class="rreport-type">JOB CARD</div><div>'+esc(JC.number||'')+'</div><div>'+esc(JC.status||'DRAFT')+'</div></div></div>';
+  html+='<div class="rreport-intro">Installation, commissioning and on-site work record</div>';
+  html+=jcReportHeading_('01','JOB INFORMATION','Customer and site details');
+  html+='<div class="rmeta"><div><b>Customer</b><br>'+esc(JC.customer||'—')+'</div><div><b>Site / Job</b><br>'+esc(JC.site||'—')+'</div><div><b>Work date</b><br>'+esc(JC.date||'—')+'</div><div><b>Technician(s)</b><br>'+esc(JC.technicians||'—')+'</div></div>';
+  var count=2;
+  JC.types.forEach(function(t){
+    var section=JC.sections[t]||{};
+    var title=(JC_TYPES.find(function(x){return x.id===t})||{name:t}).name;
+    html+=jcReportHeading_(String(count++).padStart(2,'0'),title.toUpperCase(),'Scope, equipment and technical observations');
+    var body=section.work||section.notes||'';
+    if(body)html+='<div class="rblock rsummary"><b>WORK DESCRIPTION</b><div>'+jcEscLines_(body)+'</div></div>';
+    var photoKeys={photo:1,before:1,after:1,location:1,roof:1,inverterwall:1,dbBefore:1,changeover:1,earthNeutral:1,dbAfter:1,railEarth:1,roofRoute:1,damagePhoto:1,fusePhoto:1,earthBonding:1,acProtection:1,dcProtection:1,changeoverBackup:1,firmwarePhoto:1,mainDbOpen:1,mainDbClosed:1,changeoverOpen:1,changeoverClosed:1,snagsPhoto:1};
+    var rows=[];
+    Object.keys(section).forEach(function(key){
+      if(photoKeys[key]||key==='work'||key==='notes'||key==='evidence'||key==='items')return;
+      if(jcPhotoItems_(section[key]).length)return;
+      jcReportRows_(section[key],jcPrettyLabel_(key),rows,0);
+    });
+    if(rows.length){html+='<h3 class="rsubheading">EQUIPMENT & TECHNICAL DETAILS</h3>'+jcReportFieldTable_(rows);}
+    if(t==='coc')html+='<div class="rblock rnotice">This Job Card records work and test evidence. It does not replace a prescribed Certificate of Compliance.</div>';
+    if(t==='custom')(section.items||[]).forEach(function(it,i){html+='<div class="rblock"><b>Work item '+(i+1)+'</b><div>'+jcEscLines_(it.description||'')+'</div></div>'+jcReportPhotos_([it.photo]);});
+    var before=jcPhotoItems_(section.before),after=jcPhotoItems_(section.after);
+    if(before.length||after.length)html+='<h3 class="rsubheading">BEFORE & AFTER PHOTO RECORD</h3>';
+    html+=jcReportPhotoGroup_(t==='panels'||t==='fullsolar'?'BEFORE INSTALLATION':'BEFORE WORK',section.before);
+    html+=jcReportPhotoGroup_(t==='panels'||t==='fullsolar'?'AFTER INSTALLATION':'AFTER WORK',section.after);
+    var other=[];
+    Object.keys(section).forEach(function(key){
+      if(key==='before'||key==='after'||key==='evidence'||key==='items')return;
+      if(photoKeys[key]||jcPhotoItems_(section[key]).length){
+        jcPhotoItems_(section[key]).forEach(function(p){other.push({img:p.img,cap:p.cap||jcPrettyLabel_(key)});});
+      }
+    });
+    if(other.length)html+='<h3 class="rsubheading">ADDITIONAL INSTALLATION EVIDENCE</h3>'+jcReportPhotos_([other]);
+    (section.evidence||[]).forEach(function(item,i){
+      if(item.note)html+='<div class="rblock"><b>Site evidence '+(i+1)+'</b><div>'+jcEscLines_(item.note)+'</div></div>';
+      html+=jcReportPhotos_([item.photo]);
+    });
   });
-  if(JC.signature)html+='<h2>Client sign-off</h2><div class="rblock">Signed electronically'+(JC.signedAt?' · '+esc(new Date(JC.signedAt).toLocaleString()):'')+'</div><div style="margin-top:6px"><img src="'+JC.signature+'" style="max-width:420px;width:100%;height:100px;object-fit:contain;border-bottom:1px solid #667085"></div>';document.getElementById('jcReport').innerHTML=html;}
+  html+=jcReportHeading_(String(count++).padStart(2,'0'),'COMPLETION & CLIENT ACKNOWLEDGEMENT','Record of client sign-off');
+  html+='<div class="rblock rnotice">This document records the work and evidence captured on site. Any statutory certificates and approvals are separate unless expressly provided.</div>';
+  if(JC.signature){
+    html+='<div class="rblock"><b>Client signature</b> — signed electronically'+(JC.signedAt?' on '+esc(new Date(JC.signedAt).toLocaleString()):'')+'</div>';
+    html+='<div class="rsign"><img src="'+JC.signature+'"></div>';
+  }else html+='<div class="rblock"><b>Client signature:</b> Not captured</div>';
+  document.getElementById('jcReport').innerHTML=html;
+}
 function jcReportPhotoGroup_(title,value){if(!jcPhotoItems_(value).length)return '';return '<section class="rphoto-group"><h3>'+esc(title)+'</h3>'+jcReportPhotos_([value])+'</section>';}
-function jcReportPhotos_(arr){var a=[];arr.forEach(function(x){var label=x&&x.label;jcPhotoItems_(x).forEach(function(photo){a.push(label&&!photo.cap?{img:photo.img,cap:label}:photo);});});if(!a.length)return '';return '<div class="rphotos">'+a.map(function(x){return '<div class="rphoto"><img src="'+x.img+'"><div class="cap">'+esc(x.cap||'')+'</div></div>';}).join('')+'</div>';}
+function jcReportPhotos_(arr){var photos=[];arr.forEach(function(x){var label=x&&x.label;jcPhotoItems_(x).forEach(function(p){photos.push({img:p.img,cap:p.cap||label||''});});});if(!photos.length)return '';return '<div class="rphotos">'+photos.map(function(p,i){return '<div class="rphoto"><img src="'+p.img+'"><div class="cap">'+(p.cap?esc(p.cap):'Photo '+(i+1))+'</div></div>';}).join('')+'</div>';}
 function jcLoadPdfLibs_(){if(window.jspdf&&window.html2canvas)return Promise.resolve();function load(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}return load('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').then(function(){return load('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');});}
 function jcBuildPdf_(){
   jcRenderReport_();
