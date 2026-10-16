@@ -2147,7 +2147,52 @@ function jcBuildPdf_(){
   });
 }
 function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
-function jcSharePdf_(){if(!JC)return;var b=document.getElementById('jcShare');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var blob=doc.output('blob'),name=(JC.number||'Job-Card')+'.pdf',file=new File([blob],name,{type:'application/pdf'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]})))return navigator.share({title:'Flagship Job Card '+(JC.number||''),text:(JC.customer||'')+' — '+(JC.site||''),files:[file]});var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(u);},2000);alert('Your browser cannot share PDF files directly, so the PDF was saved instead.');}).catch(function(e){if(e&&e.name==='AbortError')return;alert('PDF share failed: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
+var jcPreparedShare_=null;
+function jcDownloadBlob_(blob,name){
+  var url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(url);},30000);
+}
+function jcSharePdf_(){
+  if(!JC)return;
+  var b=document.getElementById('jcShare');
+  var key=JC.id+'|'+(JC.revision||'')+'|'+(JC.updatedAt||'');
+  /* Calling navigator.share after PDF generation loses mobile user activation.
+     A second physical tap is required to launch the native share sheet. */
+  if(jcPreparedShare_&&jcPreparedShare_.key===key){
+    var prepared=jcPreparedShare_;
+    jcPreparedShare_=null;
+    if(b)b.textContent='Share PDF';
+    if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[prepared.file]}))){
+      try{
+        Promise.resolve(navigator.share({title:'Flagship Job Card '+(JC.number||''),files:[prepared.file]}))
+          .catch(function(e){
+            if(e&&e.name==='AbortError')return;
+            jcDownloadBlob_(prepared.blob,prepared.name);
+            alert('Direct sharing is unavailable on this phone. The PDF was downloaded instead.');
+          });
+      }catch(e){
+        jcDownloadBlob_(prepared.blob,prepared.name);
+        alert('Direct sharing is unavailable on this phone. The PDF was downloaded instead.');
+      }
+    }else{
+      jcDownloadBlob_(prepared.blob,prepared.name);
+      alert('This browser cannot share PDF files directly. The PDF was downloaded instead.');
+    }
+    return;
+  }
+  if(b){b.disabled=true;b.textContent='Preparing PDF…';}
+  jcBuildPdf_().then(function(doc){
+    var blob=doc.output('blob'),name=(JC.number||'Job-Card')+'.pdf';
+    var file=new File([blob],name,{type:'application/pdf'});
+    jcPreparedShare_={key:key,blob:blob,file:file,name:name};
+    if(b)b.textContent='Tap again to Share PDF';
+  }).catch(function(e){
+    if(b)b.textContent='Share PDF';
+    alert('Could not prepare PDF: '+String(e.message||e));
+  }).finally(function(){if(b)b.disabled=false;});
+}
+
 document.getElementById('jcSave').addEventListener('click',function(){jcSaveLocal_();jcRenderReport_();});document.getElementById('jcSubmit').addEventListener('click',jcSubmit_);document.getElementById('jcPdf').addEventListener('click',jcGeneratePdf_);document.getElementById('jcShare').addEventListener('click',jcSharePdf_);
 
 function showJobs(){if(!hasPermission_('inspections.view')){showHome();return;}
