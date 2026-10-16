@@ -1990,7 +1990,7 @@ function jcRenderReport_(){if(!JC)return;var logo=(document.querySelector('.appb
     if(t==='firmware')html+='<div class="rmeta"><div><b>Firmware</b><br>'+esc(s.version||'—')+'</div></div><div class="rblock">'+jcEscLines_(s.notes||'')+'</div>'+jcReportPhotos_([s.photo]);
     if(t==='coc'){html+='<div class="rmeta"><div><b>Inverter serial</b><br>'+esc(s.inverterSerial||'—')+'</div><div><b>Battery serial</b><br>'+esc(s.batterySerial||'—')+'</div></div><h2>Measurements</h2><table><tr><th>Measurement</th><th>Value</th></tr>'+[['Live → Neutral','ln'],['Neutral → Earth','ne'],['Live → Earth','le'],['Panels DC Voltage','dc'],['DC Disconnect — Fuse size','fuse']].map(function(a){return '<tr><td>'+a[0]+'</td><td>'+esc(s[a[1]]||'—')+'</td></tr>';}).join('')+'</table><h2>Snags / Damages</h2><div class="rblock"><b>Snags:</b> '+jcEscLines_(s.snags||'—')+'\n\n<b>Damages:</b> '+jcEscLines_(s.damages||'—')+'</div>'+jcReportPhotos_([s.roof,s.inverterwall,s.dbBefore,s.changeover,s.earthNeutral,s.dbAfter,s.railEarth,s.roofRoute,s.damagePhoto,s.fusePhoto]);}
     if(t==='custom')(s.items||[]).forEach(function(it,i){html+='<div class="rblock"><b>Item '+(i+1)+'</b> — '+jcEscLines_(it.description||'')+'</div>'+jcReportPhotos_([it.photo]);});
-    if(['fullsolar','solarservice','generator','electrical','heatpump','gas','plumbing','fault'].indexOf(t)>=0){var skip={evidence:1,before:1,after:1,photo:1};Object.keys(s).forEach(function(k){if(skip[k]||!s[k]||typeof s[k]==='object'||jcPhotoItems_(s[k]).length)return;html+='<div class="rblock"><b>'+esc(k.replace(/([A-Z])/g,' $1').replace(/^./,function(x){return x.toUpperCase();}))+'</b><br>'+jcEscLines_(s[k])+'</div>';});}
+    if(['fullsolar','solarservice','generator','electrical','heatpump','gas','plumbing','fault'].indexOf(t)>=0){var skip={evidence:1,before:1,after:1,photo:1,earthBonding:1,acProtection:1,dcProtection:1,changeoverBackup:1,firmwarePhoto:1,mainDbOpen:1,mainDbClosed:1,changeoverOpen:1,changeoverClosed:1,snagsPhoto:1};Object.keys(s).forEach(function(k){if(skip[k]||!s[k]||typeof s[k]==='object')return;html+='<div class="rblock"><b>'+esc(k.replace(/([A-Z])/g,' $1').replace(/^./,function(x){return x.toUpperCase();}))+'</b><br>'+jcEscLines_(s[k])+'</div>';});}
     if(t==='panels'||t==='fullsolar'){html+=jcReportPhotos_([s.photo]);html+=jcReportPhotoGroup_('Before installation',s.before);html+=jcReportPhotoGroup_('After installation',s.after);}if(t==='fullsolar')html+=jcReportPhotos_(['earthBonding','acProtection','dcProtection','changeoverBackup','firmwarePhoto','mainDbOpen','mainDbClosed','changeoverOpen','changeoverClosed','snagsPhoto'].map(function(k){return s[k];}));
     (s.evidence||[]).forEach(function(it,i){if(it.note)html+='<div class="rblock"><b>Site evidence '+(i+1)+'</b><br>'+jcEscLines_(it.note)+'</div>';html+=jcReportPhotos_([it.photo]);});
 
@@ -2004,83 +2004,64 @@ function jcBuildPdf_(){
   return jcLoadPdfLibs_().then(function(){
     var source=document.getElementById('jcReport');
     if(!source)throw new Error('Job Card report was not found.');
-
-    /* Render a visible off-screen copy. The on-screen report is hidden. */
     var holder=document.createElement('div');
-    holder.style.position='fixed';
-    holder.style.left='-100000px';
-    holder.style.top='0';
-    holder.style.width='820px';
-    holder.style.display='block';
-    holder.style.background='#fff';
-    holder.style.zIndex='-1';
-
+    holder.style.cssText='position:fixed;left:-100000px;top:0;width:820px;background:white;display:block;z-index:-1';
     var el=source.cloneNode(true);
-    el.style.display='block';
-    el.style.width='820px';
-    el.style.maxWidth='820px';
-    el.style.margin='0';
-    holder.appendChild(el);
-    document.body.appendChild(holder);
-
-    var imgs=Array.prototype.slice.call(el.querySelectorAll('img'));return Promise.all(imgs.map(function(img){if(img.complete&&img.naturalWidth)return Promise.resolve();return new Promise(function(resolve){var done=function(){resolve();};img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true});setTimeout(done,5000);});})).then(function(){return html2canvas(el,{
-      scale:1.5,
-      useCORS:true,
-      allowTaint:false,
-      backgroundColor:'#ffffff',
-      windowWidth:820
-    });}).then(function(canvas){
-      var J=window.jspdf.jsPDF;
-      var doc=new J({orientation:'p',unit:'mm',format:'a4'});
-      var margin=8;
-      var pdfWidth=210;
-      var pdfHeight=297;
-      var usableWidth=pdfWidth-(margin*2);
-      var usableHeight=pdfHeight-(margin*2);
-      var pixelsPerMm=canvas.width/usableWidth;
-      var pagePixels=Math.floor(usableHeight*pixelsPerMm);
-      var y=0;
-      var pageNo=0;
-      var scaleY=canvas.height/el.getBoundingClientRect().height;
-      var rootTop=el.getBoundingClientRect().top;
-      var blocks=Array.prototype.slice.call(el.querySelectorAll('.rphoto,.rblock,tr,h2,h3,.rhead,.rmeta')).map(function(n){var b=n.getBoundingClientRect();return {top:Math.max(0,Math.round((b.top-rootTop)*scaleY)),bottom:Math.min(canvas.height,Math.ceil((b.bottom-rootTop)*scaleY))};});
-
-      while(y<canvas.height){
-        var sliceHeight=Math.min(pagePixels,canvas.height-y);
-        var target=y+sliceHeight;
-        if(target<canvas.height){var crossing=blocks.filter(function(b){return b.top<target&&b.bottom>target&&b.bottom-b.top<pagePixels&&b.top>y+8;}).sort(function(a,b){return a.top-b.top;})[0];if(crossing)sliceHeight=Math.max(1,crossing.top-y-2);}
-        var slice=document.createElement('canvas');
-        slice.width=canvas.width;
-        slice.height=sliceHeight;
-        var ctx=slice.getContext('2d');
-        ctx.fillStyle='#ffffff';
-        ctx.fillRect(0,0,slice.width,slice.height);
-        ctx.drawImage(
-          canvas,
-          0,y,canvas.width,sliceHeight,
-          0,0,canvas.width,sliceHeight
-        );
-
-        if(pageNo>0)doc.addPage();
-        doc.addImage(
-          slice.toDataURL('image/jpeg',0.92),
-          'JPEG',
-          margin,
-          margin,
-          usableWidth,
-          sliceHeight/pixelsPerMm
-        );
-
-        y+=sliceHeight;
-        pageNo++;
-      }
-
-      holder.remove();
-      return doc;
-    }).catch(function(e){
-      holder.remove();
-      throw e;
+    el.style.cssText='display:block;width:820px;max-width:820px;margin:0;padding:20px;box-sizing:border-box;background:#fff';
+    holder.appendChild(el);document.body.appendChild(holder);
+    /* Flatten the layout into logical printable units. Photos stay grouped
+       by their rows, while notes and technical fields remain separate units. */
+    var units=[];
+    function push(n){if(n&&n.getBoundingClientRect().height>0)units.push(n);}
+    Array.prototype.slice.call(el.children).forEach(function(child){
+      if(child.classList.contains('rphoto-group')||child.classList.contains('rphotos')){
+        if(child.classList.contains('rphoto-group'))push(child.querySelector('h3'));
+        var grid=child.classList.contains('rphotos')?child:child.querySelector('.rphotos');
+        if(grid){
+          var cards=Array.prototype.slice.call(grid.children);
+          for(var k=0;k<cards.length;k+=2){
+            var row=document.createElement('div');
+            row.className='rphotos';
+            row.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start;margin:0';
+            row.appendChild(cards[k].cloneNode(true));
+            if(cards[k+1])row.appendChild(cards[k+1].cloneNode(true));
+            el.appendChild(row);push(row);
+          }
+        }
+      } else push(child);
     });
+    var imgs=Array.prototype.slice.call(el.querySelectorAll('img'));
+    return Promise.all(imgs.map(function(img){if(img.complete)return Promise.resolve();return new Promise(function(resolve){img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true});setTimeout(resolve,5000);});})).then(function(){
+      var J=window.jspdf.jsPDF,doc=new J({orientation:'p',unit:'mm',format:'a4'});
+      var margin=10,width=190,available=277,pos=margin,page=1,sequence=Promise.resolve();
+      units.forEach(function(unit){
+        sequence=sequence.then(function(){
+          return html2canvas(unit,{scale:1.5,useCORS:true,allowTaint:false,backgroundColor:'#fff',windowWidth:820}).then(function(canvas){
+            var h=canvas.height*width/canvas.width;
+            /* A complete unit always goes on the next page if it will not fit. */
+            if(pos+h>margin+available&&pos>margin+0.5){doc.addPage();page++;pos=margin;}
+            if(h<=available){
+              doc.addImage(canvas.toDataURL('image/jpeg',0.9),'JPEG',margin,pos,width,h);
+              pos+=h+2;
+            }else{
+              /* Very long free-text entries may span pages; photos never do. */
+              var pixelsPerMm=canvas.width/width,offset=0;
+              while(offset<canvas.height){
+                var take=Math.min(canvas.height-offset,Math.floor((margin+available-pos)*pixelsPerMm));
+                if(take<1){doc.addPage();page++;pos=margin;continue;}
+                var part=document.createElement('canvas');part.width=canvas.width;part.height=take;
+                part.getContext('2d').drawImage(canvas,0,offset,canvas.width,take,0,0,canvas.width,take);
+                doc.addImage(part.toDataURL('image/jpeg',0.9),'JPEG',margin,pos,width,take/pixelsPerMm);
+                offset+=take;pos+=take/pixelsPerMm;
+                if(offset<canvas.height){doc.addPage();page++;pos=margin;}
+              }
+              pos+=2;
+            }
+          });
+        });
+      });
+      return sequence.then(function(){holder.remove();return doc;});
+    }).catch(function(err){holder.remove();throw err;});
   });
 }
 function jcGeneratePdf_(){if(!JC)return;var b=document.getElementById('jcPdf');if(b)b.disabled=true;jcBuildPdf_().then(function(doc){var name=(JC.number||'Job-Card')+'-'+(JC.customer||'').replace(/[^A-Za-z0-9_-]+/g,'_')+'.pdf';doc.save(name);}).catch(function(e){alert('PDF could not be generated: '+String(e.message||e));}).finally(function(){if(b)b.disabled=false;});}
