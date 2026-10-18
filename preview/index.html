@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flagship Ops — UI Preview</title><style>body{font-family:system-ui;background:#101e2c;color:#e7f0f9;margin:0;padding:28px}#msg{max-width:620px;margin:auto;line-height:1.6}</style></head><body><div id="msg"><h2>Flagship Ops — UI Preview</h2><p>Loading the new dashboard with the current published Flagship application…</p><p>This preview uses the live backend. Do not submit test stock, timesheets or customer records.</p></div>
+<script>
+(async function(){
+try{
+ const response=await fetch('../index.html',{cache:'no-store'});
+ if(!response.ok)throw Error('Unable to load app shell: HTTP '+response.status);
+ let html=await response.text();
+ if(!html.includes('id="screenHome"'))throw Error('Published Flagship shell does not contain screenHome');
+ // Root-level assets, scripts, branding and manifest must keep their original paths.
+ html=html.replace(/<head>/i,'<head><base href="../">');
+ // Avoid registering a second preview-specific service worker.
+ html=html.replace("navigator.serviceWorker.register('./sw.js')","Promise.resolve(null)");
+ const inject='<script src="./preview/ops-dashboard.js"><\/script><script src="./preview/ops-updates.js"><\/script>'+
+ '<script>(function(){var box=document.createElement("div");box.id="ops-preview-warning";box.style.cssText="position:sticky;top:0;z-index:10000;background:#ffdf79;color:#222;padding:10px 12px;text-align:center;font:700 12px system-ui";box.textContent="UI PREVIEW — connected to live data; do not submit test records";document.body.insertBefore(box,document.body.firstChild);})();<\/script>';
+ html=html.replace(/<\/body>/i,inject+'</body>');
+ document.open();document.write(html);document.close();
+}catch(err){document.getElementById('msg').innerHTML='<h2>Preview unavailable</h2><p>'+String(err.message||err).replace(/</g,'&lt;')+'</p><p>The current live application has not been modified.</p>';}
+})();
+</script></body></html>
