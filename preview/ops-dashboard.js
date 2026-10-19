@@ -42,8 +42,8 @@ function changePage(page,push){
  else{sync();view.classList.add('ops-inactive');detail.classList.add('active');detailTitle.textContent=page==='sales'?'Sales & Jobs':'Internal Operations';detailHost.appendChild(panels[page]);panels[page].classList.add('open');}
  window.scrollTo(0,0);
 }
-view.querySelectorAll('[data-ops]').forEach(function(btn){btn.addEventListener('click',function(){changePage(btn.dataset.ops,true);},true);});
-view.querySelectorAll('[data-bottom]').forEach(function(btn){btn.addEventListener('click',function(){if(btn.dataset.bottom==='internal')changePage('internal',true);else if(btn.dataset.bottom==='home')changePage('home',true);},true);});
+view.querySelectorAll('[data-ops]').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();changePage(btn.dataset.ops,true);},true);});
+view.querySelectorAll('[data-bottom]').forEach(function(btn){btn.addEventListener('click',function(e){if(btn.dataset.bottom==='internal'||btn.dataset.bottom==='home'){e.preventDefault();e.stopImmediatePropagation();changePage(btn.dataset.bottom==='internal'?'internal':'home',true);}},true);});
 window.addEventListener('popstate',function(event){changePage(event.state&&event.state.opsPage||'home',false);});
 history.replaceState({opsPage:'home'},'',location.pathname+location.search+'#ops-home');
 
