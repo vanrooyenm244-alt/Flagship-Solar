@@ -45,7 +45,7 @@ function changePage(page,push){
 view.querySelectorAll('[data-ops]').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();changePage(btn.dataset.ops,true);},true);});
 view.querySelectorAll('[data-bottom]').forEach(function(btn){btn.addEventListener('click',function(e){if(btn.dataset.bottom==='internal'||btn.dataset.bottom==='home'){e.preventDefault();e.stopImmediatePropagation();changePage(btn.dataset.bottom==='internal'?'internal':'home',true);}},true);});
 tiles.forEach(function(t){t.addEventListener('click',function(){var p=t.closest('#opsInternalModules')?'internal':'sales';history.pushState({opsPage:'module',opsParent:p},'',location.pathname+location.search+'#ops-'+t.dataset.go);},true);});
-quick.querySelectorAll('[data-quick]').forEach(function(b){b.addEventListener('click',function(){var t=tile(b.dataset.quick);if(t&&!t.classList.contains('hidden')){var p=b.dataset.quick==='time'||b.dataset.quick==='stock'?'internal':'sales';history.pushState({opsPage:'module',opsParent:p},'',location.pathname+location.search+'#ops-'+b.dataset.quick);}},true);});
+
 window.addEventListener('popstate',function(event){
  var state=event.state||{},page=state.opsPage||'home';
  if(page==='module')return;
