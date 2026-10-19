@@ -208,6 +208,7 @@ function stockCountSheet_(){var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.g
 function stockDailyReport_(date){var ss=SpreadsheetApp.getActiveSpreadsheet(),tz=ss.getSpreadsheetTimeZone()||'Africa/Johannesburg',sh=stockCountSheet_(),counts=[];date=date||Utilities.formatDate(new Date(),tz,'yyyy-MM-dd');if(sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,7).getValues().forEach(function(r){if(Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd')===date)counts.push({timestamp:Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd HH:mm:ss'),user:r[1],location:r[2],description:r[3],old:r[4],count:r[5],delta:r[6]});});return {date:date,counts:counts,movements:counts.filter(function(x){return x.delta!==0;})};}
 
 function stockGet_(p, body) {
+  if(p.action==='stockIssueHistory'){var uHistory=auth_(body);return out_({ok:true,movements:stockIssueHistory_(uHistory)});}
   if(p.action==='stockReport'){auth_(body);return out_({ok:true,report:stockDailyReport_(p.date)});}
   if (p.action === 'stock') {
     auth_(body);                       // any active user, workers included
@@ -217,7 +218,53 @@ function stockGet_(p, body) {
   return null;
 }
 
+
+/* Kleinmond is an issue destination, never a stock-count column.
+   Runs inside doPost's script lock; each client transaction ID is unique. */
+var STOCK_ISSUE_SHEET='Stock_Issues';
+function stockIssueSheet_(){
+ var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName(STOCK_ISSUE_SHEET);
+ if(!sh){sh=ss.insertSheet(STOCK_ISSUE_SHEET);sh.appendRow(['Request ID','Time','User','From','To','Item','Quantity','Old','New','Reference','Status']);}
+ return sh;
+}
+function stockIssueKleinmond_(user,body){
+ var source=String(body.source||''),destination=String(body.destination||'');
+ var name=String(body.item||'').trim(),reference=String(body.reference||'').trim();
+ var requestId=String(body.requestId||'').trim(),raw=body.quantity,qty=Number(raw);
+ if(destination!=='Kleinmond')throw Error('Unsupported stock issue destination');
+ if(STOCK_PLACES.indexOf(source)<0)throw Error('Unknown source stock location');
+ if(!name||!requestId||requestId.length>120||!reference)throw Error('Item, reference and request ID required');
+ if(raw===null||raw===undefined||typeof raw==='boolean'||String(raw).trim()===''||!isFinite(qty)||qty<=0||Math.floor(qty)!==qty)throw Error('Quantity must be a positive whole number');
+ var journal=stockIssueSheet_(),n=journal.getLastRow();
+ if(n>1){var ids=journal.getRange(2,1,n-1,1).getValues();for(var i=0;i<ids.length;i++)if(String(ids[i][0])===requestId){
+   var record=journal.getRange(i+2,1,1,11).getValues()[0];
+   if(record[3]!==source||record[4]!==destination||record[5]!==name||Number(record[6])!==qty||String(record[9])!==reference)throw Error('Request ID already used for another movement');
+   if(record[10]!=='APPLIED')throw Error('Previous issue requires administrator reconciliation; do not re-submit');
+   return {requestId:requestId,status:'APPLIED',duplicate:true,remaining:Number(record[8])};
+ }}
+ var matching=stockRows_().filter(function(r){return String(r.item).trim().toLowerCase()===name.toLowerCase();});
+ if(matching.length!==1)throw Error(matching.length?'Ambiguous stock item':'Stock item not found');
+ var item=matching[0],old=Number(item[source]),next=old-qty;
+ if(!isFinite(old)||next<0)throw Error('Insufficient stock at '+source+'; available '+old);
+ var sheet=sheet_(STOCK_SHEET),col=5+STOCK_PLACES.indexOf(source),now=new Date();
+ journal.appendRow([requestId,now,user.username,source,destination,item.item,qty,old,next,reference,'PENDING']);
+ var line=journal.getLastRow();
+ sheet.getRange(item.row,col).setValue(next);
+ sheet.getRange(item.row,9).setValue(now);
+ sheet.getRange(item.row,10).setValue(user.username);
+ stockTotals_();
+ journal.getRange(line,11).setValue('APPLIED');
+ log_(user.username,'stockIssueKleinmond',reference,item.item,source+' -> Kleinmond: '+qty);
+ return {requestId:requestId,status:'APPLIED',duplicate:false,remaining:next};
+}
+function stockIssueHistory_(user){
+ var sh=stockIssueSheet_(),n=sh.getLastRow();if(n<2)return [];
+ var rows=sh.getRange(Math.max(2,n-49),1,Math.min(48,n-1),11).getValues();
+ return rows.reverse().map(function(r){return {requestId:String(r[0]),timestamp:String(r[1]),user:String(r[2]),source:String(r[3]),destination:String(r[4]),item:String(r[5]),quantity:Number(r[6]),reference:String(r[9]),status:String(r[10])};});
+}
+
 function stockPost_(body) {
+  if(body.action==='stockIssueKleinmond'){var uIssue=auth_(body);return out_(Object.assign({ok:true},stockIssueKleinmond_(uIssue,body)));}
   if (body.action === 'stockCount') {
     var u = auth_(body);
     var res = stockSave_(u, String(body.place || ''), body.counts || {});
