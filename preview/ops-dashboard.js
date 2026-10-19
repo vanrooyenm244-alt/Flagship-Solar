@@ -24,5 +24,28 @@ function sync(){quick.querySelectorAll('[data-quick]').forEach(function(b){var t
 var active='';function open(which){sync();active=which;sales.classList.toggle('open',active==='sales');internal.classList.toggle('open',active==='internal');view.querySelectorAll('[data-ops]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.ops===active));});view.querySelector('.ops-current').textContent=active==='sales'?'SALES & JOBS MODULES':active==='internal'?'INTERNAL MODULES':'SELECT A SECTION';if(active)view.querySelector('.ops-current').scrollIntoView({behavior:'smooth',block:'nearest'});}
 view.querySelectorAll('[data-ops]').forEach(function(b){b.addEventListener('click',function(){open(active===b.dataset.ops?'':b.dataset.ops);});});
 view.querySelectorAll('[data-bottom]').forEach(function(b){b.addEventListener('click',function(){var n=b.dataset.bottom;if(n==='jobs')run('jobcards');else if(n==='calendar')run('calendar');else if(n==='internal')open('internal');else{open('');window.scrollTo(0,0);}});});
+
+// Separate page navigation for dashboard categories.
+var detail=document.createElement('section');detail.className='ops-detail-page';
+detail.innerHTML='<div class="ops-detail-head"><button type="button" id="opsDetailBack">‹ Back</button><strong id="opsDetailTitle"></strong></div><div id="opsDetailHost"></div>';
+view.parentNode.insertBefore(detail,view.nextSibling);
+var detailHost=detail.querySelector('#opsDetailHost'),detailTitle=detail.querySelector('#opsDetailTitle');
+detail.querySelector('#opsDetailBack').addEventListener('click',function(){if(history.state&&history.state.opsPage)history.back();else changePage('home',false);});
+var mobileStyle=document.createElement('style');
+mobileStyle.textContent='.ops-detail-page{display:none;color:#eef7ff;min-height:70vh;padding:15px 0 36px}.ops-detail-page.active{display:block}.ops-detail-head{display:flex;align-items:center;gap:16px;margin:3px 0 22px}.ops-detail-head button{border:1px solid #355b7c;border-radius:10px;background:#122f49;color:#fff;padding:12px 17px;font:inherit}.ops-detail-head strong{font-size:19px}.ops-detail-page .ops-modules{display:grid!important;grid-template-columns:1fr;gap:11px}.ops-detail-page .ops-modules .tile{display:flex}.ops-screen.ops-inactive{display:none!important}#screenHome .ops-screen .ops-bottom{position:relative;margin-bottom:-18px}@media(min-width:700px){.ops-detail-page .ops-modules{grid-template-columns:1fr 1fr}}';
+document.head.appendChild(mobileStyle);
+var panels={sales:sales,internal:internal};
+function changePage(page,push){
+ if(page!=='sales'&&page!=='internal')page='home';
+ if(push)history.pushState({opsPage:page},'',location.pathname+location.search+'#ops-'+page);
+ if(page==='home'){detail.classList.remove('active');view.classList.remove('ops-inactive');Object.keys(panels).forEach(function(k){view.appendChild(panels[k]);panels[k].classList.remove('open');});}
+ else{sync();view.classList.add('ops-inactive');detail.classList.add('active');detailTitle.textContent=page==='sales'?'Sales & Jobs':'Internal Operations';detailHost.appendChild(panels[page]);panels[page].classList.add('open');}
+ window.scrollTo(0,0);
+}
+view.querySelectorAll('[data-ops]').forEach(function(btn){btn.addEventListener('click',function(){changePage(btn.dataset.ops,true);},true);});
+view.querySelectorAll('[data-bottom]').forEach(function(btn){btn.addEventListener('click',function(){if(btn.dataset.bottom==='internal')changePage('internal',true);else if(btn.dataset.bottom==='home')changePage('home',true);},true);});
+window.addEventListener('popstate',function(event){changePage(event.state&&event.state.opsPage||'home',false);});
+history.replaceState({opsPage:'home'},'',location.pathname+location.search+'#ops-home');
+
 root.addEventListener('click',function(){setTimeout(sync,0);});new MutationObserver(function(){if(!root.classList.contains('hidden'))sync();}).observe(root,{attributes:true,attributeFilter:['class']});sync();
 })();
