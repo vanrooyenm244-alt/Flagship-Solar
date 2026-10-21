@@ -5654,7 +5654,7 @@ function renderPeople(){
       '<button class="hd" type="button">'+
         '<span class="nm">'+esc(name)+'</span>'+
         '<span class="sm">'+(t.days? t.days+'d · '+hm(t.normal)+(t.ot?' +'+hm(t.ot):'')+
-          (t.unsent?' · '+t.unsent+' to send':' · all sent') : '—')+'</span>'+
+          (t.unsent?' · '+t.unsent+' to send':' · submitted') : '—')+'</span>'+
         '<span class="cv">›</span>'+
       '</button><div class="bd"></div>';
     per.querySelector('.hd').addEventListener('click',function(){
@@ -5751,7 +5751,7 @@ function fillDays(bd,name){
         var txt='normal <b>'+hm(c.normal)+'</b>';
         if(c.overtime>0) txt+=' · overtime <b class="ot">'+hm(c.overtime)+'</b>';
         if(c.dayType!=='Weekday') txt=c.dayType+' — overtime <b class="ot">'+hm(c.overtime)+'</b>';
-        s.innerHTML=txt+'<span class="st '+(r.syncState==='accepted'?'ok':'wait')+'">'+esc(r.syncState==='recorded'?'on Sheet':(r.syncState||'draft'))+(r.syncReason?' — '+esc(r.syncReason):'')+'</span>'+
+        s.innerHTML=txt+'<span class="st '+(r.syncState==='accepted'?'ok':'wait')+'">'+esc(r.syncState==='recorded'?'on Sheet':(r.syncState==='accepted'?'pending approval':(r.syncState||'draft')))+(r.syncReason?' — '+esc(r.syncReason):'')+'</span>'+
           '<button class="clr" type="button">Remove</button>';
         row.classList[r.sent?'add':'remove']('sent');
         s.querySelector('.clr').addEventListener('click',async function(){
