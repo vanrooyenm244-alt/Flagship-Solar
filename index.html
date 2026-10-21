@@ -5464,6 +5464,8 @@ function shiftCalculation_(dateStr,inStr,outStr,lunchMin,dayNames,normalStart,no
   if((typeof lunchMin!=='number'&&typeof lunchMin!=='string')||String(lunchMin).trim()===''||!isFinite(Number(lunchMin))||Number(lunchMin)<0)
     return invalid('Enter explicit lunch minutes (0 is valid).');
   var lunch=Number(lunchMin), elapsed=b-a;
+  // All Saturday minutes count as overtime, without a lunch deduction.
+  if(date.getUTCDay()===6)lunch=0;
   if(lunch>elapsed)return invalid('Review required: lunch exceeds the actual shift duration.');
   var day=date.getUTCDay(), dayType=day===0?'Sunday':(day===6?'Saturday':'Weekday');
   var normal=0, overtime=0;
@@ -5706,7 +5708,7 @@ function fillDays(bd,name){
         DAYNAMES[g]+' '+d.getDate()+' '+MONTHS[d.getMonth()].slice(0,3)+
         (we?' — weekend, all overtime':'')+'</button></div>';
       row.querySelector('.add2').addEventListener('click',function(){
-        ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:60,job:'',note:''};
+        ENTRIES[name][k]={on:true,ti:'07:00',to:'17:00',lu:g===6?0:60,job:'',note:''};
         saveEntries().catch(tsError_); renderPeople();
       });
     } else {
@@ -5715,7 +5717,7 @@ function fillDays(bd,name){
           '<div class="on2">'+
             '<input type="time" class="ti" value="'+esc(r.ti||'')+'">'+
             '<input type="time" class="to" value="'+esc(r.to||'')+'">'+
-            '<input type="number" class="lu" value="'+esc(r.lu==null?'':r.lu)+'" min="0" step="5" inputmode="numeric" title="Lunch minutes (explicit value required; 0 is valid)">'+
+            '<input type="number" class="lu" value="'+(g===6?'0':esc(r.lu==null?'':r.lu))+'" min="0" step="5" inputmode="numeric" '+(g===6?'disabled ':'')+'title="'+(g===6?'No lunch deduction on Saturdays':'Lunch minutes (0 is valid)')+'">'+
           '</div>'+
           '<div class="ln2">'+
             '<input class="jn" placeholder="Job / site" value="'+esc(r.job||'')+'">'+
@@ -5727,7 +5729,7 @@ function fillDays(bd,name){
       var upd=function(){
         r.ti=row.querySelector('.ti').value;
         r.to=row.querySelector('.to').value;
-        r.lu=row.querySelector('.lu').value;
+        r.lu=g===6?0:row.querySelector('.lu').value;
         r.job=row.querySelector('.jn').value;
         r.note=row.querySelector('.nt2').value;
         /* Changed after it went through, so it must go again. The script
@@ -5738,6 +5740,7 @@ function fillDays(bd,name){
         saveEntries().catch(tsError_);
       };
       var paint=function(){
+        if(g===6 && Number(r.lu)!==0){r.lu=0;row.querySelector('.lu').value='0';}
         var c=calcShift(k,r.ti,r.to,r.lu);
         var s=row.querySelector('.sum');
         if(!c){ s.className='sum bad'; s.textContent=shiftReviewReason(k,r.ti,r.to,r.lu); return; }
@@ -5749,11 +5752,27 @@ function fillDays(bd,name){
         s.innerHTML=txt+'<span class="st '+(r.syncState==='accepted'?'ok':'wait')+'">'+esc(r.syncState==='recorded'?'on Sheet':(r.syncState||'draft'))+(r.syncReason?' — '+esc(r.syncReason):'')+'</span>'+
           '<button class="clr" type="button">Remove</button>';
         row.classList[r.sent?'add':'remove']('sent');
-        s.querySelector('.clr').addEventListener('click',function(){
-          if((r.sent||r.syncState==='recorded') && !confirm('That day has already gone to the sheet. '+
-             'Removing it here takes it off this phone only — the row stays in the sheet.')) return;
-          delete ENTRIES[name][k]; saveEntries().catch(tsError_); renderPeople();
+        s.querySelector('.clr').addEventListener('click',async function(){
+          if(!cycleOpen()){alert('This cycle is closed for editing.');return;}
+          if(!confirm('Delete '+name+' on '+k+' from Timesheets?'))return;
+          var alreadyOnSheet=!!(r.sent||r.syncState==='recorded'||r.syncState==='accepted');
+          // Administrators can delete centrally stored entries, not only local drafts.
+          // Always check the server for a matching row even when local status is draft.
+          if(ME.role==='Admin' && CFG.url){
+            try{
+              var response=await fetch(CFG.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+                body:JSON.stringify({action:'timesheetDelete',user:ME.username,pass:ME.pass,worker:name,date:k})});
+              if(!response.ok)throw new Error('HTTP '+response.status);
+              var result=await response.json();
+              if(!result||result.ok!==true)throw new Error(result&&result.error||'Deletion not confirmed by Sheet');
+            }catch(e){alert('Could not delete from the Sheet: '+String(e.message||e)+'. Local entry was preserved.');return;}
+          }else if(alreadyOnSheet){
+            alert('Only an Admin can delete a submitted timesheet from the Sheet. Nothing was removed.');return;
+          }
+          delete ENTRIES[name][k];
+          saveEntries().then(renderPeople).catch(tsError_);
         });
+;
       };
       row.querySelectorAll('input').forEach(function(i){ i.addEventListener('input',upd) });
       paint();
