@@ -458,6 +458,8 @@ function shiftCalculation_(dateStr,inStr,outStr,lunchMin,dayNames,normalStart,no
   if((typeof lunchMin!=='number'&&typeof lunchMin!=='string')||String(lunchMin).trim()===''||!isFinite(Number(lunchMin))||Number(lunchMin)<0)
     return invalid('Enter explicit lunch minutes (0 is valid).');
   var lunch=Number(lunchMin), elapsed=b-a;
+  // Saturdays have no lunch deduction.
+  if(date.getUTCDay()===6)lunch=0;
   if(lunch>elapsed)return invalid('Review required: lunch exceeds the actual shift duration.');
   var day=date.getUTCDay(), dayType=day===0?'Sunday':(day===6?'Saturday':'Weekday');
   var normal=0, overtime=0;
@@ -1476,6 +1478,22 @@ function doPost(e) {
         log_(me.username, 'addWorker', name, '', '');
       }
       return out_({ ok: true, name: name });
+    }
+
+    if (body.action === 'timesheetDelete') {
+      var deletingUser=auth_(body,['Admin']);
+      var workerToDelete=String(body.worker||'').trim(), dateToDelete=String(body.date||'').trim();
+      var dateCheck=new Date(dateToDelete+'T00:00:00Z');
+      if(!workerToDelete||!/^\\d{4}-\\d{2}-\\d{2}$/.test(dateToDelete)||
+         isNaN(dateCheck.getTime())||dateCheck.toISOString().slice(0,10)!==dateToDelete)
+        return out_({ok:false,error:'Valid worker and date required.'});
+      var deleteRow=findEntry_(workerToDelete,dateToDelete);
+      if(!deleteRow)return out_({ok:true,deleted:false,reason:'No matching Sheet row.'});
+      var timeSheet=sheet_('Timesheets'),previous=timeSheet.getRange(deleteRow,1,1,14).getValues()[0];
+      timeSheet.deleteRow(deleteRow);
+      log_(deletingUser.username,'delete',workerToDelete+' '+dateToDelete,JSON.stringify(previous.map(String)),'');
+      rebuildWorkerTabs([workerToDelete]);
+      return out_({ok:true,deleted:true});
     }
 
     if (body.action === 'timesheets') {
