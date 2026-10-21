@@ -984,8 +984,9 @@ table.page{border-collapse:collapse}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
       <button class="btn ghost" type="button" id="tsAddWorker">+ Add worker</button>
       <button class="btn ghost" type="button" id="tsClearAll">Clear this cycle</button>
-      <button class="btn" type="button" id="tsSend" style="margin-left:auto">Send to sheet</button>
+      <button class="btn" type="button" id="tsSend" style="margin-left:auto">Submit for approval</button>
     </div>
+    <div id="tsApprovals"></div>
     <div id="tsQueue"></div>
     <div id="tsPeople"></div>
   </section>
@@ -5597,6 +5598,7 @@ function showTime(){if(!hasPermission_('timesheets.view_own')){showHome();return
     }).catch(function(){});
   }).catch(tsError_);
   renderQueue().catch(tsError_);
+  loadTsApprovals_().catch(tsError_);
   flushQueue().catch(tsError_);
 }
 
@@ -5832,15 +5834,48 @@ document.getElementById('tsSend').addEventListener('click',async function(){
   if(!rows.length){alert('No drafts to submit.');return;}
   var invalid=rows.map(function(x){var r=ENTRIES[x.worker][x.date];return shiftReviewReason(x.date,r.ti,r.to,r.lu);}).filter(Boolean)[0];
   if(invalid){alert(invalid+' Nothing was submitted.');return;}
-  if(!confirm('Queue '+rows.length+' rows for '+cycleLabel(CYCLE)+' under '+ME.username+'? Rejected or failed rows remain available for review.'))return;
+  if(!confirm('Submit '+rows.length+' timesheet rows to the Admin for approval? They will NOT enter Google Sheets until approved.'))return;
   btn.disabled=true;
   try{
     await saveEntries();
     if(account!==tsOwner_())throw new Error('Account changed; nothing was queued.');
     await TSSYNC.enqueue(account,cycle,rows);
-    await tsRefresh_();await flushQueue();
+    await tsRefresh_();await flushQueue();await loadTsApprovals_();
   }catch(e){tsError_(e);}finally{btn.disabled=false;}
 });
+async function loadTsApprovals_(){
+  var box=document.getElementById('tsApprovals');if(!box)return;
+  if(!ME||ME.role!=='Admin'||!CFG.url){box.innerHTML='';return;}
+  var u=CFG.url+'?action=timesheetPending&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass);
+  var response=await fetch(u);if(!response.ok)throw Error('Approval inbox unavailable');
+  var data=await response.json();if(!data.ok)throw Error(data.error||'Approval inbox unavailable');
+  var entries=data.entries||[];
+  box.innerHTML='<div class="queued"><b>Timesheets awaiting your approval ('+entries.length+')</b> '+
+    '<button type="button" id="tsReloadApprovals">Refresh</button>'+
+    (entries.length?entries.map(function(x,i){
+      var a=x.details||{};
+      return '<div style="padding:10px 0;border-bottom:1px solid #ddd"><b>'+esc(x.worker)+'</b> — '+esc(x.date)+
+        ' · '+esc(a.timeIn||'')+'–'+esc(a.timeOut||'')+' · Lunch '+esc(a.lunch)+' min'+
+        '<div>'+esc(a.job||'')+' '+esc(a.note||'')+' · Submitted by '+esc(x.submittedBy||'')+'</div>'+
+        '<button type="button" data-ts-approve="'+i+'">Approve</button> '+
+        '<button type="button" data-ts-reject="'+i+'">Reject</button></div>';
+    }).join(''):'<div>No submissions waiting.</div>')+'</div>';
+  box.querySelector('#tsReloadApprovals').onclick=function(){loadTsApprovals_().catch(tsError_);};
+  async function review(x,decision){
+    if(!confirm((decision==='approve'?'Approve and write to Google Sheets':'Reject')+' '+x.worker+' on '+x.date+'?'))return;
+    var reason=decision==='reject'?prompt('Reason for rejection:','Incorrect times / date'):'';
+    if(reason===null)return;
+    var response=await fetch(CFG.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'timesheetReview',user:ME.username,pass:ME.pass,id:x.id,decision:decision,reason:reason||''})});
+    if(!response.ok)throw Error('Review request failed');
+    var result=await response.json();if(!result.ok)throw Error(result.error||'Review not saved');
+    await loadTsApprovals_();await fetchTimesheetAll();
+  }
+  entries.forEach(function(x,i){
+    box.querySelector('[data-ts-approve="'+i+'"]').onclick=function(){review(x,'approve').catch(function(e){alert(String(e.message||e));});};
+    box.querySelector('[data-ts-reject="'+i+'"]').onclick=function(){review(x,'reject').catch(function(e){alert(String(e.message||e));});};
+  });
+}
 async function renderQueue(){
   var account=tsOwner_(),box=document.getElementById('tsQueue');if(!account){box.textContent='Sign in to review this account’s Timesheet queue.';return;}
   var s=await TSSYNC.read(account),legacy=await get1('cfg','queue');if(account!==tsOwner_())return;
