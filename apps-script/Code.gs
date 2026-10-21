@@ -763,6 +763,65 @@ function rebuildWorkerTabs(requestedWorkers) {
   return 'Rebuilt ' + count + ' worker tabs.';
 }
 
+
+/* Approval inbox: submissions stay outside Timesheets until admin approval. */
+function tsApprovalSheet_(){
+  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Timesheet Approvals');
+  if(!sh){sh=ss.insertSheet('Timesheet Approvals');sh.appendRow(['ID','Worker','Date','Payload JSON','Submitted By','Submitted At','Status','Reviewed By','Reviewed At','Reason']);}
+  return sh;
+}
+function tsPendingList_(user){
+  if(user.role!=='Admin')throw Error('Admin access required');
+  var sh=tsApprovalSheet_(),n=sh.getLastRow()-1,out=[];
+  if(n>0)sh.getRange(2,1,n,10).getValues().forEach(function(r){
+    if(r[6]==='Pending')out.push({id:String(r[0]),worker:String(r[1]),date:dateStr_(r[2]),details:JSON.parse(String(r[3])),submittedBy:String(r[4]),submittedAt:String(r[5])});
+  });
+  return out;
+}
+function tsStage_(user,rows){
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var sh=tsApprovalSheet_(),n=sh.getLastRow()-1,existing=n>0?sh.getRange(2,1,n,10).getValues():[],results=[];
+    rows.forEach(function(r,i){
+      r=r||{};var worker=String(r.worker||'').trim(),ds=String(r.date||'');
+      var status='pending',reason='';
+      if(user.role==='Worker'&&worker.toLowerCase()!==canonicalWorkerForUser_(user).toLowerCase()){status='blocked';reason='Workers may only submit their own time.';}
+      else if(user.role!=='Admin'&&!isCurrentCycle_(ds)){status='closed';reason='Pay cycle closed.';}
+      else if(!calc_(ds,r.timeIn,r.timeOut,r.lunch)){status='skipped';reason=shiftReviewReason_(ds,r.timeIn,r.timeOut,r.lunch);}
+      if(status==='pending'){
+        var prev=existing.findIndex(function(v){return v[6]==='Pending'&&String(v[1]).toLowerCase()===worker.toLowerCase()&&dateStr_(v[2])===ds;});
+        var clean={worker:worker,date:ds,job:String(r.job||''),timeIn:String(r.timeIn||''),timeOut:String(r.timeOut||''),lunch:new Date(ds+'T00:00:00Z').getUTCDay()===6?0:Number(r.lunch),note:String(r.note||'')};
+        if(prev>=0){sh.getRange(prev+2,4).setValue(JSON.stringify(clean));sh.getRange(prev+2,5,1,2).setValues([[user.username,new Date()]]);}
+        else {var rec=[Utilities.getUuid(),worker,ds,JSON.stringify(clean),user.username,new Date(),'Pending','','',''];sh.appendRow(rec);existing.push(rec);}
+      }
+      // 'added' confirms receipt into the approval inbox, NOT into Timesheets.
+      results.push({index:i,worker:worker,date:ds,status:status==='pending'?'added':status,reason:reason});
+    });
+    return {ok:true,results:results,pendingApproval:results.filter(function(r){return r.status==='added';}).length};
+  }finally{lock.releaseLock();}
+}
+function tsReview_(user,body){
+  if(user.role!=='Admin')throw Error('Admin access required');
+  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  try{
+    var sh=tsApprovalSheet_(),id=String(body.id||''),action=String(body.decision||''),n=sh.getLastRow()-1;
+    if(!/^(approve|reject)$/.test(action)||!id)throw Error('Invalid approval request');
+    if(n<1)throw Error('Approval not found');
+    var vals=sh.getRange(2,1,n,10).getValues(),at=vals.findIndex(function(r){return String(r[0])===id;});
+    if(at<0)throw Error('Approval not found');
+    var row=vals[at];if(row[6]!=='Pending')throw Error('This submission has already been reviewed');
+    if(action==='approve'){
+      var data=JSON.parse(String(row[3]));
+      var result=writeEntry_(user,data);
+      if(result.skipped)throw Error(result.reason||'Invalid hours');
+      rebuildWorkerTabs([data.worker]);
+    }
+    sh.getRange(at+2,7,1,4).setValues([[action==='approve'?'Approved':'Rejected',user.username,new Date(),String(body.reason||'')]]);
+    log_(user.username,'timesheet '+action,String(row[1])+' '+dateStr_(row[2]),'Pending',String(body.reason||''));
+    return {ok:true,status:action==='approve'?'Approved':'Rejected'};
+  }finally{lock.releaseLock();}
+}
+
 /* ================= timesheet writes ================= */
 
 /** Finds an existing row for this worker + date on the master sheet. */
@@ -1351,6 +1410,7 @@ function doGet(e) {
       return out_({ ok: true, entries: rows });
     }
 
+    if (p.action === 'timesheetPending') return out_({ok:true,entries:tsPendingList_(auth_(body,['Admin']))});
     if (p.action === 'timesheetAll') {
       var admin = auth_(body, ['Admin', 'Technician']);
       var cycle = String(p.cycle || '').trim();
@@ -1496,7 +1556,10 @@ function doPost(e) {
       return out_({ok:true,deleted:true});
     }
 
+    if (body.action === 'timesheetReview') return out_(tsReview_(auth_(body,['Admin']),body));
     if (body.action === 'timesheets') {
+      return out_(tsStage_(auth_(body),body.rows||[]));
+
       var user = auth_(body);
       var rows = body.rows || [];
       if (!rows.length) return out_({ ok: false, error: 'no rows' });
