@@ -5772,7 +5772,6 @@ function fillDays(bd,name){
           delete ENTRIES[name][k];
           saveEntries().then(renderPeople).catch(tsError_);
         });
-;
       };
       row.querySelectorAll('input').forEach(function(i){ i.addEventListener('input',upd) });
       paint();
