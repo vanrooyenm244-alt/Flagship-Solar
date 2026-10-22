@@ -4979,9 +4979,18 @@ function vpImportXeroCsv_(file){
  }).catch(function(e){status.textContent='CSV import failed: '+e.message;});
 }
 (function(){try{var d=JSON.parse(localStorage.getItem(VP_XERO_CSV_KEY)||'null');if(d&&Array.isArray(d.items))vpXeroInventory_=d.items;}catch(e){}})();
+// Restore CSV selections when returning to a saved Value Proposal.
+
 
 function vpLoadXeroInventory_(){
- return apiGet({action:'xeroItems'}).then(function(j){vpXeroInventory_=(j.items||[]).filter(function(x){return x.active!==false;});vpRenderInventorySelectors_();}).catch(function(e){var n=document.getElementById('vpXeroDirectStatus');if(n)n.textContent='Xero inventory API unavailable ('+e.message+'). Import your exported InventoryItems CSV instead.';});
+ var status=document.getElementById('vpXeroDirectStatus');
+ if(vpXeroInventory_.length){
+   vpAutoMatchInventory_();
+   if(status)status.textContent='Using '+vpXeroInventory_.length+' imported inventory items stored on this phone. No Xero Inventory API request needed.';
+   return Promise.resolve();
+ }
+ if(status)status.textContent='No imported inventory on this phone. Use Import Xero Inventory CSV above; the Xero Items API is currently returning 401.';
+ return Promise.resolve();
 }
 function vpAutoMatchInventory_(){
  var box=document.getElementById('vpXeroAutoStatus');
@@ -5011,6 +5020,9 @@ function vpAutoMatchInventory_(){
  box.textContent=assigned+' lines matched automatically. '+review+' need manual review; always verify matching item and sales description before creating the quote.';
 }
 function vpRenderInventorySelectors_(){
+ if(!VP)return;
+ var badge=document.getElementById('vpXeroCsvStatus');
+ if(badge&&vpXeroInventory_.length)badge.textContent='Inventory ready: '+vpXeroInventory_.length+' items stored locally (no API lookup).';
  var host=document.getElementById('vpXeroInventoryLines');if(!host||!VP)return;
  host.replaceChildren();
  VP.items.forEach(function(it,i){
@@ -5042,7 +5054,7 @@ function vpXeroDirect_(){
    if(!j.quoteID)throw Error('No QuoteID returned. Check Xero before retrying.');
    VP.xeroDirect={fingerprint:fingerprint,quoteID:j.quoteID,quoteNumber:j.quoteNumber||''};vpSave();
    status.textContent='Xero Draft Quote created: '+(j.quoteNumber||j.quoteID)+'. Check the tax rate and totals in Xero.';
- }).catch(function(e){status.textContent='Xero draft not confirmed: '+e.message+'. Check Xero before trying again.';})
+ }).catch(function(e){status.textContent='Xero draft not confirmed: '+e.message+'. A 400 validation error needs the deployed Apps Script backend to show which field Xero rejected; no quote was confirmed. Check Xero before retrying.';})
  .then(function(){vpXeroDirectBusy_=false;btn.disabled=false;});
 }
 document.getElementById('vpXeroDirect').addEventListener('click',vpXeroDirect_);
