@@ -1188,7 +1188,11 @@ function xeroRaw_(url,token,method,payload,tenant){
   var j={};
   try{j=JSON.parse(txt||'{}')}catch(e){}
   if(code<200||code>=300){
-    throw new Error('Xero API '+code+': '+String(j.Message||j.message||j.Title||txt).slice(0,700));
+    var details=[];
+    (j.Elements||[]).forEach(function(el,i){(el.ValidationErrors||[]).forEach(function(v){details.push('Line '+(i+1)+': '+String(v.Message||v.message||''));});});
+    (j.ValidationErrors||[]).forEach(function(v){details.push(String(v.Message||v.message||''));});
+    var cause=details.length?details.join(' | '):String(j.Message||j.message||j.Title||txt);
+    throw new Error('Xero API '+code+': '+cause.slice(0,1800));
   }
   return j;
 }
@@ -1269,7 +1273,9 @@ function xeroCreateQuote_(body){
     if(it.inventoryFromCsv){
       if(!it.xeroItemCode||!/^[\w .-]{1,30}$/.test(String(it.xeroItemCode)))throw Error('Invalid CSV inventory item code.');
       l.ItemCode=String(it.xeroItemCode);
-      if(it.accountCode)l.AccountCode=String(it.accountCode);
+      // CSV SalesAccount may be an account *label*, not the numerical Xero API code.
+      // Never send free-text account names as AccountCode.
+      if(it.accountCode && /^[0-9]{2,10}$/.test(String(it.accountCode).trim()))l.AccountCode=String(it.accountCode).trim();
       // Xero CSV labels ("Standard Rate Sales") are not API TaxType codes.
       // Use configured Xero tax code; never guess the API tax identifier.
     }
