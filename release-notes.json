@@ -1,8 +1,9 @@
 {
-  "version": "flagship-ops-release-v134",
+  "version": "flagship-ops-settings-v135",
   "date": "2026-10-22",
-  "title": "Clock In/Out en App Updates",
+  "title": "App Updates onder Settings",
   "changes": [
+    "App Updates is geskuif na Settings → App Updates, met 'n oop-/toemaakmenu",
     "Flagship: aparte Clock In en Clock Out op die Timesheets-skerm",
     "Clock status word op die bediener gelees; tydelike verbindingsprobleme wys 'n fout in plaas van oneindige Loading",
     "Timesheet word ná Clock Out vir admin-goedkeuring ingestuur",
@@ -10,6 +11,7 @@
     "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
   ],
   "tests": [
+    "Open Settings en kies App Updates; bevestig dat die weergawe-notas en toetslys vertoon",
     "Maak Timesheets oop; Clock status moet binne 12 sekondes laai of 'n fout wys",
     "Clock In: druk een keer en bevestig dat die bedienertyd verskyn",
     "Maak app toe en oop; Clock In moet steeds gestoor wees",
