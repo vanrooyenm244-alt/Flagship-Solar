@@ -1,8 +1,10 @@
 {
-  "version": "flagship-ops-inventory-csv-v138",
+  "version": "flagship-ops-auto-match-v139",
   "date": "2026-10-22",
   "title": "Xero Inventory Quotes en Draft Invoices",
   "changes": [
+    "Inventory CSV: automatically suggest high-confidence matches, leaving ambiguous lines for review.",
+    "Xero quote errors: display actual API validation messages instead of only generic 400; avoid passing CSV account labels as account codes.",
     "Import Xero InventoryItems CSV when Xero Items API gives 401; matching preserves proposal prices.",
     "Value Proposal: match Xero Inventory Item codes for Sales Description, Sales Account and Tax Rate; preserve proposal unit selling prices",
     "Xero Draft Quote can be explicitly marked Accepted and converted to a DRAFT sales invoice using Xero quote line details",
@@ -16,6 +18,8 @@
     "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
   ],
   "tests": [
+    "Import InventoryItems CSV; confirm Auto-match suggestions match the correct item codes and Sales Descriptions.",
+    "Attempt only a safe test Draft Quote and capture the exact field-level Xero validation response if it fails.",
     "Import Xero InventoryItems CSV and verify item codes 05, 04 and sales descriptions; check quote tax rates manually.",
     "Open Value Proposal and load Xero inventory; match each proposal line and verify Sales Descriptions in Xero",
     "Create draft quote; confirm all line prices, units, account codes and tax treatments against original estimate",
