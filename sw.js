@@ -1,7 +1,7 @@
 /* Calendar release filenames contain content hashes; keep them in sync with source files. */
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-ops-clock-fix-v132';
+const CACHE = 'flagship-ops-update-fix-v133';
 const SHELL = [
   './',
   './index.html', './ops-dashboard.js', './ops-updates.js', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
@@ -21,9 +21,9 @@ self.addEventListener('install', (e) => {
     caches.open(CACHE).then((c) =>
       Promise.all(SHELL.map((url) =>
         fetch(url, { cache: 'reload' }).then((res) => {
-          if (!res || !res.ok) throw new Error('shell fetch failed: ' + url);
+          if (!res || !res.ok) { if (url === './index.html' || url === './ops-updates.js') throw new Error('essential shell fetch failed: ' + url); return null; }
           return c.put(url, res);
-        })
+        }).catch((error) => { if (url === './index.html' || url === './ops-updates.js') throw error; return null; })
       ))
     ).then(() => self.skipWaiting())
   );
