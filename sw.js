@@ -1,10 +1,10 @@
 /* Calendar release filenames contain content hashes; keep them in sync with source files. */
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-ops-release-v134';
+const CACHE = 'flagship-ops-settings-v135';
 const SHELL = [
   './',
-  './index.html', './ops-dashboard.js', './ops-updates.js', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
+  './index.html', './ops-dashboard.js', './ops-updates-v135.js', './release-notes.json', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
   './supabase-client.js',
   './timesheet-sync.js',
   './manifest.webmanifest',
@@ -21,7 +21,7 @@ self.addEventListener('install', (e) => {
     caches.open(CACHE).then((c) =>
       Promise.all(SHELL.map((url) =>
         fetch(url, { cache: 'reload' }).then((res) => {
-          if (!res || !res.ok) { if (url === './index.html' || url === './ops-updates.js') throw new Error('essential shell fetch failed: ' + url); return null; }
+          if (!res || !res.ok) { if (url === './index.html' || url === './ops-updates-v135.js') throw new Error('essential shell fetch failed: ' + url); return null; }
           return c.put(url, res);
         }).catch((error) => { if (url === './index.html' || url === './ops-updates.js') throw error; return null; })
       ))
