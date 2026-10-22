@@ -1,0 +1,23 @@
+{
+  "version": "flagship-ops-release-v134",
+  "date": "2026-10-22",
+  "title": "Clock In/Out en App Updates",
+  "changes": [
+    "Flagship: aparte Clock In en Clock Out op die Timesheets-skerm",
+    "Clock status word op die bediener gelees; tydelike verbindingsprobleme wys 'n fout in plaas van oneindige Loading",
+    "Timesheet word ná Clock Out vir admin-goedkeuring ingestuur",
+    "App Updates wys nou weergawe-notas en toetslys",
+    "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
+  ],
+  "tests": [
+    "Maak Timesheets oop; Clock status moet binne 12 sekondes laai of 'n fout wys",
+    "Clock In: druk een keer en bevestig dat die bedienertyd verskyn",
+    "Maak app toe en oop; Clock In moet steeds gestoor wees",
+    "Clock Out: bevestig eindtyd en Pending approval (toets eers op 'n geskikte toetsdag)",
+    "Admin: kontroleer dat die inskrywing in die goedkeuringslys verskyn",
+    "Saterdag: verifieer dat geen middagete afgetrek word nie",
+    "App Updates: Check for updates wys die nuutste weergawe en hierdie notas",
+    "Bestaande Timesheets en PDF's: bevestig dat ou data en skerms steeds werk"
+  ],
+  "notes": "Sommige funksies vereis dat die opgedateerde Google Apps Script Web App reeds ontplooi is. Moenie toetsinskrywings as finale betaalstate gebruik nie."
+}
