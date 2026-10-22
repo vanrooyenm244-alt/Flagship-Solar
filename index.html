@@ -1240,6 +1240,7 @@ table.page{border-collapse:collapse}
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
       <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
+      <button class="btn" id="vpXeroDirect" type="button" style="width:100%;margin-top:8px">Create Xero Draft Quote from Proposal</button><div class="hint" id="vpXeroDirectStatus" role="status"></div>
       <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
     </div>
   </section>
@@ -4939,6 +4940,31 @@ function vpShareToCustomer_(){
   });
 }
 function vpPublish_(){ vpShareToCustomer_(); }
+
+// Send the currently priced Value Proposal directly to Xero as a Draft Quote.
+// Customer delivery is a separate action. The quote is never automatically approved.
+var vpXeroDirectBusy_=false;
+function vpXeroDirect_(){
+ if(vpXeroDirectBusy_||!VP)return;
+ var status=document.getElementById('vpXeroDirectStatus');
+ if(!VP.xeroContact||!VP.xeroContact.contactID){status.textContent='Search and select an existing Xero Contact first.';return;}
+ if(!VP.client||!VP.items||!VP.items.length){status.textContent='Complete the client and proposal price lines first.';return;}
+ var lines=VP.items.map(function(it){return {description:String(it.desc||it.description||'').trim(),quantity:Number(it.qty),unitAmount:Number(it.sell),xeroItemCode:it.xeroItemCode||''};});
+ if(lines.some(function(it){return !it.description||!isFinite(it.quantity)||it.quantity<=0||!isFinite(it.unitAmount)||it.unitAmount<0;})){status.textContent='Each line must have a description, positive quantity and valid price.';return;}
+ var payload={contactID:VP.xeroContact.contactID,clientName:VP.client,reference:VP.no||'VALUE PROPOSAL',title:String(VP.title||'Flagship Value Proposal').slice(0,100),summary:'Draft quote generated from Flagship Solar Value Proposal',items:lines};
+ var fingerprint=JSON.stringify(payload);
+ if(VP.xeroDirect&&VP.xeroDirect.fingerprint===fingerprint){status.textContent='Draft already created: '+(VP.xeroDirect.quoteNumber||VP.xeroDirect.quoteID)+'. Review it in Xero.';return;}
+ if(!confirm('Create a DRAFT Xero quote with '+lines.length+' proposal lines and their current customer prices?'))return;
+ var btn=document.getElementById('vpXeroDirect');vpXeroDirectBusy_=true;btn.disabled=true;status.textContent='Creating Xero draft quote…';
+ api({action:'xeroCreateQuote',quote:payload}).then(function(j){
+   if(!j.quoteID)throw Error('No QuoteID returned. Check Xero before retrying.');
+   VP.xeroDirect={fingerprint:fingerprint,quoteID:j.quoteID,quoteNumber:j.quoteNumber||''};vpSave();
+   status.textContent='Xero Draft Quote created: '+(j.quoteNumber||j.quoteID)+'. Check the tax rate and totals in Xero.';
+ }).catch(function(e){status.textContent='Xero draft not confirmed: '+e.message+'. Check Xero before trying again.';})
+ .then(function(){vpXeroDirectBusy_=false;btn.disabled=false;});
+}
+document.getElementById('vpXeroDirect').addEventListener('click',vpXeroDirect_);
+
 
 /* ============ quote builder ============ */
 var QB={id:'',client:'',title:'',ref:'',expiry:'',xeroContact:null,items:[],prices:[]};
