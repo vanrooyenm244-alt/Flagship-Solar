@@ -1240,7 +1240,7 @@ table.page{border-collapse:collapse}
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
       <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
-      <div class="hint" style="margin-top:9px">Match proposal lines to Xero inventory for the correct Sales Description, Sales Account and Tax Rate. Proposal selling prices stay unchanged.</div><button class="btn ghost" type="button" id="vpXeroLoadItems">Load Xero inventory items</button><div id="vpXeroInventoryLines"></div>
+      <div class="hint" style="margin-top:9px">Match proposal lines to Xero inventory for the correct Sales Description, Sales Account and Tax Rate. Proposal selling prices stay unchanged.</div><button class="btn ghost" type="button" id="vpXeroLoadItems">Load Xero inventory items</button><label class="btn ghost" style="display:inline-block;margin:7px 0;cursor:pointer">Import Xero Inventory CSV<input type="file" id="vpXeroCsv" accept=".csv,text/csv" style="display:none"></label><div id="vpXeroCsvStatus" class="hint" role="status"></div><div id="vpXeroInventoryLines"></div>
       <button class="btn" id="vpXeroDirect" type="button" style="width:100%;margin-top:8px">Create Xero Draft Quote from Proposal</button><button class="btn" id="vpXeroAcceptInvoice" type="button" style="width:100%;margin-top:8px">Mark as Accepted → Convert to Draft Invoice</button><div class="hint" id="vpXeroDirectStatus" role="status"></div>
       <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
     </div>
@@ -4946,8 +4946,42 @@ function vpPublish_(){ vpShareToCustomer_(); }
 // Send the currently priced Value Proposal directly to Xero as a Draft Quote.
 // Customer delivery is a separate action. The quote is never automatically approved.
 var vpXeroInventory_=[];
+var VP_XERO_CSV_KEY='flagship-xero-inventory-csv-v1';
+function vpCsvRows_(text){
+ var rows=[],line=[],cell='',quoted=false;
+ for(var i=0;i<text.length;i++){
+  var ch=text[i];
+  if(quoted){if(ch==='"'&&text[i+1]==='"'){cell+='"';i++;}else if(ch==='"')quoted=false;else cell+=ch;}
+  else if(ch==='"')quoted=true;
+  else if(ch===','){line.push(cell);cell='';}
+  else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;line.push(cell);if(line.some(function(c){return c.trim();}))rows.push(line);line=[];cell='';}
+  else cell+=ch;
+ }
+ if(quoted)throw Error('Unclosed CSV quotation');
+ if(cell||line.length){line.push(cell);rows.push(line);}
+ return rows;
+}
+function vpImportXeroCsv_(file){
+ var status=document.getElementById('vpXeroCsvStatus');if(!file)return;
+ file.text().then(function(t){
+  var rows=vpCsvRows_(t.replace(/^\uFEFF/,'')),headers=(rows.shift()||[]).map(function(x){return x.trim();});
+  var required=['*ItemCode','ItemName','SalesDescription','SalesAccount','SalesTaxRate','SalesUnitPrice'];
+  required.forEach(function(k){if(headers.indexOf(k)<0)throw Error('Missing CSV column: '+k);});
+  var items=rows.map(function(row){var x={};headers.forEach(function(k,i){x[k]=row[i]||'';});return {
+   code:String(x['*ItemCode']||'').trim(),name:String(x.ItemName||'').trim(),salesDescription:String(x.SalesDescription||'').trim(),
+   salesAccountCode:String(x.SalesAccount||'').trim(),salesTaxLabel:String(x.SalesTaxRate||'').trim(),salesUnitPrice:Number(String(x.SalesUnitPrice||'0').replace(/,/g,'')),
+   active:String(x.Status||'Active').toLowerCase()==='active',source:'csv'
+  };}).filter(function(x){return x.code&&x.active;});
+  if(!items.length)throw Error('No active inventory items in CSV');
+  var seen={};items.forEach(function(x){if(seen[x.code])throw Error('Duplicate item code: '+x.code);seen[x.code]=1;});
+  localStorage.setItem(VP_XERO_CSV_KEY,JSON.stringify({items:items,importedAt:new Date().toISOString(),source:file.name}));
+  vpXeroInventory_=items;vpRenderInventorySelectors_();status.textContent=items.length+' active Xero Inventory items imported from '+file.name+' (available offline).';
+ }).catch(function(e){status.textContent='CSV import failed: '+e.message;});
+}
+(function(){try{var d=JSON.parse(localStorage.getItem(VP_XERO_CSV_KEY)||'null');if(d&&Array.isArray(d.items))vpXeroInventory_=d.items;}catch(e){}})();
+
 function vpLoadXeroInventory_(){
- return apiGet({action:'xeroItems'}).then(function(j){vpXeroInventory_=(j.items||[]).filter(function(x){return x.active!==false;});vpRenderInventorySelectors_();}).catch(function(e){var n=document.getElementById('vpXeroDirectStatus');if(n)n.textContent='Xero inventory lookup failed: '+e.message;});
+ return apiGet({action:'xeroItems'}).then(function(j){vpXeroInventory_=(j.items||[]).filter(function(x){return x.active!==false;});vpRenderInventorySelectors_();}).catch(function(e){var n=document.getElementById('vpXeroDirectStatus');if(n)n.textContent='Xero inventory API unavailable ('+e.message+'). Import your exported InventoryItems CSV instead.';});
 }
 function vpRenderInventorySelectors_(){
  var host=document.getElementById('vpXeroInventoryLines');if(!host||!VP)return;
@@ -4970,6 +5004,7 @@ function vpXeroDirect_(){
  if(!VP.xeroContact||!VP.xeroContact.contactID){status.textContent='Search and select an existing Xero Contact first.';return;}
  if(!VP.client||!VP.items||!VP.items.length){status.textContent='Complete the client and proposal price lines first.';return;}
  var lines=VP.items.map(function(it){return {description:String(it.desc||it.description||'').trim(),quantity:Number(it.qty),unitAmount:Number(it.sell),xeroItemCode:it.xeroItemCode||''};});
+ lines.forEach(function(line){if(!line.xeroItemCode)return;var match=vpXeroInventory_.find(function(x){return x.code===line.xeroItemCode&&x.source==='csv';});if(match){line.description=match.salesDescription||line.description;line.accountCode=match.salesAccountCode;line.salesTaxLabel=match.salesTaxLabel;line.inventoryFromCsv=true;}});
  if(lines.some(function(it){return !it.description||!isFinite(it.quantity)||it.quantity<=0||!isFinite(it.unitAmount)||it.unitAmount<0;})){status.textContent='Each line must have a description, positive quantity and valid price.';return;}
  var payload={contactID:VP.xeroContact.contactID,clientName:VP.client,reference:VP.no||'VALUE PROPOSAL',title:String(VP.title||'Flagship Value Proposal').slice(0,100),summary:'Draft quote generated from Flagship Solar Value Proposal',items:lines};
  var fingerprint=JSON.stringify(payload);
@@ -4985,6 +5020,7 @@ function vpXeroDirect_(){
 }
 document.getElementById('vpXeroDirect').addEventListener('click',vpXeroDirect_);
 document.getElementById('vpXeroLoadItems').addEventListener('click',vpLoadXeroInventory_);
+document.getElementById('vpXeroCsv').addEventListener('change',function(){vpImportXeroCsv_(this.files&&this.files[0]);});
 document.getElementById('vpXeroAcceptInvoice').addEventListener('click',vpXeroAcceptInvoice_);
 function vpXeroAcceptInvoice_(){
  var status=document.getElementById('vpXeroDirectStatus');
