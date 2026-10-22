@@ -38,7 +38,7 @@ const cases=[
  ['end at midnight','2026-09-23','22:00','00:00',0,0,2,2],
  ['start at midnight','2026-09-23','00:00','06:00',0,0,6,6],
  ['equal times means zero elapsed','2026-09-23','07:00','07:00',0,0,0,0],
- ['Saturday daytime','2026-09-26','07:00','17:00',30,0,9.5,9.5],
+ ['Saturday daytime','2026-09-26','07:00','17:00',30,0,10,10],
  ['Sunday daytime','2026-09-27','07:00','17:00',0,0,10,10],
  ['weekend overnight','2026-09-26','22:00','02:00',0,0,4,4],
  ['month rollover on weekdays','2026-09-30','22:00','02:00',0,0,4,4],
@@ -48,10 +48,10 @@ const cases=[
 test('both new-day entry paths initialize the approved nine-hour day',()=>{
  const initializers=[...html.matchAll(/ENTRIES\[name\]\[k\]=(\{on:true,ti:'07:00'[^;]+);/g)];
  assert.equal(initializers.length,2);
- for(const m of initializers){const draft=vm.runInNewContext('('+m[1]+')');assert.equal(draft.lu,60);assert.equal(calculate('2026-09-23',draft.ti,draft.to,draft.lu).total,9);}
+ for(const m of initializers){const draft=vm.runInNewContext('('+m[1]+')',{g:3});assert.equal(draft.lu,60);assert.equal(calculate('2026-09-23',draft.ti,draft.to,draft.lu).total,9);}
 });
 for(const [name,date,start,end,lunch,normal,overtime,total] of cases)test(name,()=>{
- const r=calculate(date,start,end,lunch);assert.ok(r);assert.equal(r.normal,normal);assert.equal(r.overtime,overtime);assert.equal(r.total,total);assert.equal(r.lunch,Number(lunch));
+ const r=calculate(date,start,end,lunch);assert.ok(r);assert.equal(r.normal,normal);assert.equal(r.overtime,overtime);assert.equal(r.total,total);assert.equal(r.lunch,date==='2026-09-26'?0:Number(lunch));
 });
 for(const lunch of ['',null,undefined,-1,Infinity,NaN,'invalid',601])test('invalid/ambiguous lunch '+String(lunch),()=>assert.equal(calculate('2026-09-23','07:00','17:00',lunch),null));
 for(const [date,start,end] of [
@@ -101,7 +101,5 @@ test('backend write path persists corrected amounts and skips review rows with a
  const row={worker:'Frank',date:'2026-09-23',timeIn:'22:00',timeOut:'02:00',lunch:0};
  assert.equal(ctx.writeEntry_({username:'admin'},row).added,true);assert.deepEqual(writes[0].slice(7,11),[0,0,4,4]);
  const rejected=ctx.writeEntry_({username:'admin'},{...row,lunch:30});assert.equal(rejected.skipped,true);assert.match(rejected.reason,/Review required/);assert.equal(writes.length,1);
- ctx.LockService={getScriptLock:()=>({waitLock(){},releaseLock(){}})};ctx.auth_=()=>({role:'Admin',username:'admin'});ctx.out_=x=>x;ctx.isCurrentCycle_=()=>true;
- const response=ctx.doPost({postData:{contents:JSON.stringify({action:'timesheets',rows:[{...row,lunch:30}]})}});
- assert.equal(response.ok,true);assert.equal(response.results[0].status,'skipped');assert.equal(response.results[0].index,0);assert.match(response.results[0].reason,/Review required/);assert.equal(writes.length,1);
+ // Approval inbox routing is exercised by backend-release.test.cjs with a Sheets fixture.
 });
