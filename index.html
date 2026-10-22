@@ -6078,24 +6078,21 @@ if(stAddBtn){
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}) });
 }
-})();
-</script>
-<script src="./xero-customer.js"></script>
-<script src="./ops-dashboard.js?v=20261021-no-letterhead"></script>
-<script src="./ops-updates.js"></script>
-<script>
 // Standalone start/end attendance for the signed-in Flagship account.
 var fsClockBusy_=false;
+var fsClockTimeout_=null;
 function fsClockRefresh_(){
   var status=document.getElementById('fsClockStatus'),begin=document.getElementById('fsClockIn'),end=document.getElementById('fsClockOut');
   if(!status||!begin||!end)return Promise.resolve();
   begin.disabled=true;end.disabled=true;
   if(!ME){status.textContent='Sign in to clock in.';return Promise.resolve();}
-  return apiGet({action:'flagshipClockStatus'}).then(function(j){
+  status.textContent='Checking clock status…';
+  var timeout=new Promise(function(_,reject){fsClockTimeout_=setTimeout(function(){reject(new Error('Server timeout after 12 seconds. Check Apps Script deployment and connection.'));},12000);});
+  return Promise.race([apiGet({action:'flagshipClockStatus'}),timeout]).then(function(j){
     status.textContent=(j.date||'Today')+' · '+(j.worker||ME.username)+' · '+(j.status==='CLOCKED_IN'?'At work':j.status==='CLOCKED_OUT'?'Clocked out':'Not clocked in')+(j.timeIn?' · In '+j.timeIn:'')+(j.timeOut?' · Out '+j.timeOut:'')+(j.approval?' · '+j.approval:'');
     begin.disabled=fsClockBusy_||j.status!=='NOT_STARTED';
     end.disabled=fsClockBusy_||j.status!=='CLOCKED_IN';
-  }).catch(function(e){status.textContent='Clock status unavailable: '+e.message;});
+  }).catch(function(e){status.textContent='Clock status unavailable: '+e.message;}).then(function(){if(fsClockTimeout_){clearTimeout(fsClockTimeout_);fsClockTimeout_=null;}});
 }
 function fsClockSubmit_(clockAction){
   if(fsClockBusy_||!ME)return;
@@ -6114,6 +6111,12 @@ document.getElementById('fsClockOut').addEventListener('click',function(){fsCloc
 document.getElementById('fsClockRefresh').addEventListener('click',fsClockRefresh_);
 document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('[data-screen="time"],[data-target="screenTime"]'))setTimeout(fsClockRefresh_,200);});
 fsClockRefresh_();
+
+})();
 </script>
+<script src="./xero-customer.js"></script>
+<script src="./ops-dashboard.js?v=20261021-no-letterhead"></script>
+<script src="./ops-updates.js"></script>
+
 </body>
 </html>
