@@ -526,7 +526,7 @@ function findUser_(username) {
 
 /* Per-user, per-company checkbox privileges. Existing role/assignment rules remain. */
 var APP_PERMISSION_CATALOG_={"Flagship Solar": [{"key": "inspections.view", "label": "Inspections \u2014 view / capture"}, {"key": "job_cards.view", "label": "Job Cards \u2014 view"}, {"key": "job_cards.edit", "label": "Job Cards \u2014 save / submit"}, {"key": "calendar.view", "label": "Calendar \u2014 view"}, {"key": "calendar.edit", "label": "Calendar \u2014 schedule / change"}, {"key": "stock.view", "label": "Stock \u2014 view"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.manage", "label": "Stock \u2014 add items / receive file"}, {"key": "stock.report", "label": "Stock \u2014 reports"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 own entries"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "timesheets.view_all", "label": "Timesheets \u2014 all employees"}, {"key": "prices.view", "label": "Price List \u2014 sell prices"}, {"key": "prices.cost", "label": "Price List \u2014 supplier costs / markup"}, {"key": "prices.manage", "label": "Price List \u2014 edit / import"}, {"key": "quotes.view", "label": "Quotes \u2014 build / view"}, {"key": "quotes.create", "label": "Quotes \u2014 create in Xero"}, {"key": "proposals.view", "label": "Value Proposals \u2014 build / view"}, {"key": "proposals.send", "label": "Value Proposals \u2014 send / publish"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}], "Hi Service": [{"key":"calendar.view","label":"Calendar — TimeTree bookings"},{"key": "stock.view", "label": "Stock \u2014 view / count screen"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.overview", "label": "Stock \u2014 overview / totals"}, {"key": "stock.report", "label": "Stock \u2014 daily reports / PDF"}, {"key": "stock.manage", "label": "Stock \u2014 add items / file import"}, {"key": "stock.transfer", "label": "Stock \u2014 transfer between locations"}, {"key": "stock.receive", "label": "Stock \u2014 receive / invoices"}, {"key": "stock.adjust", "label": "Stock \u2014 adjust quantities"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 view"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "estimates.view", "label": "Cost Estimation \u2014 build / share"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}]};
-var APP_PERMISSION_ACTIONS_={"hiCalendar":"calendar.view","jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit"};
+var APP_PERMISSION_ACTIONS_={"hiCalendar":"calendar.view","jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroCreatePurchaseOrder": "quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit"};
 function permissionCompany_(body){return /^hi[A-Z]/.test(String(body.action||''))?'Hi Service':(['userAccess','userPermissions','saveUserPermissions','me','login'].indexOf(body.action)>=0&&body.company==='Hi Service'?'Hi Service':'Flagship Solar');}
 function permissionRecord_(username,company){var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(!sh||sh.getLastRow()<2)return null;var rows=sh.getRange(2,1,sh.getLastRow()-1,5).getValues(),key=String(username).toLowerCase();for(var i=0;i<rows.length;i++)if(String(rows[i][0]).toLowerCase()===key&&rows[i][1]===company){var permissions;try{permissions=JSON.parse(rows[i][2]);}catch(e){throw Error('Invalid stored user permissions; ask an Admin to repair.');}if(!Array.isArray(permissions))throw Error('Invalid stored user permissions');return {row:i+2,permissions:permissions};}return null;}
 function permissionDefaults_(u,company){var keys=APP_PERMISSION_CATALOG_[company].map(function(x){return x.key;});if(u.role==='Admin')return keys;if(company==='Hi Service')return keys.filter(function(k){return k!=='users.manage';});var worker=['inspections.view','job_cards.view','job_cards.edit','calendar.view','stock.view','stock.count','stock.report','timesheets.view_own','timesheets.submit'];return u.role==='Technician'?keys.filter(function(k){return ['users.manage','prices.cost','prices.manage'].indexOf(k)<0;}):worker;}
@@ -988,7 +988,7 @@ var XERO_TOKEN_URL_='https://identity.xero.com/connect/token';
 var XERO_API_='https://api.xero.com/api.xro/2.0';
 var XERO_CONN_='https://api.xero.com/connections';
 var XERO_AUTH_='https://login.xero.com/identity/connect/authorize';
-var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices offline_access';
+var XERO_SCOPES_='openid profile email accounting.contacts accounting.transactions offline_access'; // Reconnect Xero after changing scopes.
 
 function xeroProps_(){ return PropertiesService.getScriptProperties(); }
 function xeroCfg_(){
@@ -1179,6 +1179,55 @@ function xeroCreateQuote_(body){
   log_(u.username,'xeroCreateQuote',String(x.QuoteNumber||''),q.clientName||'',String(x.QuoteID||''));
   return {ok:true,quoteID:x.QuoteID||'',quoteNumber:x.QuoteNumber||'',status:x.Status||''};
 }
+
+/**
+ * DRAFT Xero purchase order: one supplier per PO, using Xero ContactID.
+ * Caller must resolve material quantities and real purchase costs before submission.
+ * requestId is mandatory, and prevents repeated client submissions after success.
+ * A missing response remains uncertain; the client must inspect Xero before retry.
+ */
+function xeroCreatePurchaseOrder_(body){
+  var u=auth_(body,['Admin','Technician']);
+  var p=body.purchaseOrder||{}, rid=String(p.requestId||'').trim();
+  if(!/^[a-zA-Z0-9_-]{12,100}$/.test(rid))throw new Error('A stable purchase order requestId is required.');
+  var supplier=String(p.supplierContactID||'').trim();
+  if(!/^[0-9a-fA-F-]{36}$/.test(supplier))throw new Error('Choose a supplier Xero ContactID.');
+  var items=Array.isArray(p.items)?p.items:[];
+  if(!items.length||items.length>100)throw new Error('Purchase order must contain 1 to 100 materials.');
+  var c=xeroCfg_(), token=xeroAccess_(), tenant=xeroProps_().getProperty('XERO_TENANT_ID');
+  if(!tenant)throw new Error('Connect the Xero organisation first.');
+  var lines=items.map(function(it){
+    validateQuoteAmounts_(it.quantity,it.unitAmount);
+    if(Number(it.unitAmount)<0)throw new Error('Purchase costs must not be negative.');
+    var description=String(it.description||'').trim();
+    if(!description)throw new Error('Every material needs a description.');
+    var l={Description:description.slice(0,4000),Quantity:Number(it.quantity),UnitAmount:Number(it.unitAmount)};
+    if(String(it.xeroItemCode||'').trim())l.ItemCode=String(it.xeroItemCode).trim();
+    if(String(it.purchaseAccountCode||'').trim())l.AccountCode=String(it.purchaseAccountCode).trim();
+    if(String(it.purchaseTaxType||'').trim())l.TaxType=String(it.purchaseTaxType).trim();
+    return l;
+  });
+  var hash=Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify({tenant:tenant,supplier:supplier,items:lines,reference:p.reference||''}))).slice(0,32);
+  var props=xeroProps_(),key='XERO_PO_'+rid,stored=props.getProperty(key);
+  if(stored){
+    var prev=JSON.parse(stored);
+    if(prev.hash!==hash)throw new Error('Purchase order requestId was reused with different contents.');
+    return {ok:true,duplicate:true,purchaseOrderID:prev.id,purchaseOrderNumber:prev.number,status:prev.status};
+  }
+  var purchaseOrder={
+    Contact:{ContactID:supplier},Date:String(p.date||Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'yyyy-MM-dd')),
+    Reference:String(p.reference||'').slice(0,255),LineItems:lines,Status:'DRAFT',
+    LineAmountTypes:'EXCLUSIVE'
+  };
+  var res=xeroRaw_(XERO_API_+'/PurchaseOrders',token,'post',{PurchaseOrders:[purchaseOrder]},tenant);
+  var out=(res.PurchaseOrders&&res.PurchaseOrders[0])||{};
+  if(!out.PurchaseOrderID)throw new Error('PO response unconfirmed; inspect Xero before retrying.');
+  var record={hash:hash,id:out.PurchaseOrderID,number:out.PurchaseOrderNumber||'',status:out.Status||'DRAFT'};
+  props.setProperty(key,JSON.stringify(record));
+  log_(u.username,'xeroCreatePurchaseOrder',record.number,String(p.reference||''),record.id);
+  return {ok:true,purchaseOrderID:record.id,purchaseOrderNumber:record.number,status:record.status};
+}
+
 function validateQuoteAmounts_(quantity,amount){
   if(quantity==null||String(quantity).trim()===''||!isFinite(Number(quantity))||Number(quantity)<=0)throw new Error('Quote quantities must be positive numbers.');
   if(amount==null||String(amount).trim()===''||!isFinite(Number(amount)))throw new Error('Quote prices must be explicit numbers.');
@@ -1619,6 +1668,7 @@ function doPost(e) {
     if (body.action === 'xeroItems') { auth_(body,['Admin','Technician']); return out_(xeroItems_()); }
     if (body.action === 'proposalPublish') return out_(proposalPublish_(body));
     if (body.action === 'xeroCreateQuote') return out_(xeroCreateQuote_(body));
+    if (body.action === 'xeroCreatePurchaseOrder') return out_(xeroCreatePurchaseOrder_(body));
     if (body.action === 'proposalSendToXero') return out_(proposalSendToXero_(body));
     if (body.action === 'xeroCreateContact') return out_(xeroCreateContact_(body));
 
