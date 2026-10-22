@@ -781,6 +781,8 @@ function tsPendingList_(user){
 function tsStage_(user,rows){
   var lock=LockService.getScriptLock();lock.waitLock(20000);
   try{
+    // Reject reserved, colliding or unowned worker tabs before staging any rows.
+    preflightWorkerTabs_((rows||[]).map(function(r){return r&&r.worker;}),true);
     var sh=tsApprovalSheet_(),n=sh.getLastRow()-1,existing=n>0?sh.getRange(2,1,n,10).getValues():[],results=[];
     rows.forEach(function(r,i){
       r=r||{};var worker=String(r.worker||'').trim(),ds=String(r.date||'');
