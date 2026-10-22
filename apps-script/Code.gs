@@ -1292,6 +1292,7 @@ function xeroQuoteAcceptInvoice_(body){
   var quote=(response.Quotes||[])[0];if(!quote||!quote.QuoteID)throw Error('Quote not found in Xero');
   if(!quote.Contact||!quote.Contact.ContactID)throw Error('Quote has no Xero Contact.');
   if(!quote.LineItems||!quote.LineItems.length)throw Error('Quote has no invoiceable items.');
+  var originalLines=quote.LineItems.slice(),originalCurrency=quote.CurrencyCode,originalLineAmountTypes=quote.LineAmountTypes;
   // Xero may require a draft to be marked SENT before ACCEPTED.
   if(quote.Status==='DRAFT'){
    var sent=xeroRaw_(XERO_API_+'/Quotes/'+encodeURIComponent(id),access,'post',{Quotes:[{QuoteID:id,Status:'SENT'}]},tenant);
@@ -1308,7 +1309,7 @@ function xeroQuoteAcceptInvoice_(body){
   var existing=xeroRaw_(XERO_API_+'/Invoices?where='+where,access,'get',null,tenant).Invoices||[];
   var found=existing.filter(function(x){return x.Type==='ACCREC'&&x.Status!=='DELETED';})[0];
   if(found){props.setProperty(key,JSON.stringify({invoiceID:found.InvoiceID,invoiceNumber:found.InvoiceNumber||''}));return {ok:true,invoiceID:found.InvoiceID,invoiceNumber:found.InvoiceNumber||'',existing:true};}
-  var lines=quote.LineItems.map(function(line){
+  var lines=originalLines.map(function(line){
     var l={Description:String(line.Description||''),Quantity:Number(line.Quantity),UnitAmount:Number(line.UnitAmount)};
     if(line.ItemCode)l.ItemCode=line.ItemCode;
     if(line.AccountCode)l.AccountCode=line.AccountCode;
@@ -1316,8 +1317,8 @@ function xeroQuoteAcceptInvoice_(body){
     if(line.DiscountRate!=null)l.DiscountRate=Number(line.DiscountRate);
     return l;
   });
-  var invoice={Type:'ACCREC',Contact:{ContactID:quote.Contact.ContactID},Date:Utilities.formatDate(new Date(),'Africa/Johannesburg','yyyy-MM-dd'),Reference:reference,Status:'DRAFT',LineAmountTypes:quote.LineAmountTypes||'EXCLUSIVE',LineItems:lines};
-  if(quote.CurrencyCode)invoice.CurrencyCode=quote.CurrencyCode;
+  var invoice={Type:'ACCREC',Contact:{ContactID:quote.Contact.ContactID},Date:Utilities.formatDate(new Date(),'Africa/Johannesburg','yyyy-MM-dd'),Reference:reference,Status:'DRAFT',LineAmountTypes:originalLineAmountTypes||'EXCLUSIVE',LineItems:lines};
+  if(originalCurrency)invoice.CurrencyCode=originalCurrency;
   var created=xeroRaw_(XERO_API_+'/Invoices',access,'post',{Invoices:[invoice]},tenant),v=(created.Invoices||[])[0]||{};
   if(!v.InvoiceID)throw Error('Xero invoice not confirmed. Check Xero before retrying.');
   props.setProperty(key,JSON.stringify({invoiceID:v.InvoiceID,invoiceNumber:v.InvoiceNumber||''}));
