@@ -1,0 +1,84 @@
+name: Deploy Apps Script backend
+
+on:
+  workflow_run:
+    workflows: ["Flagship completion checks"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-script-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+          || (github.event_name == 'workflow_run'
+          && github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.head_branch == 'main'
+          && github.event.workflow_run.event == 'push') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+      DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+      CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
+    steps:
+      - name: Check required configuration
+        run: |
+          test -n "$SCRIPT_ID" || { echo "::error::Set APPS_SCRIPT_ID in repository secrets"; exit 1; }
+          test -n "$DEPLOYMENT_ID" || { echo "::error::Set APPS_SCRIPT_DEPLOYMENT_ID in repository secrets"; exit 1; }
+          test -n "$CLASP_CREDENTIALS" || { echo "::error::Set APPS_SCRIPT_CLASP_CREDENTIALS in repository secrets"; exit 1; }
+
+      - name: Checkout exact validated source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install clasp
+        run: npm install --global @google/clasp
+
+      - name: Prepare authenticated staging directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME"
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          mkdir -p "$RUNNER_TEMP/apps-script-stage"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$SCRIPT_ID" > "$RUNNER_TEMP/apps-script-stage/.clasp.json"
+          echo "STAGING_DIR=$RUNNER_TEMP/apps-script-stage" >> "$GITHUB_ENV"
+
+      - name: Preserve existing remote Apps Script files and manifest
+        working-directory: ${{ env.STAGING_DIR }}
+        run: clasp pull
+
+      - name: Overlay the version-controlled backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          find apps-script -maxdepth 1 -type f \( -name '*.gs' -o -name '*.js' \) -print -exec cp {} "$STAGING_DIR/" \;
+          test -f "$STAGING_DIR/Code.gs" || { echo "::error::Code.gs not found"; exit 1; }
+          test -f "$STAGING_DIR/appsscript.json" || { echo "::error::Existing Apps Script manifest not found; stopped to avoid changing deployment settings"; exit 1; }
+
+      - name: Update existing script and existing Web App deployment
+        working-directory: ${{ env.STAGING_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          clasp push --force
+          clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA:0:10}"
+
+      - name: Delete local OAuth credentials
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
