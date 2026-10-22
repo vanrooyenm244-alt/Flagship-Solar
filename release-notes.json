@@ -1,8 +1,9 @@
 {
-  "version": "flagship-ops-settings-v135",
+  "version": "flagship-ops-xero-proposal-v136",
   "date": "2026-10-22",
   "title": "App Updates onder Settings",
   "changes": [
+    "Value Proposal kan sy bestaande lynitems en verkooppryse direk as 'n Xero Draft Quote skep",
     "App Updates is geskuif na Settings → App Updates, met 'n oop-/toemaakmenu",
     "Flagship: aparte Clock In en Clock Out op die Timesheets-skerm",
     "Clock status word op die bediener gelees; tydelike verbindingsprobleme wys 'n fout in plaas van oneindige Loading",
@@ -11,6 +12,7 @@
     "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
   ],
   "tests": [
+    "Kies Xero Contact in Value Proposal en verifieer Draft Quote se items, pryse en BTW in Xero",
     "Open Settings en kies App Updates; bevestig dat die weergawe-notas en toetslys vertoon",
     "Maak Timesheets oop; Clock status moet binne 12 sekondes laai of 'n fout wys",
     "Clock In: druk een keer en bevestig dat die bedienertyd verskyn",
