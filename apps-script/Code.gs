@@ -799,7 +799,7 @@ function hiClockAction_(body){
     if(time<=String(f.row[4]))throw Error('Clock out must be later than clock in. Ask an admin to correct an overnight shift.');
     // Stage for admin approval; times do not enter the payroll master yet.
     var lunch=new Date(day+'T00:00:00Z').getUTCDay()===6?0:60;
-    var result=tsStage_(u,[{worker:u.name,date:day,timeIn:String(f.row[4]),timeOut:time,lunch:lunch,job:String(body.job||''),note:String(body.note||'')}]);
+    var result=tsStage_(u,[{worker:canonicalWorkerForUser_(u),date:day,timeIn:String(f.row[4]),timeOut:time,lunch:lunch,job:String(body.job||''),note:String(body.note||'')}],true);
     if(!result.ok||!result.results||!result.results[0]||['added','unchanged'].indexOf(result.results[0].status)<0)
       throw Error('Could not stage clock out for approval: '+(result.results&&result.results[0]?result.results[0].reason:'unknown error'));
     sh.getRange(f.index,6,1,5).setValues([[time,'CLOCKED_OUT',f.row[7],new Date(),'Pending approval']]);
@@ -819,8 +819,8 @@ function tsPendingList_(user){
   });
   return out;
 }
-function tsStage_(user,rows){
-  var lock=LockService.getScriptLock();lock.waitLock(20000);
+function tsStage_(user,rows,alreadyLocked){
+  var lock=alreadyLocked?null:LockService.getScriptLock();if(lock)lock.waitLock(20000);
   try{
     var sh=tsApprovalSheet_(),n=sh.getLastRow()-1,existing=n>0?sh.getRange(2,1,n,10).getValues():[],results=[];
     rows.forEach(function(r,i){
@@ -839,7 +839,7 @@ function tsStage_(user,rows){
       results.push({index:i,worker:worker,date:ds,status:status==='pending'?'added':status,reason:reason});
     });
     return {ok:true,results:results,pendingApproval:results.filter(function(r){return r.status==='added';}).length};
-  }finally{lock.releaseLock();}
+  }finally{if(lock)lock.releaseLock();}
 }
 function tsReview_(user,body){
   if(user.role!=='Admin')throw Error('Admin access required');
