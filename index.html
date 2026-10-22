@@ -1229,6 +1229,8 @@ table.page{border-collapse:collapse}
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
       <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
+      <button class="btn" id="vpSendXeroDraft" type="button" style="width:100%;margin-top:8px">Create Xero Draft Quote</button>
+      <div id="vpXeroDraftStatus" class="hint" role="status"></div>
       <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
     </div>
   </section>
@@ -4755,6 +4757,34 @@ document.getElementById('vpAdd2').addEventListener('click',function(){ openPick(
 
 document.getElementById('vpXeroFind').addEventListener('click',vpXeroFind_);
 document.getElementById('vpPublish').addEventListener('click',vpPublish_);
+
+document.getElementById('vpSendXeroDraft').addEventListener('click',function(){
+  vpMirrorAll();vpCalc();vpLines();
+  var btn=document.getElementById('vpSendXeroDraft'),msg=document.getElementById('vpXeroDraftStatus');
+  if(!VP.xeroContact||!VP.xeroContact.contactID){msg.textContent='Select a Xero customer first.';return;}
+  if(!VP.items||!VP.items.length){msg.textContent='Add priced proposal items first.';return;}
+  var lines=VP.items.map(function(it){return {description:String(it.desc||it.description||''),quantity:Number(it.qty),unitAmount:Number(it.sell),xeroItemCode:it.xeroItemCode||''};});
+  if(lines.some(function(it){return !it.description.trim()||!Number.isFinite(it.quantity)||it.quantity<=0||!Number.isFinite(it.unitAmount)||it.unitAmount<0;})){msg.textContent='Check proposal quantities and prices.';return;}
+  if(VP.xeroDraft&&VP.xeroDraft.quoteID){msg.textContent='Already created: '+(VP.xeroDraft.quoteNumber||VP.xeroDraft.quoteID);return;}
+  if(VP.xeroSubmissionPending){msg.textContent='Previous submission is unconfirmed. Check Xero before retrying.';return;}
+  if(!confirm('Create a DRAFT quote in the connected Xero organisation?'))return;
+  var today=new Date(),expiry=new Date(today);expiry.setDate(expiry.getDate()+14);
+  var reference='FS-VP-'+(VP.no||Date.now());
+  VP.xeroSubmissionPending=reference;vpSave();
+  btn.disabled=true;msg.textContent='Creating Xero draft quote…';
+  api({action:'xeroCreateQuote',quote:{
+    contactID:VP.xeroContact.contactID,clientName:VP.xeroContact.name,
+    date:today.toISOString().slice(0,10),expiryDate:expiry.toISOString().slice(0,10),
+    reference:reference,title:VP.title||'Flagship Solar Value Proposal',
+    summary:'Converted from Flagship Value Proposal',items:lines
+  }}).then(function(j){
+    if(!j.quoteID)throw Error('Missing confirmation from Xero');
+    VP.xeroDraft={quoteID:j.quoteID,quoteNumber:j.quoteNumber};VP.xeroSubmissionPending=null;vpSave();
+    msg.textContent='Xero draft quote created: '+(j.quoteNumber||j.quoteID);
+  }).catch(function(e){msg.textContent='Unconfirmed: '+String(e.message||e)+'. Check Xero before retrying.';})
+  .finally(function(){btn.disabled=false;});
+});
+
 document.getElementById('vpPublish2').addEventListener('click',vpPublish_);
 document.getElementById('vpEmail').addEventListener('input',function(){VP.customerEmail=this.value;vpSave();});
 document.getElementById('vpPhone').addEventListener('input',function(){VP.customerPhone=this.value;vpSave();});
