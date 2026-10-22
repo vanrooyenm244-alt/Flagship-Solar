@@ -1240,7 +1240,8 @@ table.page{border-collapse:collapse}
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
       <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
-      <button class="btn" id="vpXeroDirect" type="button" style="width:100%;margin-top:8px">Create Xero Draft Quote from Proposal</button><div class="hint" id="vpXeroDirectStatus" role="status"></div>
+      <div class="hint" style="margin-top:9px">Match proposal lines to Xero inventory for the correct Sales Description, Sales Account and Tax Rate. Proposal selling prices stay unchanged.</div><button class="btn ghost" type="button" id="vpXeroLoadItems">Load Xero inventory items</button><div id="vpXeroInventoryLines"></div>
+      <button class="btn" id="vpXeroDirect" type="button" style="width:100%;margin-top:8px">Create Xero Draft Quote from Proposal</button><button class="btn" id="vpXeroAcceptInvoice" type="button" style="width:100%;margin-top:8px">Mark as Accepted → Convert to Draft Invoice</button><div class="hint" id="vpXeroDirectStatus" role="status"></div>
       <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
     </div>
   </section>
@@ -4618,6 +4619,7 @@ function vpCalc(){
 }
 
 function vpLines(){
+  if(typeof vpRenderInventorySelectors_==='function' && vpXeroInventory_.length)setTimeout(vpRenderInventorySelectors_,0);
   var box=document.getElementById('vpLines');
   box.innerHTML='';
   if(!VP.items.length){
@@ -4943,6 +4945,24 @@ function vpPublish_(){ vpShareToCustomer_(); }
 
 // Send the currently priced Value Proposal directly to Xero as a Draft Quote.
 // Customer delivery is a separate action. The quote is never automatically approved.
+var vpXeroInventory_=[];
+function vpLoadXeroInventory_(){
+ return apiGet({action:'xeroItems'}).then(function(j){vpXeroInventory_=(j.items||[]).filter(function(x){return x.active!==false;});vpRenderInventorySelectors_();}).catch(function(e){var n=document.getElementById('vpXeroDirectStatus');if(n)n.textContent='Xero inventory lookup failed: '+e.message;});
+}
+function vpRenderInventorySelectors_(){
+ var host=document.getElementById('vpXeroInventoryLines');if(!host||!VP)return;
+ host.replaceChildren();
+ VP.items.forEach(function(it,i){
+  var row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center';
+  var label=document.createElement('span');label.textContent=String(it.desc||it.description||'Item');label.style.cssText='flex:1;min-width:120px';
+  var select=document.createElement('select');select.style.cssText='flex:2;min-width:180px;padding:8px';select.setAttribute('aria-label','Xero Inventory Item for line '+(i+1));
+  var blank=document.createElement('option');blank.value='';blank.textContent='No inventory item — use proposal description';select.appendChild(blank);
+  vpXeroInventory_.forEach(function(x){var o=document.createElement('option');o.value=x.code;o.textContent=x.code+' · '+(x.name||x.salesDescription||'');select.appendChild(o);});
+  if(!it.xeroItemCode&&it.code){var matching=vpXeroInventory_.filter(function(x){return String(x.code).toLowerCase()===String(it.code).toLowerCase();});if(matching.length===1)it.xeroItemCode=matching[0].code;}
+  select.value=it.xeroItemCode||'';if(select.value!==String(it.xeroItemCode||''))select.value='';
+  select.onchange=function(){it.xeroItemCode=select.value;vpSave();};row.append(label,select);host.appendChild(row);
+ });
+}
 var vpXeroDirectBusy_=false;
 function vpXeroDirect_(){
  if(vpXeroDirectBusy_||!VP)return;
@@ -4964,6 +4984,19 @@ function vpXeroDirect_(){
  .then(function(){vpXeroDirectBusy_=false;btn.disabled=false;});
 }
 document.getElementById('vpXeroDirect').addEventListener('click',vpXeroDirect_);
+document.getElementById('vpXeroLoadItems').addEventListener('click',vpLoadXeroInventory_);
+document.getElementById('vpXeroAcceptInvoice').addEventListener('click',vpXeroAcceptInvoice_);
+function vpXeroAcceptInvoice_(){
+ var status=document.getElementById('vpXeroDirectStatus');
+ if(!VP||!VP.xeroDirect||!VP.xeroDirect.quoteID){status.textContent='Create the Xero Draft Quote first.';return;}
+ if(VP.xeroDirect.invoiceID){status.textContent='Invoice already created: '+(VP.xeroDirect.invoiceNumber||VP.xeroDirect.invoiceID);return;}
+ if(!confirm('Customer accepted this quote? Mark it ACCEPTED in Xero and create ONE DRAFT sales invoice (not sent or authorised).'))return;
+ var btn=document.getElementById('vpXeroAcceptInvoice');btn.disabled=true;status.textContent='Accepting quote and creating draft invoice…';
+ api({action:'xeroQuoteAcceptInvoice',quoteID:VP.xeroDirect.quoteID}).then(function(j){
+  if(!j.invoiceID)throw Error('No invoice confirmation. Check Xero before retrying.');
+  VP.xeroDirect.invoiceID=j.invoiceID;VP.xeroDirect.invoiceNumber=j.invoiceNumber||'';vpSave();status.textContent='Draft Invoice created: '+(j.invoiceNumber||j.invoiceID);
+ }).catch(function(e){status.textContent='Not confirmed: '+e.message+'. Check Xero before retrying.';}).then(function(){btn.disabled=false;});
+}
 
 
 /* ============ quote builder ============ */
