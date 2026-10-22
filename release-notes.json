@@ -1,8 +1,11 @@
 {
-  "version": "flagship-ops-xero-proposal-v136",
+  "version": "flagship-ops-quote-invoice-v137",
   "date": "2026-10-22",
-  "title": "App Updates onder Settings",
+  "title": "Xero Inventory Quotes en Draft Invoices",
   "changes": [
+    "Value Proposal: match Xero Inventory Item codes for Sales Description, Sales Account and Tax Rate; preserve proposal unit selling prices",
+    "Xero Draft Quote can be explicitly marked Accepted and converted to a DRAFT sales invoice using Xero quote line details",
+    "Duplicate invoice guard checks existing Xero invoices by unique source quote reference",
     "Value Proposal kan sy bestaande lynitems en verkooppryse direk as 'n Xero Draft Quote skep",
     "App Updates is geskuif na Settings → App Updates, met 'n oop-/toemaakmenu",
     "Flagship: aparte Clock In en Clock Out op die Timesheets-skerm",
@@ -12,6 +15,10 @@
     "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
   ],
   "tests": [
+    "Open Value Proposal and load Xero inventory; match each proposal line and verify Sales Descriptions in Xero",
+    "Create draft quote; confirm all line prices, units, account codes and tax treatments against original estimate",
+    "With an approved test quote, Mark as Accepted → Convert to Draft Invoice; verify no invoice is emailed or authorised",
+    "Repeat conversion and confirm an existing invoice is returned rather than creating a second one",
     "Kies Xero Contact in Value Proposal en verifieer Draft Quote se items, pryse en BTW in Xero",
     "Open Settings en kies App Updates; bevestig dat die weergawe-notas en toetslys vertoon",
     "Maak Timesheets oop; Clock status moet binne 12 sekondes laai of 'n fout wys",
