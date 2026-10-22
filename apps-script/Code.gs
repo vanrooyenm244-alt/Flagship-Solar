@@ -1253,18 +1253,25 @@ function xeroCreateQuote_(body){
   items.forEach(function(it){validateQuoteAmounts_(it.quantity,it.unitAmount);});
   var c=xeroCfg_(), token=xeroAccess_(), tenant=xeroProps_().getProperty('XERO_TENANT_ID'); if(!tenant) throw new Error('No Xero organisation connection found.');
   var catalog=null;
-  if(items.some(function(it){return !!it.xeroItemCode;})){
+  if(items.some(function(it){return !!it.xeroItemCode&&!it.inventoryFromCsv;})){
     catalog={};var fetched=xeroItems_().items;fetched.forEach(function(x){catalog[String(x.code).toLowerCase()]=x;});
   }
   var lines=items.map(function(it){
     var l={Description:String(it.description||'').trim(),Quantity:Number(it.quantity),UnitAmount:Number(it.unitAmount)};
-    if(it.xeroItemCode){
+    if(it.xeroItemCode&&!it.inventoryFromCsv){
       var inv=catalog[String(it.xeroItemCode).toLowerCase()];
       if(!inv||!inv.active)throw Error('Xero Inventory Item not found/active: '+it.xeroItemCode);
       l.ItemCode=String(inv.code);
       l.Description=String(inv.salesDescription||inv.description||l.Description);
       if(inv.salesAccountCode)l.AccountCode=String(inv.salesAccountCode);
       if(inv.salesTaxType)l.TaxType=String(inv.salesTaxType);
+    }
+    if(it.inventoryFromCsv){
+      if(!it.xeroItemCode||!/^[\w .-]{1,30}$/.test(String(it.xeroItemCode)))throw Error('Invalid CSV inventory item code.');
+      l.ItemCode=String(it.xeroItemCode);
+      if(it.accountCode)l.AccountCode=String(it.accountCode);
+      // Xero CSV labels ("Standard Rate Sales") are not API TaxType codes.
+      // Use configured Xero tax code; never guess the API tax identifier.
     }
     if(!l.AccountCode&&c.salesAccount)l.AccountCode=c.salesAccount;
     if(!l.TaxType&&c.taxType)l.TaxType=c.taxType;
