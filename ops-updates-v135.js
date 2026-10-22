@@ -1,10 +1,12 @@
 (function(){'use strict';
-var home=document.getElementById('screenHome');if(!home)return;
+var home=document.getElementById('screenSettings');if(!home)return;
+var menu=document.createElement('button');menu.type='button';menu.className='btn ghost';menu.style.cssText='width:100%;margin:12px 0;text-align:left';menu.textContent='App Updates · Version history & Test Checklist  ›';home.prepend(menu);
 var panel=document.createElement('section');
 panel.style.cssText='background:#142b40;color:#e9f3ff;border:1px solid #34536e;border-radius:12px;padding:14px;margin:14px 0';
 panel.innerHTML='<div style="font-weight:700;margin-bottom:6px">App Updates</div><div id="opsVersionLabel" style="font-size:12px;color:#bad0e4;margin-bottom:10px">Checking installed version…</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" id="opsCheckVersion" class="btn ghost">Check for updates</button><button type="button" id="opsRollbackVersion" class="btn ghost" disabled title="Requires a validated previous release">Rollback</button></div><div id="opsVersionStatus" role="status" aria-live="polite" style="font-size:12px;margin-top:9px;color:#cbdceb">Rollback requires verified release snapshots. Save unfinished work before reloading.</div>';
 panel.insertAdjacentHTML('beforeend','<div style="border-top:1px solid #34536e;margin-top:13px;padding-top:12px"><div style="font-weight:700;margin-bottom:6px">Wat het verander?</div><div id="opsReleaseChanges" style="font-size:12px;line-height:1.6">Laai weergawe-notas…</div><div style="font-weight:700;margin:14px 0 6px">Wat moet ek toets?</div><div id="opsReleaseTests" style="font-size:12px;line-height:1.6">Laai toetslys…</div><button class="btn ghost" id="opsClearTestChecks" type="button" style="margin-top:10px">Reset toetslys</button></div>');
-home.appendChild(panel);
+panel.style.display='none';menu.insertAdjacentElement('afterend',panel);
+menu.addEventListener('click',function(){var open=panel.style.display!=='none';panel.style.display=open?'none':'block';menu.textContent=open?'App Updates · Version history & Test Checklist  ›':'App Updates · Version history & Test Checklist  ▾';if(!open)loadRelease_();});
 var label=panel.querySelector('#opsVersionLabel'),status=panel.querySelector('#opsVersionStatus'),check=panel.querySelector('#opsCheckVersion');
 function installed(){
   if(!('caches' in window))return Promise.resolve('Unknown (no Cache API)');
