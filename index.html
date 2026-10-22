@@ -1240,7 +1240,7 @@ table.page{border-collapse:collapse}
       <div style="display:flex;gap:8px"><input class="search" id="vpXeroQ" placeholder="Search customer in Xero" autocomplete="off" style="margin:0;flex:1"><button class="btn ghost" id="vpXeroFind" type="button">Find</button></div>
       <div id="vpXeroResults"></div><div id="vpXeroPicked" class="hint" style="margin-top:7px"></div>
       <button class="btn" id="vpPublish" type="button" style="width:100%;margin-top:10px">Send Value Proposal</button>
-      <div class="hint" style="margin-top:9px">Match proposal lines to Xero inventory for the correct Sales Description, Sales Account and Tax Rate. Proposal selling prices stay unchanged.</div><button class="btn ghost" type="button" id="vpXeroLoadItems">Load Xero inventory items</button><label class="btn ghost" style="display:inline-block;margin:7px 0;cursor:pointer">Import Xero Inventory CSV<input type="file" id="vpXeroCsv" accept=".csv,text/csv" style="display:none"></label><div id="vpXeroCsvStatus" class="hint" role="status"></div><div id="vpXeroInventoryLines"></div>
+      <div class="hint" style="margin-top:9px">Match proposal lines to Xero inventory for the correct Sales Description, Sales Account and Tax Rate. Proposal selling prices stay unchanged.</div><button class="btn ghost" type="button" id="vpXeroLoadItems">Load Xero inventory items</button><label class="btn ghost" style="display:inline-block;margin:7px 0;cursor:pointer">Import Xero Inventory CSV<input type="file" id="vpXeroCsv" accept=".csv,text/csv" style="display:none"></label><div id="vpXeroCsvStatus" class="hint" role="status"></div><button class="btn ghost" id="vpXeroAutoMatch" type="button">Auto-match Inventory Items</button><div id="vpXeroAutoStatus" class="hint"></div><div id="vpXeroInventoryLines"></div>
       <button class="btn" id="vpXeroDirect" type="button" style="width:100%;margin-top:8px">Create Xero Draft Quote from Proposal</button><button class="btn" id="vpXeroAcceptInvoice" type="button" style="width:100%;margin-top:8px">Mark as Accepted → Convert to Draft Invoice</button><div class="hint" id="vpXeroDirectStatus" role="status"></div>
       <div id="vpPublishStatus" class="hint" style="margin-top:8px"></div>
     </div>
@@ -4975,13 +4975,40 @@ function vpImportXeroCsv_(file){
   if(!items.length)throw Error('No active inventory items in CSV');
   var seen={};items.forEach(function(x){if(seen[x.code])throw Error('Duplicate item code: '+x.code);seen[x.code]=1;});
   localStorage.setItem(VP_XERO_CSV_KEY,JSON.stringify({items:items,importedAt:new Date().toISOString(),source:file.name}));
-  vpXeroInventory_=items;vpRenderInventorySelectors_();status.textContent=items.length+' active Xero Inventory items imported from '+file.name+' (available offline).';
+  vpXeroInventory_=items;vpAutoMatchInventory_();status.textContent=items.length+' active Xero Inventory items imported from '+file.name+' (available offline).';
  }).catch(function(e){status.textContent='CSV import failed: '+e.message;});
 }
 (function(){try{var d=JSON.parse(localStorage.getItem(VP_XERO_CSV_KEY)||'null');if(d&&Array.isArray(d.items))vpXeroInventory_=d.items;}catch(e){}})();
 
 function vpLoadXeroInventory_(){
  return apiGet({action:'xeroItems'}).then(function(j){vpXeroInventory_=(j.items||[]).filter(function(x){return x.active!==false;});vpRenderInventorySelectors_();}).catch(function(e){var n=document.getElementById('vpXeroDirectStatus');if(n)n.textContent='Xero inventory API unavailable ('+e.message+'). Import your exported InventoryItems CSV instead.';});
+}
+function vpAutoMatchInventory_(){
+ var box=document.getElementById('vpXeroAutoStatus');
+ if(!VP||!vpXeroInventory_.length){box.textContent='Import the InventoryItems CSV first.';return;}
+ var synonyms={inverter:['inverter','omsetter','battery'],panel:['panel','mounting','roof'],ac:['switch gear','switchboard','db board'],dc:['dc switch gear','dc board'],hardware:['installation hardware','hardware'],labour:['labour','install'],coc:['certificate of compliance','coc']};
+ function norm(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+ var assigned=0,review=0;
+ VP.items.forEach(function(it){
+  if(it.xeroItemCode)return;
+  var name=norm([it.desc,it.descEn,it.spec,it.role].join(' ')),code=norm(it.code);
+  var exact=vpXeroInventory_.filter(function(x){return code&&norm(x.code)===code;});
+  if(exact.length===1){it.xeroItemCode=exact[0].code;assigned++;return;}
+  var scores=vpXeroInventory_.map(function(x){
+    var hay=norm([x.name,x.salesDescription,x.description,x.code].join(' ')),score=0;
+    if(name&&hay===name)score+=100;
+    var terms=name.split(' ').filter(function(w){return w.length>3;});
+    terms.forEach(function(w){if(hay.split(' ').indexOf(w)>=0)score+=4;});
+    var role=norm(it.role);
+    Object.keys(synonyms).forEach(function(key){if(role.indexOf(key)>=0||name.indexOf(key)>=0){synonyms[key].forEach(function(k){if(hay.indexOf(k)>=0)score+=8;});}});
+    return {item:x,score:score};
+  }).sort(function(a,b){return b.score-a.score;});
+  if(scores.length&&scores[0].score>=24&&(!scores[1]||scores[0].score>=scores[1].score+10)){
+    it.xeroItemCode=scores[0].item.code;assigned++;
+  }else review++;
+ });
+ vpSave();vpRenderInventorySelectors_();
+ box.textContent=assigned+' lines matched automatically. '+review+' need manual review; always verify matching item and sales description before creating the quote.';
 }
 function vpRenderInventorySelectors_(){
  var host=document.getElementById('vpXeroInventoryLines');if(!host||!VP)return;
@@ -5020,6 +5047,7 @@ function vpXeroDirect_(){
 }
 document.getElementById('vpXeroDirect').addEventListener('click',vpXeroDirect_);
 document.getElementById('vpXeroLoadItems').addEventListener('click',vpLoadXeroInventory_);
+document.getElementById('vpXeroAutoMatch').addEventListener('click',vpAutoMatchInventory_);
 document.getElementById('vpXeroCsv').addEventListener('change',function(){vpImportXeroCsv_(this.files&&this.files[0]);});
 document.getElementById('vpXeroAcceptInvoice').addEventListener('click',vpXeroAcceptInvoice_);
 function vpXeroAcceptInvoice_(){
