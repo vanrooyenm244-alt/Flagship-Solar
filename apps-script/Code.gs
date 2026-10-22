@@ -458,7 +458,7 @@ function shiftCalculation_(dateStr,inStr,outStr,lunchMin,dayNames,normalStart,no
   if((typeof lunchMin!=='number'&&typeof lunchMin!=='string')||String(lunchMin).trim()===''||!isFinite(Number(lunchMin))||Number(lunchMin)<0)
     return invalid('Enter explicit lunch minutes (0 is valid).');
   var lunch=Number(lunchMin), elapsed=b-a;
-  // Saturdays have no lunch deduction.
+  // All Saturday minutes count as overtime, without a lunch deduction.
   if(date.getUTCDay()===6)lunch=0;
   if(lunch>elapsed)return invalid('Review required: lunch exceeds the actual shift duration.');
   var day=date.getUTCDay(), dayType=day===0?'Sunday':(day===6?'Saturday':'Weekday');
@@ -791,7 +791,10 @@ function tsStage_(user,rows){
       if(status==='pending'){
         var prev=existing.findIndex(function(v){return v[6]==='Pending'&&String(v[1]).toLowerCase()===worker.toLowerCase()&&dateStr_(v[2])===ds;});
         var clean={worker:worker,date:ds,job:String(r.job||''),timeIn:String(r.timeIn||''),timeOut:String(r.timeOut||''),lunch:new Date(ds+'T00:00:00Z').getUTCDay()===6?0:Number(r.lunch),note:String(r.note||'')};
-        if(prev>=0){sh.getRange(prev+2,4).setValue(JSON.stringify(clean));sh.getRange(prev+2,5,1,2).setValues([[user.username,new Date()]]);}
+        if(prev>=0){
+          if(String(existing[prev][3])===JSON.stringify(clean)){status='unchanged';}
+          else {sh.getRange(prev+2,4).setValue(JSON.stringify(clean));sh.getRange(prev+2,5,1,2).setValues([[user.username,new Date()]]);existing[prev][3]=JSON.stringify(clean);}
+        }
         else {var rec=[Utilities.getUuid(),worker,ds,JSON.stringify(clean),user.username,new Date(),'Pending','','',''];sh.appendRow(rec);existing.push(rec);}
       }
       // 'added' confirms receipt into the approval inbox, NOT into Timesheets.
