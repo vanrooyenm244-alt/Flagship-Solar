@@ -526,7 +526,7 @@ function findUser_(username) {
 
 /* Per-user, per-company checkbox privileges. Existing role/assignment rules remain. */
 var APP_PERMISSION_CATALOG_={"Flagship Solar": [{"key": "inspections.view", "label": "Inspections \u2014 view / capture"}, {"key": "job_cards.view", "label": "Job Cards \u2014 view"}, {"key": "job_cards.edit", "label": "Job Cards \u2014 save / submit"}, {"key": "calendar.view", "label": "Calendar \u2014 view"}, {"key": "calendar.edit", "label": "Calendar \u2014 schedule / change"}, {"key": "stock.view", "label": "Stock \u2014 view"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.manage", "label": "Stock \u2014 add items / receive file"}, {"key": "stock.report", "label": "Stock \u2014 reports"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 own entries"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "timesheets.view_all", "label": "Timesheets \u2014 all employees"}, {"key": "prices.view", "label": "Price List \u2014 sell prices"}, {"key": "prices.cost", "label": "Price List \u2014 supplier costs / markup"}, {"key": "prices.manage", "label": "Price List \u2014 edit / import"}, {"key": "quotes.view", "label": "Quotes \u2014 build / view"}, {"key": "quotes.create", "label": "Quotes \u2014 create in Xero"}, {"key": "proposals.view", "label": "Value Proposals \u2014 build / view"}, {"key": "proposals.send", "label": "Value Proposals \u2014 send / publish"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}], "Hi Service": [{"key":"calendar.view","label":"Calendar — TimeTree bookings"},{"key": "stock.view", "label": "Stock \u2014 view / count screen"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.overview", "label": "Stock \u2014 overview / totals"}, {"key": "stock.report", "label": "Stock \u2014 daily reports / PDF"}, {"key": "stock.manage", "label": "Stock \u2014 add items / file import"}, {"key": "stock.transfer", "label": "Stock \u2014 transfer between locations"}, {"key": "stock.receive", "label": "Stock \u2014 receive / invoices"}, {"key": "stock.adjust", "label": "Stock \u2014 adjust quantities"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 view"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "estimates.view", "label": "Cost Estimation \u2014 build / share"}, {"key":"quotes.create","label":"Xero — create Hi Service draft quotes"}, {"key":"quotes.view","label":"Xero — connection status"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}]};
-var APP_PERMISSION_ACTIONS_={"hiCalendar":"calendar.view","jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit", "hiClockAction":"timesheets.submit", "hiClockStatus":"timesheets.view_own", "flagshipClockStatus":"timesheets.view_own", "flagshipClockAction":"timesheets.submit", "hiXeroContacts":"quotes.view", "hiXeroStatus":"quotes.view", "hiXeroCreateContact":"quotes.create", "hiXeroCreateQuote":"quotes.create"};
+var APP_PERMISSION_ACTIONS_={"hiCalendar":"calendar.view","jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroQuoteAcceptInvoice":"quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit", "hiClockAction":"timesheets.submit", "hiClockStatus":"timesheets.view_own", "flagshipClockStatus":"timesheets.view_own", "flagshipClockAction":"timesheets.submit", "hiXeroContacts":"quotes.view", "hiXeroStatus":"quotes.view", "hiXeroCreateContact":"quotes.create", "hiXeroCreateQuote":"quotes.create"};
 function permissionCompany_(body){return /^hi[A-Z]/.test(String(body.action||''))?'Hi Service':(['userAccess','userPermissions','saveUserPermissions','me','login'].indexOf(body.action)>=0&&body.company==='Hi Service'?'Hi Service':'Flagship Solar');}
 function permissionRecord_(username,company){var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(!sh||sh.getLastRow()<2)return null;var rows=sh.getRange(2,1,sh.getLastRow()-1,5).getValues(),key=String(username).toLowerCase();for(var i=0;i<rows.length;i++)if(String(rows[i][0]).toLowerCase()===key&&rows[i][1]===company){var permissions;try{permissions=JSON.parse(rows[i][2]);}catch(e){throw Error('Invalid stored user permissions; ask an Admin to repair.');}if(!Array.isArray(permissions))throw Error('Invalid stored user permissions');return {row:i+2,permissions:permissions};}return null;}
 function permissionDefaults_(u,company){var keys=APP_PERMISSION_CATALOG_[company].map(function(x){return x.key;});if(u.role==='Admin')return keys;if(company==='Hi Service')return keys.filter(function(k){return k!=='users.manage';});var worker=['inspections.view','job_cards.view','job_cards.edit','calendar.view','stock.view','stock.count','stock.report','timesheets.view_own','timesheets.submit'];return u.role==='Technician'?keys.filter(function(k){return ['users.manage','prices.cost','prices.manage'].indexOf(k)<0;}):worker;}
@@ -1277,6 +1277,54 @@ function xeroCreateQuote_(body){
   log_(u.username,'xeroCreateQuote',String(x.QuoteNumber||''),q.clientName||'',String(x.QuoteID||''));
   return {ok:true,quoteID:x.QuoteID||'',quoteNumber:x.QuoteNumber||'',status:x.Status||''};
 }
+/* Convert an explicitly accepted Xero quote to ONE draft invoice.
+   Uses the line items returned by Xero so account codes, sales descriptions,
+   tax rates and quote-specific selling prices survive unchanged. */
+function xeroQuoteAcceptInvoice_(body){
+ var user=auth_(body,'Admin'),id=String(body.quoteID||'').trim();
+ if(!/^[0-9a-fA-F-]{36}$/.test(id))throw Error('Valid Xero QuoteID required');
+ var lock=LockService.getScriptLock();lock.waitLock(30000);
+ try{
+  var props=xeroProps_(),key='FS_QUOTE_INVOICE_'+id,previous=props.getProperty(key);
+  if(previous){var saved=JSON.parse(previous);return {ok:true,invoiceID:saved.invoiceID,invoiceNumber:saved.invoiceNumber,existing:true};}
+  var access=xeroAccess_(),tenant=props.getProperty('XERO_TENANT_ID');if(!tenant)throw Error('Xero organisation not connected.');
+  var response=xeroRaw_(XERO_API_+'/Quotes/'+encodeURIComponent(id),access,'get',null,tenant);
+  var quote=(response.Quotes||[])[0];if(!quote||!quote.QuoteID)throw Error('Quote not found in Xero');
+  if(!quote.Contact||!quote.Contact.ContactID)throw Error('Quote has no Xero Contact.');
+  if(!quote.LineItems||!quote.LineItems.length)throw Error('Quote has no invoiceable items.');
+  // Xero may require a draft to be marked SENT before ACCEPTED.
+  if(quote.Status==='DRAFT'){
+   var sent=xeroRaw_(XERO_API_+'/Quotes/'+encodeURIComponent(id),access,'post',{Quotes:[{QuoteID:id,Status:'SENT'}]},tenant);
+   quote=(sent.Quotes&&sent.Quotes[0])||quote;
+  }
+  if(quote.Status!=='ACCEPTED'){
+   var accepted=xeroRaw_(XERO_API_+'/Quotes/'+encodeURIComponent(id),access,'post',{Quotes:[{QuoteID:id,Status:'ACCEPTED'}]},tenant);
+   quote=(accepted.Quotes&&accepted.Quotes[0])||quote;
+  }
+  if(quote.Status!=='ACCEPTED')throw Error('Xero has not confirmed accepted quote status.');
+  // Prevent invoice duplication even if the response to the previous attempt was lost.
+  var reference='FS-QUOTE-'+id;
+  var where=encodeURIComponent('Reference=="'+reference+'"');
+  var existing=xeroRaw_(XERO_API_+'/Invoices?where='+where,access,'get',null,tenant).Invoices||[];
+  var found=existing.filter(function(x){return x.Type==='ACCREC'&&x.Status!=='DELETED';})[0];
+  if(found){props.setProperty(key,JSON.stringify({invoiceID:found.InvoiceID,invoiceNumber:found.InvoiceNumber||''}));return {ok:true,invoiceID:found.InvoiceID,invoiceNumber:found.InvoiceNumber||'',existing:true};}
+  var lines=quote.LineItems.map(function(line){
+    var l={Description:String(line.Description||''),Quantity:Number(line.Quantity),UnitAmount:Number(line.UnitAmount)};
+    if(line.ItemCode)l.ItemCode=line.ItemCode;
+    if(line.AccountCode)l.AccountCode=line.AccountCode;
+    if(line.TaxType)l.TaxType=line.TaxType;
+    if(line.DiscountRate!=null)l.DiscountRate=Number(line.DiscountRate);
+    return l;
+  });
+  var invoice={Type:'ACCREC',Contact:{ContactID:quote.Contact.ContactID},Date:Utilities.formatDate(new Date(),'Africa/Johannesburg','yyyy-MM-dd'),Reference:reference,Status:'DRAFT',LineAmountTypes:quote.LineAmountTypes||'EXCLUSIVE',LineItems:lines};
+  if(quote.CurrencyCode)invoice.CurrencyCode=quote.CurrencyCode;
+  var created=xeroRaw_(XERO_API_+'/Invoices',access,'post',{Invoices:[invoice]},tenant),v=(created.Invoices||[])[0]||{};
+  if(!v.InvoiceID)throw Error('Xero invoice not confirmed. Check Xero before retrying.');
+  props.setProperty(key,JSON.stringify({invoiceID:v.InvoiceID,invoiceNumber:v.InvoiceNumber||''}));
+  log_(user.username,'xeroQuoteAcceptInvoice',String(quote.QuoteNumber||''),id,String(v.InvoiceID));
+  return {ok:true,quoteStatus:'ACCEPTED',invoiceID:v.InvoiceID,invoiceNumber:v.InvoiceNumber||'',status:v.Status||'DRAFT'};
+ }finally{lock.releaseLock();}
+}
 function validateQuoteAmounts_(quantity,amount){
   if(quantity==null||String(quantity).trim()===''||!isFinite(Number(quantity))||Number(quantity)<=0)throw new Error('Quote quantities must be positive numbers.');
   if(amount==null||String(amount).trim()===''||!isFinite(Number(amount)))throw new Error('Quote prices must be explicit numbers.');
@@ -1721,6 +1769,7 @@ function doPost(e) {
     if (body.action === 'xeroItems') { auth_(body,['Admin','Technician']); return out_(xeroItems_()); }
     if (body.action === 'proposalPublish') return out_(proposalPublish_(body));
     if (body.action === 'xeroCreateQuote') return out_(xeroCreateQuote_(body));
+    if (body.action === 'xeroQuoteAcceptInvoice') return out_(xeroQuoteAcceptInvoice_(body));
     if (body.action === 'flagshipClockAction') return out_(flagshipClockAction_(body));
     if (body.action === 'hiClockAction') return out_(hiClockAction_(body));
     if (body.action === 'hiXeroCreateContact') return out_(xeroCreateContact_(body));
