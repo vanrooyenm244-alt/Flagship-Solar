@@ -1252,7 +1252,24 @@ function xeroCreateQuote_(body){
   var items=Array.isArray(q.items)?q.items:[]; if(!items.length) throw new Error('At least one quote line is required.');
   items.forEach(function(it){validateQuoteAmounts_(it.quantity,it.unitAmount);});
   var c=xeroCfg_(), token=xeroAccess_(), tenant=xeroProps_().getProperty('XERO_TENANT_ID'); if(!tenant) throw new Error('No Xero organisation connection found.');
-  var lines=items.map(function(it){var l={Description:String(it.description||'').trim(),Quantity:Number(it.quantity),UnitAmount:Number(it.unitAmount)};if(it.xeroItemCode)l.ItemCode=String(it.xeroItemCode);if(c.salesAccount)l.AccountCode=c.salesAccount;if(c.taxType)l.TaxType=c.taxType;return l;});
+  var catalog=null;
+  if(items.some(function(it){return !!it.xeroItemCode;})){
+    catalog={};var fetched=xeroItems_().items;fetched.forEach(function(x){catalog[String(x.code).toLowerCase()]=x;});
+  }
+  var lines=items.map(function(it){
+    var l={Description:String(it.description||'').trim(),Quantity:Number(it.quantity),UnitAmount:Number(it.unitAmount)};
+    if(it.xeroItemCode){
+      var inv=catalog[String(it.xeroItemCode).toLowerCase()];
+      if(!inv||!inv.active)throw Error('Xero Inventory Item not found/active: '+it.xeroItemCode);
+      l.ItemCode=String(inv.code);
+      l.Description=String(inv.salesDescription||inv.description||l.Description);
+      if(inv.salesAccountCode)l.AccountCode=String(inv.salesAccountCode);
+      if(inv.salesTaxType)l.TaxType=String(inv.salesTaxType);
+    }
+    if(!l.AccountCode&&c.salesAccount)l.AccountCode=c.salesAccount;
+    if(!l.TaxType&&c.taxType)l.TaxType=c.taxType;
+    return l;
+  });
   var quote={Contact:{ContactID:q.contactID},Date:String(q.date||new Date().toISOString().slice(0,10)),ExpiryDate:String(q.expiryDate||''),Reference:String(q.reference||''),Title:String(q.title||'Flagship Quote').slice(0,100),Summary:String(q.summary||'').slice(0,3000),LineItems:lines,LineAmountTypes:'EXCLUSIVE',Status:'DRAFT'};
   if(!quote.ExpiryDate) delete quote.ExpiryDate;
   var j=xeroRaw_(XERO_API_+'/Quotes',token,'post',{Quotes:[quote]},tenant); var x=(j.Quotes&&j.Quotes[0])||{};
