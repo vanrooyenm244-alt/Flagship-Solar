@@ -1189,9 +1189,20 @@ function xeroRaw_(url,token,method,payload,tenant){
   try{j=JSON.parse(txt||'{}')}catch(e){}
   if(code<200||code>=300){
     var details=[];
-    (j.Elements||[]).forEach(function(el,i){(el.ValidationErrors||[]).forEach(function(v){details.push('Line '+(i+1)+': '+String(v.Message||v.message||''));});});
-    (j.ValidationErrors||[]).forEach(function(v){details.push(String(v.Message||v.message||''));});
-    var cause=details.length?details.join(' | '):String(j.Message||j.message||j.Title||txt);
+    function collectValidation_(obj,path,depth){
+      if(!obj||depth>5||details.length>=12)return;
+      if(Array.isArray(obj)){obj.forEach(function(v,i){collectValidation_(v,path+'['+(i+1)+']',depth+1);});return;}
+      if(typeof obj!=='object')return;
+      if(obj.ValidationErrors&&Array.isArray(obj.ValidationErrors)){
+        obj.ValidationErrors.forEach(function(v){var m=String(v.Message||v.message||'');if(m)details.push(path+': '+m);});
+      }
+      ['Elements','Quotes','LineItems','Invoices'].forEach(function(k){
+        if(obj[k])collectValidation_(obj[k],path+'.'+k,depth+1);
+      });
+    }
+    collectValidation_(j,'Xero',0);
+    var message=String(j.Message||j.message||j.Title||'');
+    var cause=details.length?(message+': '+details.join(' | ')):String(j.Detail||j.detail||message||txt);
     throw new Error('Xero API '+code+': '+cause.slice(0,1800));
   }
   return j;
