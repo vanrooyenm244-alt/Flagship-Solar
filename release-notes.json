@@ -1,8 +1,10 @@
 {
-  "version": "flagship-ops-auto-match-v139",
+  "version": "flagship-ops-csv-quote-debug-v140",
   "date": "2026-10-22",
   "title": "Xero Inventory Quotes en Draft Invoices",
   "changes": [
+    "When CSV inventory exists locally, 'Load Xero inventory items' uses that catalog without a network request (avoids Xero Items API 401).",
+    "Backend can identify nested field validation errors for rejected Xero Draft Quotes (requires live Apps Script deployment).",
     "Inventory CSV: automatically suggest high-confidence matches, leaving ambiguous lines for review.",
     "Xero quote errors: display actual API validation messages instead of only generic 400; avoid passing CSV account labels as account codes.",
     "Import Xero InventoryItems CSV when Xero Items API gives 401; matching preserves proposal prices.",
@@ -18,6 +20,8 @@
     "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
   ],
   "tests": [
+    "Reopen saved Value Proposal: verify imported inventory is available without Xero Items API 401.",
+    "Create a test Draft Quote and capture the full error from deployed backend if still rejected; do not retry until checked in Xero.",
     "Import InventoryItems CSV; confirm Auto-match suggestions match the correct item codes and Sales Descriptions.",
     "Attempt only a safe test Draft Quote and capture the exact field-level Xero validation response if it fails.",
     "Import Xero InventoryItems CSV and verify item codes 05, 04 and sales descriptions; check quote tax rates manually.",
