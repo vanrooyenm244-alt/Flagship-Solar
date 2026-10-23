@@ -1297,7 +1297,9 @@ function poCreate_(body){
   });
   var tenant=xeroProps_().getProperty('XERO_TENANT_ID'),token=xeroAccess_();
   if(!tenant)throw Error('No Xero organisation connected.');
-  var doc={Contact:{ContactID:contactID},Date:String(po.date||new Date().toISOString().slice(0,10)),Reference:String(po.reference||po.job||'').slice(0,255),Status:'DRAFT',LineAmountTypes:'Exclusive',LineItems:lines};
+  var company=String(po.company||'Flagship Solar');if(company!=='Flagship Solar'&&company!=='Hi Service')throw Error('Invalid PO company.');
+  var reference=(company==='Hi Service'?'HI SERVICE | ':'FLAGSHIP | ')+String(po.reference||po.job||'');
+  var doc={Contact:{ContactID:contactID},Date:String(po.date||new Date().toISOString().slice(0,10)),Reference:reference.slice(0,255),Status:'DRAFT',LineAmountTypes:'Exclusive',LineItems:lines};
   if(po.deliveryDate)doc.DeliveryDate=String(po.deliveryDate);
   var j=xeroRaw_(XERO_API_+'/PurchaseOrders',token,'post',{PurchaseOrders:[doc]},tenant,key);
   var p=(j.PurchaseOrders&&j.PurchaseOrders[0])||{};
