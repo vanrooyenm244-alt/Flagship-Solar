@@ -68,6 +68,27 @@ jobs:
         run: |
           set -euo pipefail
           find apps-script -maxdepth 1 -type f \( -name '*.gs' -o -name '*.js' \) -print -exec cp {} "$STAGING_DIR/" \;
+          # clasp treats File.gs and File.js as the same Apps Script server file.
+          # Prefer the repository-managed .gs when it replaces a pulled .js.
+          # Never resolve collisions involving untracked files silently.
+          for source in apps-script/*.gs; do
+            [ -f "$source" ] || continue
+            base="${source##*/}"
+            base="${base%.gs}"
+            if [ -f "$STAGING_DIR/$base.js" ]; then
+              echo "Replacing pulled $base.js with repository-managed $base.gs"
+              rm -- "$STAGING_DIR/$base.js"
+            fi
+          done
+          # Diagnose any remaining collisions BEFORE clasp push changes remote HEAD.
+          for file in "$STAGING_DIR"/*.gs; do
+            [ -f "$file" ] || continue
+            duplicate="${file%.gs}.js"
+            if [ -f "$duplicate" ]; then
+              echo "::error::Conflicting Apps Script server files: ${file##*/} and ${duplicate##*/}; stopped before upload"
+              exit 1
+            fi
+          done
           test -f "$STAGING_DIR/Code.gs" || { echo "::error::Code.gs not found"; exit 1; }
           test -f "$STAGING_DIR/appsscript.json" || { echo "::error::Existing Apps Script manifest not found; stopped to avoid changing deployment settings"; exit 1; }
 
