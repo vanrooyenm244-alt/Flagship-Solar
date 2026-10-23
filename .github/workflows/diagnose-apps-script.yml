@@ -1,0 +1,53 @@
+name: Diagnose Apps Script access
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+      CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
+    steps:
+      - name: Verify configuration without showing credentials
+        shell: bash
+        run: |
+          test -n "$SCRIPT_ID" || { echo "::error::APPS_SCRIPT_ID secret missing"; exit 1; }
+          test -n "$CLASP_CREDENTIALS" || { echo "::error::Clasp credentials secret missing"; exit 1; }
+          printf '%s' "$CLASP_CREDENTIALS" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("tokens"), "No clasp tokens in credential JSON"; print("Credential JSON structure OK")'
+      - name: Install clasp
+        run: npm install --global @google/clasp
+      - name: Prepare read-only test
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          mkdir -p "$RUNNER_TEMP/clasp-read-only"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$SCRIPT_ID" > "$RUNNER_TEMP/clasp-read-only/.clasp.json"
+      - name: Test read access (no writes)
+        working-directory: ${{ runner.temp }}/clasp-read-only
+        run: clasp pull > /dev/null && echo "Read access to the script: OK"
+      - name: Test Apps Script API access (no writes)
+        working-directory: ${{ runner.temp }}/clasp-read-only
+        shell: bash
+        run: |
+          if clasp versions > /dev/null 2> "$RUNNER_TEMP/clasp-error.txt"; then
+            echo "Apps Script versions API: OK"
+          else
+            if grep -qi 'has not enabled the Apps Script API' "$RUNNER_TEMP/clasp-error.txt"; then
+              echo "::error::The Google account in the GitHub clasp secret has Apps Script API disabled, even if another signed-in account has it enabled."
+            else
+              echo "::error::Apps Script versions API failed. Check which Google account authorised clasp, its project access and credentials."
+              sed -E 's/[A-Za-z0-9_-]{35,}/[redacted]/g' "$RUNNER_TEMP/clasp-error.txt" | head -c 700
+            fi
+            exit 1
+          fi
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
