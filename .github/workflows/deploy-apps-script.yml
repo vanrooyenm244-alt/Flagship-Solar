@@ -134,12 +134,26 @@ jobs:
           test -f "$STAGING_DIR/Code.gs" || { echo "::error::Code.gs not found"; exit 1; }
           test -f "$STAGING_DIR/appsscript.json" || { echo "::error::Existing Apps Script manifest not found; stopped to avoid changing deployment settings"; exit 1; }
 
-      - name: Update existing script and existing Web App deployment
+      - name: Verify Apps Script API before changes
+        working-directory: ${{ env.STAGING_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          clasp versions > /dev/null
+          echo "Version read succeeded. Write authorization is checked separately."
+
+      - name: Push source to Apps Script
         working-directory: ${{ env.STAGING_DIR }}
         shell: bash
         run: |
           set -euo pipefail
           clasp push --force
+
+      - name: Update existing Web App deployment
+        working-directory: ${{ env.STAGING_DIR }}
+        shell: bash
+        run: |
+          set -euo pipefail
           clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "GitHub ${GITHUB_SHA:0:10}"
 
       - name: Delete local OAuth credentials
