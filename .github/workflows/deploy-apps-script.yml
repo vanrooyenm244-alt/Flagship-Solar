@@ -36,7 +36,7 @@ jobs:
           printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
           chmod 600 "$HOME/.clasprc.json"
           mkdir -p "$RUNNER_TEMP/clasp-read-only"
-          printf '{"scriptId":"%s","rootDir":"."}\\n' "$SCRIPT_ID" > "$RUNNER_TEMP/clasp-read-only/.clasp.json"
+          printf '{"scriptId":"%s","rootDir":"."}\n' "$SCRIPT_ID" > "$RUNNER_TEMP/clasp-read-only/.clasp.json"
       - name: Read existing Apps Script (no changes)
         working-directory: ${{ runner.temp }}/clasp-read-only
         run: clasp pull > /dev/null && echo "Script read permission OK"
