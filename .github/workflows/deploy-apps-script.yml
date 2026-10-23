@@ -14,10 +14,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  diagnose:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+      CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
+    steps:
+      - name: Check required secrets
+        shell: bash
+        run: |
+          test -n "$SCRIPT_ID" || { echo "::error::APPS_SCRIPT_ID missing"; exit 1; }
+          test -n "$CLASP_CREDENTIALS" || { echo "::error::APPS_SCRIPT_CLASP_CREDENTIALS missing"; exit 1; }
+      - name: Install clasp
+        run: npm install --global @google/clasp
+      - name: Prepare read-only credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLASP_CREDENTIALS" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+          mkdir -p "$RUNNER_TEMP/clasp-read-only"
+          printf '{"scriptId":"%s","rootDir":"."}\\n' "$SCRIPT_ID" > "$RUNNER_TEMP/clasp-read-only/.clasp.json"
+      - name: Read existing Apps Script (no changes)
+        working-directory: ${{ runner.temp }}/clasp-read-only
+        run: clasp pull > /dev/null && echo "Script read permission OK"
+      - name: Check version access (no changes)
+        working-directory: ${{ runner.temp }}/clasp-read-only
+        run: clasp versions > /dev/null && echo "Apps Script API read access OK"
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
+
   deploy:
     if: >-
-      ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
-          || (github.event_name == 'workflow_run'
+      ${{ (github.event_name == 'workflow_run'
           && github.event.workflow_run.conclusion == 'success'
           && github.event.workflow_run.head_branch == 'main'
           && github.event.workflow_run.event == 'push') }}
