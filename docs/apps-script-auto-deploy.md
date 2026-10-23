@@ -43,3 +43,5 @@ A deployment must succeed before the Hi Service Xero button will function.
 - Both apps use the shared Xero tenant for now. Migrating Hi Service to its own
   Xero organisation later requires adding distinct token/tenant configuration.
 - Never commit secrets to source control.
+
+<!-- Deployment verification trigger: 2026-10-23. No application logic changed. -->
