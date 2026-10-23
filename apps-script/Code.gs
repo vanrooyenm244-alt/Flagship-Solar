@@ -1069,7 +1069,7 @@ var XERO_TOKEN_URL_='https://identity.xero.com/connect/token';
 var XERO_API_='https://api.xero.com/api.xro/2.0';
 var XERO_CONN_='https://api.xero.com/connections';
 var XERO_AUTH_='https://login.xero.com/identity/connect/authorize';
-var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices offline_access';
+var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices accounting.transactions offline_access';
 
 function xeroProps_(){ return PropertiesService.getScriptProperties(); }
 function xeroCfg_(){
@@ -1162,10 +1162,11 @@ function xeroRefreshAccess_(){
   return j.access_token;
 }
 
-function xeroRaw_(url,token,method,payload,tenant){
+function xeroRaw_(url,token,method,payload,tenant,idempotencyKey){
   function request_(bearer){
     var headers={Authorization:'Bearer '+bearer,Accept:'application/json'};
     if(tenant) headers['xero-tenant-id']=tenant;
+    if(idempotencyKey)headers['Idempotency-Key']=idempotencyKey;
     var opt={method:(method||'get'),headers:headers,muteHttpExceptions:true};
     if(payload!==null&&payload!==undefined){
       opt.contentType='application/json';
@@ -1262,6 +1263,66 @@ function xeroCreateContact_(body){
   log_(u.username,'xeroCreateContact',String(c.ContactID),name,String(c.ContactID));
   return {ok:true,created:true,contactID:c.ContactID,name:c.Name||name,email:c.EmailAddress||email,number:c.ContactNumber||number};
 }
+
+/* Purchase orders: create in Xero, retain a local reference, return Xero's own PDF. */
+function poSheet_(){
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var sh=ss.getSheetByName('PurchaseOrders')||ss.insertSheet('PurchaseOrders');
+  if(sh.getLastRow()===0)sh.appendRow(['Client Key','PO ID','PO Number','Supplier','Job','Created By','Created At','Status']);
+  return sh;
+}
+function poFind_(key){
+  var sh=poSheet_(),n=sh.getLastRow();
+  if(n<2)return null;
+  var rows=sh.getRange(2,1,n-1,8).getValues();
+  for(var i=0;i<rows.length;i++)if(String(rows[i][0])===key)return {id:String(rows[i][1]),number:String(rows[i][2]),supplier:String(rows[i][3]),job:String(rows[i][4]),status:String(rows[i][7])};
+  return null;
+}
+function poCreate_(body){
+  var u=auth_(body,['Admin']); var po=body.purchaseOrder||{},key=String(po.clientKey||'');
+  if(!/^[A-Za-z0-9_-]{12,100}$/.test(key))throw Error('A stable purchase-order key is required.');
+  var previous=poFind_(key);if(previous)return {ok:true,existing:true,purchaseOrderID:previous.id,purchaseOrderNumber:previous.number,status:previous.status};
+  var contactID=String(po.contactID||'');
+  if(!/^[0-9a-f-]{36}$/i.test(contactID))throw Error('Select a supplier from Xero.');
+  var items=po.items;
+  if(!Array.isArray(items)||!items.length||items.length>100)throw Error('1 to 100 line items required.');
+  var purchaseAccount=String(xeroProps_().getProperty('XERO_PURCHASE_ACCOUNT')||'').trim();
+  var lines=items.map(function(x){
+    var desc=String(x.description||'').trim(),qty=Number(x.quantity),price=Number(x.unitAmount),code=String(x.accountCode||purchaseAccount||'').trim();
+    if(!desc||desc.length>4000||!isFinite(qty)||qty<=0||!isFinite(price)||price<0||price>100000000)throw Error('Invalid purchase-order line.');
+    if(!/^[A-Za-z0-9-]{2,12}$/.test(code))throw Error('Configure XERO_PURCHASE_ACCOUNT in Apps Script or specify a valid purchase account per line.');
+    var line={Description:desc,Quantity:qty,UnitAmount:price,AccountCode:code};
+    if(x.itemCode&&/^[\w .-]{1,30}$/.test(String(x.itemCode)))line.ItemCode=String(x.itemCode);
+    return line;
+  });
+  var tenant=xeroProps_().getProperty('XERO_TENANT_ID'),token=xeroAccess_();
+  if(!tenant)throw Error('No Xero organisation connected.');
+  var doc={Contact:{ContactID:contactID},Date:String(po.date||new Date().toISOString().slice(0,10)),Reference:String(po.reference||po.job||'').slice(0,255),Status:'DRAFT',LineAmountTypes:'Exclusive',LineItems:lines};
+  if(po.deliveryDate)doc.DeliveryDate=String(po.deliveryDate);
+  var j=xeroRaw_(XERO_API_+'/PurchaseOrders',token,'post',{PurchaseOrders:[doc]},tenant,key);
+  var p=(j.PurchaseOrders&&j.PurchaseOrders[0])||{};
+  if(!p.PurchaseOrderID)throw Error('Xero returned no PurchaseOrderID. Check Xero before retrying.');
+  poSheet_().appendRow([key,p.PurchaseOrderID,p.PurchaseOrderNumber||'',String(po.supplier||''),String(po.job||''),u.username,new Date(),p.Status||'DRAFT']);
+  log_(u.username,'poCreate',String(p.PurchaseOrderNumber||''),String(po.supplier||''),String(p.PurchaseOrderID));
+  return {ok:true,purchaseOrderID:p.PurchaseOrderID,purchaseOrderNumber:p.PurchaseOrderNumber||'',status:p.Status||'DRAFT'};
+}
+function poPdf_(body){
+  auth_(body,['Admin']);var id=String(body.purchaseOrderID||'');
+  if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid PO identifier.');
+  var sh=poSheet_(),found=false,n=sh.getLastRow();
+  if(n>1){var rows=sh.getRange(2,2,n-1,1).getValues();found=rows.some(function(r){return String(r[0])===id;});}
+  if(!found)throw Error('PO not found in Flagship register.');
+  var tenant=xeroProps_().getProperty('XERO_TENANT_ID');
+  function request_(token){return UrlFetchApp.fetch(XERO_API_+'/PurchaseOrders/'+encodeURIComponent(id)+'/pdf',{method:'get',headers:{Authorization:'Bearer '+token,'xero-tenant-id':tenant,Accept:'application/pdf'},muteHttpExceptions:true});}
+  var r=request_(xeroAccess_());
+  if(r.getResponseCode()===401)r=request_(xeroRefreshAccess_());
+  if(r.getResponseCode()!==200)throw Error('Xero PDF request failed (HTTP '+r.getResponseCode()+'): '+r.getContentText().slice(0,350));
+  var bytes=r.getBlob().getBytes();
+  if(bytes.length>7000000)throw Error('PDF is too large to share in-app.');
+  if(bytes[0]!==37||bytes[1]!==80||bytes[2]!==68||bytes[3]!==70)throw Error('Xero did not return a PDF.');
+  return {ok:true,filename:'Xero-PO-'+id.slice(0,8)+'.pdf',base64:Utilities.base64Encode(bytes),contentType:'application/pdf'};
+}
+
 function xeroCreateQuote_(body){
   var u=auth_(body,['Admin','Technician']); var q=body.quote||{}; if(!q.contactID) throw new Error('A Xero customer is required.');
   var items=Array.isArray(q.items)?q.items:[]; if(!items.length) throw new Error('At least one quote line is required.');
@@ -1793,6 +1854,8 @@ function doPost(e) {
     if (body.action === 'xeroStart') return out_(xeroStart_(body));
     if (body.action === 'xeroItems') { auth_(body,['Admin','Technician']); return out_(xeroItems_()); }
     if (body.action === 'proposalPublish') return out_(proposalPublish_(body));
+    if (body.action === 'poCreate') return out_(poCreate_(body));
+    if (body.action === 'poPdf') return out_(poPdf_(body));
     if (body.action === 'xeroCreateQuote') return out_(xeroCreateQuote_(body));
     if (body.action === 'xeroQuoteAcceptInvoice') return out_(xeroQuoteAcceptInvoice_(body));
     if (body.action === 'flagshipClockAction') return out_(flagshipClockAction_(body));
