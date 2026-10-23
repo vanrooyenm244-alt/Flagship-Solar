@@ -1743,7 +1743,21 @@ function resumeRead_(){try{return JSON.parse(localStorage.getItem(RESUME_KEY)||'
 function resumeWrite_(x){try{localStorage.setItem(RESUME_KEY,JSON.stringify(x||{}))}catch(e){}}
 function resumeClear_(){try{localStorage.removeItem(RESUME_KEY)}catch(e){}}
 
+var flagshipScreenHistory_=['screenHome'],flagshipFromBack_=false;
+try{history.replaceState({flagshipScreen:'screenHome'},'','#flagship-home');history.pushState({flagshipScreen:'screenHome'},'','#flagship-home')}catch(e){}
+window.addEventListener('popstate',function(){
+  var prior=flagshipScreenHistory_.length>1?flagshipScreenHistory_[flagshipScreenHistory_.length-2]:'screenHome';
+  if(flagshipScreenHistory_.length>1)flagshipScreenHistory_.pop();
+  flagshipFromBack_=true;
+  try{if(prior==='screenHome'&&typeof showHome==='function')showHome();else show(prior)}finally{flagshipFromBack_=false}
+  if(prior==='screenHome')try{history.pushState({flagshipScreen:'screenHome'},'','#flagship-home')}catch(e){}
+});
 function show(id){
+  var now=SCREENS.find(function(x){var e=document.getElementById(x);return e&&!e.classList.contains('hidden')});
+  if(!flagshipFromBack_&&id!==now&&id!=='screenAuth'){
+    flagshipScreenHistory_.push(id);
+    try{history.pushState({flagshipScreen:id},'','#screen-'+encodeURIComponent(id))}catch(e){}
+  }
   SCREENS.forEach(function(s){
     var el=document.getElementById(s);
     if(el) el.classList[s===id?'remove':'add']('hidden');
