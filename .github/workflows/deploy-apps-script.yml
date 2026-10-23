@@ -5,6 +5,15 @@ on:
     workflows: ["Flagship completion checks"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      operation:
+        description: Choose read-only diagnosis or publish to the existing Apps Script web app
+        required: true
+        type: choice
+        default: diagnose
+        options:
+          - diagnose
+          - deploy
 
 permissions:
   contents: read
@@ -15,7 +24,7 @@ concurrency:
 
 jobs:
   diagnose:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.operation == 'diagnose' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -49,7 +58,8 @@ jobs:
 
   deploy:
     if: >-
-      ${{ (github.event_name == 'workflow_run'
+      ${{ (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.operation == 'deploy')
+          || (github.event_name == 'workflow_run'
           && github.event.workflow_run.conclusion == 'success'
           && github.event.workflow_run.head_branch == 'main'
           && github.event.workflow_run.event == 'push') }}
