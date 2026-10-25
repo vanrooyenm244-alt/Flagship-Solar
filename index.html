@@ -5104,7 +5104,7 @@ function showQuote(){if(!hasPermission_('quotes.view')){showHome();return;}
 function qbSave(){
   put('cfg',{id:'quoteDraft',client:QB.client,title:QB.title,ref:QB.ref,expiry:QB.expiry,xeroContact:QB.xeroContact,xeroQuote:QB.xeroQuote||null,items:QB.items}).catch(function(){alert('Quote draft could not be saved on this phone.');});
 }
-window.FlagshipQuoteBridge={request:api,getQuote:function(){return QB;},save:qbSave};
+window.FlagshipQuoteBridge={read:apiGet,request:api,getQuote:function(){return QB;},save:qbSave};
 function qbLoadPrices(){
   if(PRICES&&PRICES.length){ QB.prices=PRICES; qbRenderResults(); return; }
   apiGet({action:'prices'}).then(function(j){ QB.prices=j.prices||[]; qbRenderResults(); put('cfg',{id:'pricecache',list:QB.prices}).catch(function(){}); }).catch(function(){
