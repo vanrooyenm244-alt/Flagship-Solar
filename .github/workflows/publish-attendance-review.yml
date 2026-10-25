@@ -29,3 +29,4 @@ jobs:
         run: node tools/deploy-attendance-review.mjs
 
 # Preserve split Apps Script handlers.
+# Add missing attendance routes without replacing unrelated live handlers.
