@@ -1,4 +1,5 @@
-const fs=require('node:fs'),crypto=require('node:crypto');
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 const fail=m=>{throw Error(m)};
 const auth=JSON.parse(process.env.CLASP_CREDENTIALS||'{}');
 const candidates=auth.tokens?Object.values(auth.tokens):[auth];
