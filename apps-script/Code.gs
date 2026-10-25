@@ -1069,7 +1069,7 @@ var XERO_TOKEN_URL_='https://identity.xero.com/connect/token';
 var XERO_API_='https://api.xero.com/api.xro/2.0';
 var XERO_CONN_='https://api.xero.com/connections';
 var XERO_AUTH_='https://login.xero.com/identity/connect/authorize';
-var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices accounting.transactions offline_access';
+var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices accounting.transactions accounting.settings.read offline_access';
 
 function xeroProps_(){ return PropertiesService.getScriptProperties(); }
 function xeroCfg_(){
