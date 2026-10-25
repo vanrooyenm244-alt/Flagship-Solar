@@ -12,7 +12,7 @@ console.log('Google OAuth refresh: OK');
 const id=process.env.SCRIPT_ID,dep=process.env.DEPLOYMENT_ID;
 if(!id||!dep)fail('Missing script or deployment configuration.');
 async function api(path,method='GET',body){
- const r=await fetch('https://script.googleapis.com/v1/projects/'+encodeURIComponent(id)+path,{method,headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+ const r=await fetch('https://script.googleapis.com/v1/projects/'+encodeURIComponent(id)+path,{method,cache:'no-store',headers:{'Cache-Control':'no-cache',Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
  const d=await r.json();
  if(!r.ok){const msg=String(d.error?.message||'Request rejected').replace(/[A-Za-z0-9_-]{30,}/g,'[redacted]');fail('Apps Script '+method+' failed ('+r.status+'): '+msg);}
  return d;
@@ -24,6 +24,7 @@ const prior=deployment.deploymentConfig;
 if(!prior?.versionNumber||prior.scriptId!==id)fail('Deployment identity or version could not be verified.');
 const head=clean(await api('/content'));
 const published=clean(await api('/content?versionNumber='+prior.versionNumber));
+console.log('Published version: '+prior.versionNumber);
 if(hash(head)!==hash(published))fail('Remote HEAD differs from the published version. Stopped to avoid publishing unrelated changes.');
 const repo=fs.readFileSync('apps-script/Code.gs','utf8');
 const extract=s=>{const a=s.indexOf('function xeroHtmlRedirect_('),b=s.indexOf('function escXeroHtml_(',a);if(a<0||b<a||s.indexOf('function xeroHtmlRedirect_(',a+1)>=0)fail('Unexpected callback helper layout.');return {a,b,text:s.slice(a,b)};};
@@ -45,8 +46,14 @@ try{
  console.log('Callback-only upload and readback: OK');
  version=(await api('/versions','POST',{description:'Xero return button via GitHub'})).versionNumber;
  await api('/deployments/'+encodeURIComponent(dep),'PUT',{deploymentConfig:{...prior,versionNumber:version,description:'Xero return button via GitHub'}});
- const checked=await api('/deployments/'+encodeURIComponent(dep));
- if(checked.deploymentConfig.versionNumber!==version)fail('Deployment readback mismatch.');
+ let checked;
+ for(let attempt=0;attempt<6;attempt++){
+  checked=await api('/deployments/'+encodeURIComponent(dep));
+  console.log('Deployment verification: expected '+version+', observed '+checked.deploymentConfig.versionNumber);
+  if(Number(checked.deploymentConfig.versionNumber)===Number(version))break;
+  await new Promise(resolve=>setTimeout(resolve,3000));
+ }
+ if(Number(checked.deploymentConfig.versionNumber)!==Number(version))fail('Deployment readback mismatch.');
  if(hash(clean(await api('/content?versionNumber='+version)))!==hash(next))fail('Published source readback mismatch.');
  console.log('Existing web app deployment updated and published source verified: OK');
 }catch(e){
