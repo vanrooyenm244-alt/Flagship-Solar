@@ -28,7 +28,7 @@ const replacement="function xeroRaw_(url,token,method,payload,tenant,idempotency
 function patch(files){
  const next=files.map(f=>({...f})),code=next.find(f=>f.name==='Code'&&f.type==='SERVER_JS');
  if(!code)fail('Remote Code file missing.');
- const match=code.source.match(/function xeroRaw_\\([\\s\\S]*?(?=\\nfunction )/);
+ const match=code.source.match(/function xeroRaw_\([\s\S]*?(?=\nfunction )/);
  if(!match||![expected,replacement].includes(match[0]))fail('Remote request handler differs; stopped.');
  code.source=code.source.replace(match[0],replacement);
  new vm.Script(code.source);return next;
