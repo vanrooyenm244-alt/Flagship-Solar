@@ -1312,21 +1312,39 @@ function poCreate_(body){
   log_(u.username,'poCreate',String(p.PurchaseOrderNumber||''),String(po.supplier||''),String(p.PurchaseOrderID));
   return {ok:true,purchaseOrderID:p.PurchaseOrderID,purchaseOrderNumber:p.PurchaseOrderNumber||'',status:p.Status||'DRAFT'};
 }
+function poRecent_(body){
+ auth_(body,['Admin']);
+ var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PurchaseOrders');
+ if(!sh||sh.getLastRow()<2)return {ok:true,purchaseOrders:[]};
+ var n=sh.getLastRow()-1,start=Math.max(2,sh.getLastRow()-19);
+ var rows=sh.getRange(start,1,Math.min(n,20),8).getValues();
+ return {ok:true,purchaseOrders:rows.reverse().filter(function(r){return r[1];}).map(function(r){return {purchaseOrderID:String(r[1]),purchaseOrderNumber:String(r[2]||''),supplier:String(r[3]||''),job:String(r[4]||''),status:String(r[7]||'')};})};
+}
 function poPdf_(body){
-  auth_(body,['Admin']);var id=String(body.purchaseOrderID||'');
-  if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid PO identifier.');
-  var sh=poSheet_(),found=false,n=sh.getLastRow();
-  if(n>1){var rows=sh.getRange(2,2,n-1,1).getValues();found=rows.some(function(r){return String(r[0])===id;});}
-  if(!found)throw Error('PO not found in Flagship register.');
-  var tenant=xeroProps_().getProperty('XERO_TENANT_ID');
-  function request_(token){return UrlFetchApp.fetch(XERO_API_+'/PurchaseOrders/'+encodeURIComponent(id)+'/pdf',{method:'get',headers:{Authorization:'Bearer '+token,'xero-tenant-id':tenant,Accept:'application/pdf'},muteHttpExceptions:true});}
-  var r=request_(xeroAccess_());
-  if(r.getResponseCode()===401)r=request_(xeroRefreshAccess_());
-  if(r.getResponseCode()!==200)throw Error('Xero PDF request failed (HTTP '+r.getResponseCode()+'): '+r.getContentText().slice(0,350));
-  var bytes=r.getBlob().getBytes();
-  if(bytes.length>7000000)throw Error('PDF is too large to share in-app.');
-  if(bytes[0]!==37||bytes[1]!==80||bytes[2]!==68||bytes[3]!==70)throw Error('Xero did not return a PDF.');
-  return {ok:true,filename:'Xero-PO-'+id.slice(0,8)+'.pdf',base64:Utilities.base64Encode(bytes),contentType:'application/pdf'};
+ auth_(body,['Admin']);var id=String(body.purchaseOrderID||'');
+ if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Invalid PO identifier.');
+ var sh=poSheet_(),record=null,n=sh.getLastRow();
+ if(n>1){var rows=sh.getRange(2,2,n-1,7).getValues();record=rows.find(function(r){return String(r[0])===id;});}
+ if(!record)throw Error('PO not found in Flagship register.');
+ var tenant=xeroProps_().getProperty('XERO_TENANT_ID');
+ if(!tenant)throw Error('No Xero organisation connected.');
+ var token=xeroAccess_(),path=XERO_API_+'/PurchaseOrders/'+encodeURIComponent(id);
+ // Check the existing order in the connected organisation; never recreate or approve it.
+ var details=xeroRaw_(path,token,'get',null,tenant);
+ var order=(details.PurchaseOrders||[])[0];
+ if(!order||order.PurchaseOrderID!==id)throw Error('The existing PO was not found in the connected Xero organisation.');
+ function request_(url){
+  function fetch_(bearer){return UrlFetchApp.fetch(url,{method:'get',headers:{Authorization:'Bearer '+bearer,'xero-tenant-id':tenant,Accept:'application/pdf'},muteHttpExceptions:true});}
+  var response=fetch_(token);if(response.getResponseCode()===401){token=xeroRefreshAccess_();response=fetch_(token);}return response;
+ }
+ var r=request_(path+'/pdf');
+ // Some Xero responses use PDF content negotiation on the order URL.
+ if(r.getResponseCode()===404)r=request_(path);
+ if(r.getResponseCode()!==200)throw Error('Xero could not supply the original PDF for '+String(order.PurchaseOrderNumber||record[1]||'this PO')+' (status '+String(order.Status||'unknown')+', HTTP '+r.getResponseCode()+'). The existing PO has not been changed.');
+ var bytes=r.getBlob().getBytes();
+ if(bytes.length>7000000)throw Error('PDF is too large to share in-app.');
+ if(bytes[0]!==37||bytes[1]!==80||bytes[2]!==68||bytes[3]!==70)throw Error('Xero returned order data instead of its PDF. Open the existing PO in Xero and use Print / PDF. The PO has not been changed.');
+ return {ok:true,filename:String(order.PurchaseOrderNumber||'Xero-PO')+'.pdf',base64:Utilities.base64Encode(bytes),contentType:'application/pdf'};
 }
 
 function xeroCreateQuote_(body){
@@ -1693,6 +1711,7 @@ function doGet(e) {
     if (p.action === 'hiClockStatus') return out_(hiClockStatus_(body));
     if (p.action === 'hiXeroContacts') { auth_(body); return out_(xeroContacts_(p.q||'')); }
     if (p.action === 'hiXeroStatus') { auth_(body); var hiStatus=xeroStatus_(); hiStatus.company='Hi Service'; hiStatus.mode='shared'; return out_(hiStatus); }
+    if (p.action === 'poRecent') return out_(poRecent_(body));
     if (p.action === 'xeroStatus') { auth_(body); return out_({ok:true,xero:xeroStatus_()}); }
     if (p.action === 'xeroItems') { auth_(body, ['Admin', 'Technician']); return out_(xeroItems_()); }
     if (p.action === 'xeroContacts') { auth_(body,['Admin','Technician']); return out_(xeroContacts_(p.q||'')); }
