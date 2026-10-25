@@ -29,8 +29,16 @@ function patch(files){
  const next=files.map(f=>({...f})),code=next.find(f=>f.name==='Code'&&f.type==='SERVER_JS');
  if(!code)fail('Remote Code file missing.');
  const match=code.source.match(/function xeroRaw_\([\s\S]*?(?=\nfunction )/);
- if(!match||![expected,replacement].includes(match[0]))fail('Remote request handler differs; stopped.');
- code.source=code.source.replace(match[0],replacement);
+ if(!match)fail('Remote request handler missing.');
+ let handler=match[0];
+ if(!handler.includes('Granted scopes: ')){
+   const refresh="var fresh=xeroRefreshAccess_();";
+   const marker="  var j={};";
+   if(handler.split(refresh).length!==2||handler.split(marker).length!==2||!handler.includes('r=request_(fresh);'))fail('Remote retry structure differs; stopped.');
+   handler=handler.replace(refresh,refresh+"\n    token=fresh;");
+   handler=handler.replace(marker,"  if(code===401){\n    var challenge='', scopes=[];\n    var responseHeaders=r.getAllHeaders();\n    Object.keys(responseHeaders).forEach(function(k){if(k.toLowerCase()==='www-authenticate')challenge=String(responseHeaders[k]);});\n    try{\n      var segment=String(token||'').split('.')[1];\n      var claims=JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(segment)).getDataAsString());\n      scopes=Array.isArray(claims.scope)?claims.scope:String(claims.scope||'').split(/\\s+/);\n      scopes=scopes.filter(function(s){return /^(accounting\\.[a-z.]+|openid|profile|email|offline_access)$/.test(s);});\n    }catch(ignore){}\n    var missing=/insuffici?ent_scope/i.test(challenge);\n    var required=/\\/Items(?:[?\\/]|$)/.test(url)?'accounting.invoices':'';\n    var granted=scopes.length?scopes.join(', '):'unavailable';\n    throw new Error('Xero API 401: '+(missing?'insufficient permission':'access rejected after token refresh')+\n      (required?'. Items requires '+required:'')+'. Granted scopes: '+granted+\n      '. '+(missing||required&&scopes.length&&scopes.indexOf(required)<0?'Reconnect Xero and approve the updated permissions.':'Check the Xero organisation connection and user access.'));\n  }\n"+marker);
+ }
+ code.source=code.source.replace(match[0],handler);
  new vm.Script(code.source);return next;
 }
 const deployment=await api('/deployments/'+encodeURIComponent(dep)),prior=deployment.deploymentConfig;
