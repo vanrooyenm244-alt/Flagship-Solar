@@ -31,7 +31,6 @@ async function readyVersion(reg,expected){
  var end=Date.now()+35000;
  while(Date.now()<end){
   try{if(await workerVersion(reg.active)===expected&&await workerVersion(navigator.serviceWorker.controller)===expected)return true;}catch(e){}
-  if(!reg.installing&&!reg.waiting&&reg.active&&Date.now()+30000<end)throw Error('The new app files were not installed. The current app remains available.');
   await new Promise(function(resolve){setTimeout(resolve,300);});
  }
  throw Error('The new release was not confirmed active. Check your connection and try again.');
