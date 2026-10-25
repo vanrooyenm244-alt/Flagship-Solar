@@ -1185,11 +1185,29 @@ function xeroRaw_(url,token,method,payload,tenant,idempotencyKey){
   // Refresh once and retry the exact request, avoiding infinite loops.
   if(code===401){
     var fresh=xeroRefreshAccess_();
+    token=fresh;
     r=request_(fresh);
     code=r.getResponseCode();
     txt=r.getContentText()||'';
   }
 
+  if(code===401){
+    var challenge='', scopes=[];
+    var responseHeaders=r.getAllHeaders();
+    Object.keys(responseHeaders).forEach(function(k){if(k.toLowerCase()==='www-authenticate')challenge=String(responseHeaders[k]);});
+    try{
+      var segment=String(token||'').split('.')[1];
+      var claims=JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(segment)).getDataAsString());
+      scopes=Array.isArray(claims.scope)?claims.scope:String(claims.scope||'').split(/\\s+/);
+      scopes=scopes.filter(function(s){return /^(accounting\\.[a-z.]+|openid|profile|email|offline_access)$/.test(s);});
+    }catch(ignore){}
+    var missing=/insuffici?ent_scope/i.test(challenge);
+    var required=/\\/Items(?:[?\\/]|$)/.test(url)?'accounting.invoices':'';
+    var granted=scopes.length?scopes.join(', '):'unavailable';
+    throw new Error('Xero API 401: '+(missing?'insufficient permission':'access rejected after token refresh')+
+      (required?'. Items requires '+required:'')+'. Granted scopes: '+granted+
+      '. '+(missing||required&&scopes.length&&scopes.indexOf(required)<0?'Reconnect Xero and approve the updated permissions.':'Check the Xero organisation connection and user access.'));
+  }
   var j={};
   try{j=JSON.parse(txt||'{}')}catch(e){}
   if(code<200||code>=300){
