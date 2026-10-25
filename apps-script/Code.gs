@@ -1069,7 +1069,7 @@ var XERO_TOKEN_URL_='https://identity.xero.com/connect/token';
 var XERO_API_='https://api.xero.com/api.xro/2.0';
 var XERO_CONN_='https://api.xero.com/connections';
 var XERO_AUTH_='https://login.xero.com/identity/connect/authorize';
-var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices offline_access';
+var XERO_SCOPES_='openid profile email accounting.contacts accounting.invoices accounting.settings.read offline_access';
 
 function xeroProps_(){ return PropertiesService.getScriptProperties(); }
 function xeroCfg_(){
@@ -1202,7 +1202,7 @@ function xeroRaw_(url,token,method,payload,tenant,idempotencyKey){
       scopes=scopes.filter(function(s){return /^(accounting\.[a-z.]+|openid|profile|email|offline_access)$/.test(s);});
     }catch(ignore){}
     var missing=/insuffici?ent_scope/i.test(challenge);
-    var required=/\/Items(?:[?\/]|$)/.test(url)?'accounting.invoices':'';
+    var required=/\/Items(?:[?\/]|$)/.test(url)?'accounting.settings.read':'';
     var granted=scopes.length?scopes.join(', '):'unavailable';
     throw new Error('Xero API 401: '+(missing?'insufficient permission':'access rejected after token refresh')+
       (required?'. Items requires '+required:'')+'. Granted scopes: '+granted+
