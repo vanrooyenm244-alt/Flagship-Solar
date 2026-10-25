@@ -2692,7 +2692,7 @@ document.getElementById('setTest').addEventListener('click',function(){
 
 /* ---- talking to the script ---- */
 function apiResponse_(r){
-  if(!r.ok) throw new Error('Server request failed (HTTP '+r.status+'). Please retry.');
+  if(!r.ok) throw new Error(r.status===404?'Google Apps Script connection returned HTTP 404. Check the web-app connection URL in Settings. If this was an order, check Xero before retrying.':'Google Apps Script connection failed (HTTP '+r.status+').');
   return r.json().then(function(j){
     if(!j || typeof j.ok!=='boolean') throw new Error('Invalid server response. Please retry.');
     if(!j.ok){var e=new Error(j.error||'Request rejected');e.authInvalid=/^(unknown user or password|account not approved yet)\.?$/i.test(e.message.trim());throw e;}
@@ -2705,6 +2705,7 @@ function api(payload){
   if(ME){ payload.user=ME.username; payload.pass=ME.pass; }
   return fetch(CFG.url,{
     method:'POST',
+    cache:'no-store',
     headers:{'Content-Type':'text/plain;charset=utf-8'},  // avoids the CORS preflight Apps Script rejects
     body:JSON.stringify(payload)
   }).then(apiResponse_);
@@ -2715,7 +2716,10 @@ function apiGet(params){
     return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
   }).join('&');
   var auth = ME ? '&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass) : '';
-  return fetch(CFG.url+'?'+q+auth).then(apiResponse_);
+  var controller=typeof AbortController==='function'?new AbortController():null;
+  var timer,request=fetch(CFG.url+'?'+q+auth,{cache:'no-store',signal:controller?controller.signal:undefined}).then(apiResponse_);
+  var timeout=new Promise(function(resolve,reject){timer=setTimeout(function(){if(controller)controller.abort();reject(new Error('The Google/Xero read request timed out. Try again once the connection is available.'));},45000);});
+  return Promise.race([request,timeout]).finally(function(){clearTimeout(timer);});
 }
 var post=api;   // timesheet code calls post()
 
@@ -4997,14 +5001,24 @@ function vpImportXeroCsv_(file){
 
 
 function vpLoadXeroInventory_(){
- var status=document.getElementById('vpXeroDirectStatus');
+ var status=document.getElementById('vpXeroDirectStatus'),button=document.getElementById('vpXeroLoadItems');
  if(vpXeroInventory_.length){
-   vpAutoMatchInventory_();
-   if(status)status.textContent='Using '+vpXeroInventory_.length+' imported inventory items stored on this phone. No Xero Inventory API request needed.';
-   return Promise.resolve();
+  vpAutoMatchInventory_();
+  if(status)status.textContent='Using '+vpXeroInventory_.length+' inventory items stored on this phone.';
+  return Promise.resolve();
  }
- if(status)status.textContent='No imported inventory on this phone. Use Import Xero Inventory CSV above; the Xero Items API is currently returning 401.';
- return Promise.resolve();
+ if(button)button.disabled=true;
+ if(status)status.textContent='Downloading inventory from Xero…';
+ return apiGet({action:'xeroItems'}).then(function(j){
+  if(!Array.isArray(j.items))throw Error('Xero returned an invalid inventory list.');
+  var items=j.items.filter(function(x){return x.code&&x.active!==false;});
+  return put('cfg',{id:'xeroItemsCache',updated:Date.now(),items:j.items}).then(function(){
+   vpXeroInventory_=items;vpAutoMatchInventory_();vpRenderInventorySelectors_();
+   if(status)status.textContent='Downloaded '+items.length+' active Xero inventory items.';
+  });
+ }).catch(function(e){
+  if(status)status.textContent='Xero inventory download failed: '+String(e.message||e)+'. You can still import the Xero Inventory CSV.';
+ }).finally(function(){if(button)button.disabled=false;});
 }
 function vpAutoMatchInventory_(){
  var box=document.getElementById('vpXeroAutoStatus');
@@ -5208,7 +5222,7 @@ function xeroSyncItems_(){
         if(x){p.xeroItemID=x.itemID||'';p.xeroItemCode=x.code||'';p.xeroDescription=x.name||x.description||'';}
       });
       PRICES=prices; QB.prices=prices;
-      return Promise.all([put('cfg',{id:'xeroItemsCache',updated:Date.now(),items:xi}),put('cfg',{id:'pricecache',list:prices})]).then(function(){qbRenderResults();alert('Synced '+xi.length+' Xero items. Existing Flagship items were matched where code/description matched.');});
+      return Promise.all([put('cfg',{id:'xeroItemsCache',updated:Date.now(),items:xi}),put('cfg',{id:'pricecache',list:prices})]).then(function(){vpXeroInventory_=xi.filter(function(x){return x.code&&x.active!==false;});qbRenderResults();alert('Synced '+xi.length+' Xero items. Existing Flagship items were matched where code/description matched.');});
     });
   }).catch(function(e){alert('Xero item sync failed: '+String(e.message||e));}).finally(function(){b.disabled=false;b.textContent='Sync Xero Items';});
 }
