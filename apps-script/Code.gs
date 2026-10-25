@@ -1198,11 +1198,11 @@ function xeroRaw_(url,token,method,payload,tenant,idempotencyKey){
     try{
       var segment=String(token||'').split('.')[1];
       var claims=JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(segment)).getDataAsString());
-      scopes=Array.isArray(claims.scope)?claims.scope:String(claims.scope||'').split(/\\s+/);
-      scopes=scopes.filter(function(s){return /^(accounting\\.[a-z.]+|openid|profile|email|offline_access)$/.test(s);});
+      scopes=Array.isArray(claims.scope)?claims.scope:String(claims.scope||'').split(/\s+/);
+      scopes=scopes.filter(function(s){return /^(accounting\.[a-z.]+|openid|profile|email|offline_access)$/.test(s);});
     }catch(ignore){}
     var missing=/insuffici?ent_scope/i.test(challenge);
-    var required=/\\/Items(?:[?\\/]|$)/.test(url)?'accounting.invoices':'';
+    var required=/\/Items(?:[?\/]|$)/.test(url)?'accounting.invoices':'';
     var granted=scopes.length?scopes.join(', '):'unavailable';
     throw new Error('Xero API 401: '+(missing?'insufficient permission':'access rejected after token refresh')+
       (required?'. Items requires '+required:'')+'. Granted scopes: '+granted+
