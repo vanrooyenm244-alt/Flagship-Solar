@@ -1,28 +1,29 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v150-reliable-updates';
+const CACHE = 'flagship-ops-v151-attendance';
 const SHELL = [
   "./",
   "./index.html",
-  "./ops-dashboard.js?release=flagship-ops-v150-reliable-updates",
-  "./ops-updates-v135.js?release=flagship-ops-v150-reliable-updates",
+  "./ops-dashboard.js?release=flagship-ops-v151-attendance",
+  "./ops-updates-v135.js?release=flagship-ops-v151-attendance",
   "./release-notes.json",
-  "./calendar-ui.364cf824c602.css?release=flagship-ops-v150-reliable-updates",
-  "./vendor/rrule.min.js?release=flagship-ops-v150-reliable-updates",
-  "./timetree-calendar.071000ecf91b.js?release=flagship-ops-v150-reliable-updates",
-  "./stock-count.js?release=flagship-ops-v150-reliable-updates",
-  "./user-privileges.js?release=flagship-ops-v150-reliable-updates",
-  "./supabase-client.js?release=flagship-ops-v150-reliable-updates",
-  "./timesheet-sync.js?release=flagship-ops-v150-reliable-updates",
+  "./calendar-ui.364cf824c602.css?release=flagship-ops-v151-attendance",
+  "./vendor/rrule.min.js?release=flagship-ops-v151-attendance",
+  "./timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance",
+  "./stock-count.js?release=flagship-ops-v151-attendance",
+  "./user-privileges.js?release=flagship-ops-v151-attendance",
+  "./supabase-client.js?release=flagship-ops-v151-attendance",
+  "./timesheet-sync.js?release=flagship-ops-v151-attendance",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
   "./assets/band-top.jpg",
   "./assets/band-bottom.jpg",
   "./assets/cover.jpg",
-  "./xero-customer.js?release=flagship-ops-v150-reliable-updates",
-  "./purchase-orders.js?release=flagship-ops-v150-reliable-updates",
-  "./po-inventory.js?release=flagship-ops-v150-reliable-updates"
+  "./xero-customer.js?release=flagship-ops-v151-attendance",
+  "./purchase-orders.js?release=flagship-ops-v151-attendance",
+  "./po-inventory.js?release=flagship-ops-v151-attendance"
 ];
+SHELL.push("./attendance-review.js?release=flagship-ops-v151-attendance");
 const REQUIRED = SHELL.filter(p=>/\.(?:js|css)(?:\?|$)/.test(p)||p==='./index.html'||p==='./');
 self.addEventListener('install',event=>{
  event.waitUntil((async()=>{
