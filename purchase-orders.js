@@ -18,7 +18,29 @@ window.addEventListener('popstate',function(){if(!el('poOverlay')||el('poOverlay
 function start(){if(!poModalHistory_){try{history.pushState({purchaseOrderOpen:true},'','#purchase-order');poModalHistory_=true}catch(e){}}el('poOverlay').hidden=false;el('poOverlay').style.display='flex';restore();el('poSupplier').focus()}
 function close(){el('poOverlay').hidden=true;el('poOverlay').style.display='none';if(poModalHistory_){poModalHistory_=false;history.back()}}
 function uuid(){if(window.crypto&&crypto.randomUUID)return crypto.randomUUID().replace(/-/g,'');return 'po'+Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)}
-function findSupplier(){var q=el('poSupplier').value.trim();selected=null;saveDraft();if(q.length<2){el('poResults').innerHTML='';return}el('poResults').textContent='Searching Xero contacts…';bridge.request({action:'xeroContacts',q:q}).then(function(r){if(el('poSupplier').value.trim()!==q)return;contacts=r.contacts||[];el('poResults').innerHTML='';contacts.forEach(function(c){var b=document.createElement('button');b.type='button';b.textContent=c.name+(c.email?' • '+c.email:'');b.onclick=function(){selected=c.contactID;el('poSupplier').value=c.name;el('poResults').innerHTML='';alertMsg('Supplier selected: '+c.name);saveDraft()};el('poResults').appendChild(b)});if(!contacts.length)alertMsg('No Xero supplier/contact found. Create the supplier in Xero first.')}).catch(function(e){alertMsg(/unknown action/i.test(String(e.message||e))?'Xero contact search is unavailable: deploy the latest Apps Script Code.gs first.':'Xero contact search failed: '+e.message)})}
+var supplierSearchId=0;
+function findSupplier(){
+ var q=el('poSupplier').value.trim(),searchId=++supplierSearchId;
+ selected=null;saveDraft();el('poResults').innerHTML='';alertMsg('');
+ if(q.length<2)return;
+ var box=el('poResults'),timer;
+ box.textContent='Searching Xero contacts…';
+ function current(){return searchId===supplierSearchId&&el('poSupplier').value.trim()===q;}
+ var timeout=new Promise(function(resolve,reject){timer=setTimeout(function(){reject(new Error('Contact search timed out. Please try again.'));},25000);});
+ Promise.race([Promise.resolve().then(function(){if(typeof bridge.read!=='function')throw new Error('Update the app to enable contact search.');return bridge.read({action:'xeroContacts',q:q});}),timeout]).then(function(r){
+  if(!current())return;
+  contacts=r.contacts||[];box.innerHTML='';
+  contacts.forEach(function(c){
+   var b=document.createElement('button');b.type='button';b.textContent=c.name+(c.email?' • '+c.email:'');
+   b.onclick=function(){++supplierSearchId;selected=c.contactID;el('poSupplier').value=c.name;box.innerHTML='';alertMsg('Supplier selected: '+c.name);saveDraft();};
+   box.appendChild(b);
+  });
+  if(!contacts.length)box.textContent='No matching Xero contact found in the connected organisation.';
+ }).catch(function(e){
+  if(!current())return;
+  box.textContent=/unknown action/i.test(String(e.message||e))?'Xero contact search is unavailable in the current backend.':'Xero contact search failed: '+String(e.message||e);
+ }).finally(function(){clearTimeout(timer);});
+}
 function create(){if(pending)return;var items=lines(),name=el('poSupplier').value.trim();if(!selected){alertMsg('First tap Find contact in Xero, then select the matching supplier from the results.');return}if(!items.length||items.some(function(i){return !i.description||!(i.quantity>0)||!isFinite(i.unitAmount)||i.unitAmount<0})){alertMsg('Check descriptions, quantities and purchase costs.');return}
 var key;try{key=localStorage.getItem(S+'-pending-key')}catch(e){}if(!key){key=uuid();try{localStorage.setItem(S+'-pending-key',key)}catch(e){}}
 setBusy(true);alertMsg('Sending purchase order to Xero…');
