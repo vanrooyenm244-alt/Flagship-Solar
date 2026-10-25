@@ -27,3 +27,5 @@ jobs:
           DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
           CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
         run: node tools/deploy-attendance-review.mjs
+
+# Preserve split Apps Script handlers.
