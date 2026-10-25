@@ -1,72 +1,70 @@
-/* Calendar release filenames contain content hashes; keep them in sync with source files. */
-/* Flagship — offline shell.
-   Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-ops-v149-po-pdf-sharing';
+/* Atomic app shell. Versioned assets keep open pages consistent during updates. */
+const CACHE = 'flagship-ops-v150-reliable-updates';
 const SHELL = [
-  './',
-  './index.html', './ops-dashboard.js', './ops-updates-v135.js', './release-notes.json', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
-  './supabase-client.js',
-  './timesheet-sync.js',
-  './manifest.webmanifest',
-  './icon-192.png',
-  './icon-512.png',
-  './assets/band-top.jpg',
-  './assets/band-bottom.jpg',
-  './assets/cover.jpg',
-  './xero-customer.js',
-  './purchase-orders.js', './po-inventory.js',
+  "./",
+  "./index.html",
+  "./ops-dashboard.js?release=flagship-ops-v150-reliable-updates",
+  "./ops-updates-v135.js?release=flagship-ops-v150-reliable-updates",
+  "./release-notes.json",
+  "./calendar-ui.364cf824c602.css?release=flagship-ops-v150-reliable-updates",
+  "./vendor/rrule.min.js?release=flagship-ops-v150-reliable-updates",
+  "./timetree-calendar.071000ecf91b.js?release=flagship-ops-v150-reliable-updates",
+  "./stock-count.js?release=flagship-ops-v150-reliable-updates",
+  "./user-privileges.js?release=flagship-ops-v150-reliable-updates",
+  "./supabase-client.js?release=flagship-ops-v150-reliable-updates",
+  "./timesheet-sync.js?release=flagship-ops-v150-reliable-updates",
+  "./manifest.webmanifest",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./assets/band-top.jpg",
+  "./assets/band-bottom.jpg",
+  "./assets/cover.jpg",
+  "./xero-customer.js?release=flagship-ops-v150-reliable-updates",
+  "./purchase-orders.js?release=flagship-ops-v150-reliable-updates",
+  "./po-inventory.js?release=flagship-ops-v150-reliable-updates"
 ];
-
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then((c) =>
-      Promise.all(SHELL.map((url) =>
-        fetch(url, { cache: 'reload' }).then((res) => {
-          if (!res || !res.ok) { if (url === './index.html' || url === './ops-updates-v135.js') throw new Error('essential shell fetch failed: ' + url); return null; }
-          return c.put(url, res);
-        }).catch((error) => { if (url === './index.html' || url === './ops-updates.js') throw error; return null; })
-      ))
-    ).then(() => self.skipWaiting())
-  );
+const REQUIRED = SHELL.filter(p=>/\.(?:js|css)(?:\?|$)/.test(p)||p==='./index.html'||p==='./');
+self.addEventListener('install',event=>{
+ event.waitUntil((async()=>{
+  const cache=await caches.open(CACHE);
+  try{
+   await Promise.all(SHELL.map(async path=>{
+    try{
+     const response=await fetch(path,{cache:'no-store'});
+     if(!response.ok)throw Error('HTTP '+response.status);
+     await cache.put(path,response);
+    }catch(error){if(REQUIRED.includes(path))throw error;}
+   }));
+   for(const path of REQUIRED)if(!await cache.match(path))throw Error('Incomplete app release.');
+   await self.skipWaiting();
+  }catch(error){await caches.delete(CACHE);throw error;}
+ })());
 });
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && /^flagship[-_]/i.test(k)).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+self.addEventListener('activate',event=>{
+ event.waitUntil((async()=>{
+  await self.clients.claim();
+  // Retain the previous release so open tabs can finish using their own assets.
+  const keys=(await caches.keys()).filter(k=>/^flagship[-_]/i.test(k));
+  const previous=keys.filter(k=>k!==CACHE).sort((a,b)=>Number((b.match(/v(\d+)/)||[])[1]||0)-Number((a.match(/v(\d+)/)||[])[1]||0));
+  await Promise.all(previous.slice(1).map(k=>caches.delete(k)));
+ })());
 });
-
-self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  const url = new URL(e.request.url);
-  if (url.origin !== self.location.origin) return;
-  // Never cache API responses, auth queries or an unrelated page on this origin.
-  if (url.search || !SHELL.some(p => new URL(p, self.registration.scope).pathname === url.pathname)) return;
-
-  if (e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request, { cache: 'no-store' }).then((res) => {
-        if (!res || !res.ok) throw new Error('Navigation failed');
-        return res;
-      }).catch(() =>
-        caches.match('./index.html')
-      )
-    );
-    return;
-  }
-
-  e.respondWith(
-    caches.match(e.request).then((hit) => {
-      if (hit) return hit;
-      return fetch(e.request).then((res) => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      }).catch(() => hit);
-    })
-  );
+self.addEventListener('message',event=>{
+ if(event.data&&event.data.type==='GET_VERSION'&&event.ports&&event.ports[0])event.ports[0].postMessage({version:CACHE});
+});
+self.addEventListener('fetch',event=>{
+ if(event.request.method!=='GET')return;
+ const url=new URL(event.request.url);
+ if(url.origin!==self.location.origin)return;
+ const exact=SHELL.some(p=>new URL(p,self.registration.scope).href===url.href);
+ if(event.request.mode==='navigate'&&!url.search){
+  event.respondWith(fetch(event.request,{cache:'no-store'}).then(r=>{if(!r.ok)throw Error('Navigation failed.');return r;}).catch(async()=>{const cache=await caches.open(CACHE);return cache.match('./index.html');}));
+  return;
+ }
+ if(!exact)return; // API/auth/query requests and other apps never enter this shell cache.
+ event.respondWith((async()=>{
+  const cache=await caches.open(CACHE),hit=await cache.match(event.request);
+  if(hit)return hit;
+  return fetch(event.request,{cache:'no-store'});
+ })());
 });
