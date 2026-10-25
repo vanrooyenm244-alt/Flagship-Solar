@@ -25,10 +25,22 @@ if(!prior?.versionNumber||prior.scriptId!==id)fail('Deployment identity or versi
 const head=clean(await api('/content'));
 const published=clean(await api('/content?versionNumber='+prior.versionNumber));
 console.log('Published version: '+prior.versionNumber);
-if(hash(head)!==hash(published))fail('Remote HEAD differs from the published version. Stopped to avoid publishing unrelated changes.');
 const repo=fs.readFileSync('apps-script/Code.gs','utf8');
 const extract=s=>{const a=s.indexOf('function xeroHtmlRedirect_('),b=s.indexOf('function escXeroHtml_(',a);if(a<0||b<a||s.indexOf('function xeroHtmlRedirect_(',a+1)>=0)fail('Unexpected callback helper layout.');return {a,b,text:s.slice(a,b)};};
 const fixed=extract(repo).text;
+if(hash(head)!==hash(published)){
+ const patched=head.map(f=>({...f})), liveCode=patched.find(f=>f.name==='Code'&&f.type==='SERVER_JS');
+ if(!liveCode)fail('Code source missing.');
+ const helper=extract(liveCode.source);
+ liveCode.source=liveCode.source.slice(0,helper.a)+fixed+liveCode.source.slice(helper.b);
+ if(hash(patched)!==hash(published))fail('Remote HEAD has unrelated changes; stopped without writing.');
+ if(hash(clean(await api('/content')))!==hash(head))fail('Source changed during verification; stopped.');
+ await api('/content','PUT',{files:published});
+ if(hash(clean(await api('/content')))!==hash(published))fail('HEAD reconciliation readback mismatch.');
+ console.log('Existing deployment already contains the return button; HEAD reconciled and published source verified: OK');
+ process.exit(0);
+}
+
 const next=head.map(f=>({...f}));
 const code=next.find(f=>f.name==='Code'&&f.type==='SERVER_JS');
 if(!code)fail('Remote Code file is missing.');
