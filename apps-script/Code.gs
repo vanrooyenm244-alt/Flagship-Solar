@@ -1435,7 +1435,7 @@ function xeroItems_(){
     if(a.length<1000) break;
   }
   return {ok:true,items:all.map(function(x){
-    return {itemID:x.ItemID||'',code:x.Code||'',name:x.Name||'',description:x.Description||'',salesDescription:x.SalesDetails&&x.SalesDetails.Description||'',salesUnitPrice:x.SalesDetails&&x.SalesDetails.UnitPrice||0,salesAccountCode:x.SalesDetails&&x.SalesDetails.AccountCode||'',salesTaxType:x.SalesDetails&&x.SalesDetails.TaxType||'',active:x.IsSold!==false};
+    return {purchaseActive:x.IsPurchased!==false,purchaseDescription:x.PurchaseDetails&&x.PurchaseDetails.Description||x.Description||'',purchaseUnitPrice:x.PurchaseDetails&&x.PurchaseDetails.UnitPrice!=null?x.PurchaseDetails.UnitPrice:null,purchaseAccountCode:x.PurchaseDetails&&(x.PurchaseDetails.AccountCode||x.PurchaseDetails.COGSAccountCode)||'',itemID:x.ItemID||'',code:x.Code||'',name:x.Name||'',description:x.Description||'',salesDescription:x.SalesDetails&&x.SalesDetails.Description||'',salesUnitPrice:x.SalesDetails&&x.SalesDetails.UnitPrice||0,salesAccountCode:x.SalesDetails&&x.SalesDetails.AccountCode||'',salesTaxType:x.SalesDetails&&x.SalesDetails.TaxType||'',active:x.IsSold!==false};
   })};
 }
 
