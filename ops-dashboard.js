@@ -14,7 +14,7 @@ view.innerHTML='<div class="ops-hero"><div><div class="ops-welcome-label">WELCOM
 old.parentNode.insertBefore(view,old);
 
 var sales=view.querySelector('#opsSalesModules'),internal=view.querySelector('#opsInternalModules');
-var tiles=Array.from(old.querySelectorAll('.tile[data-go]')),salesKeys={jobs:1,jobcards:1,calendar:1,props:1,quote:1};
+var tiles=Array.from(old.querySelectorAll('.tile')),salesKeys={jobs:1,jobcards:1,calendar:1,props:1,quote:1};
 tiles.forEach(function(t){(salesKeys[t.dataset.go]?sales:internal).appendChild(t);});old.remove();
 var quick=view.querySelector('.ops-shortcuts');
 [['newJob','New Job','📋'],['props','Proposal','📄'],['quote','Create Quote','📝'],['jobcards','Job Card','👷'],['time','Timesheets','⏱']].forEach(function(item){var b=document.createElement('button');b.type='button';b.dataset.quick=item[0];b.innerHTML='<span class="glyph"></span><span></span>';b.children[0].textContent=item[2];b.children[1].textContent=item[1];quick.appendChild(b);b.addEventListener('click',function(){run(item[0]);});});
@@ -44,7 +44,7 @@ function changePage(page,push){
 }
 view.querySelectorAll('[data-ops]').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();changePage(btn.dataset.ops,true);},true);});
 view.querySelectorAll('[data-bottom]').forEach(function(btn){btn.addEventListener('click',function(e){if(btn.dataset.bottom==='internal'||btn.dataset.bottom==='home'){e.preventDefault();e.stopImmediatePropagation();changePage(btn.dataset.bottom==='internal'?'internal':'home',true);}},true);});
-tiles.forEach(function(t){t.addEventListener('click',function(){var p=t.closest('#opsInternalModules')?'internal':'sales';history.pushState({opsPage:'module',opsParent:p},'',location.pathname+location.search+'#ops-'+t.dataset.go);},true);});
+tiles.forEach(function(t){if(!t.dataset.go)return;t.addEventListener('click',function(){var p=t.closest('#opsInternalModules')?'internal':'sales';history.pushState({opsPage:'module',opsParent:p},'',location.pathname+location.search+'#ops-'+t.dataset.go);},true);});
 
 window.addEventListener('popstate',function(event){
  var state=event.state||{},page=state.opsPage||'home';
