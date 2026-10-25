@@ -1,31 +1,17 @@
 {
-  "version": "v150 — Reliable app updates",
+  "version": "flagship-ops-v151-attendance",
   "date": "2026-10-25",
-  "title": "Xero Inventory Quotes en Draft Invoices",
   "changes": [
-    "App Updates distinguishes the open page version from the active downloaded release.",
-    "After a complete update, Apply update / Reload opens the new version.",
-    "First-party scripts and styles use release-specific URLs; required files must download before the worker activates.",
-    "When CSV inventory exists locally, 'Load Xero inventory items' uses that catalog without a network request (avoids Xero Items API 401).",
-    "Backend can identify nested field validation errors for rejected Xero Draft Quotes (requires live Apps Script deployment).",
-    "Inventory CSV: automatically suggest high-confidence matches, leaving ambiguous lines for review.",
-    "Xero quote errors: display actual API validation messages instead of only generic 400; avoid passing CSV account labels as account codes.",
-    "Import Xero InventoryItems CSV when Xero Items API gives 401; matching preserves proposal prices.",
-    "Value Proposal: match Xero Inventory Item codes for Sales Description, Sales Account and Tax Rate; preserve proposal unit selling prices",
-    "Xero Draft Quote can be explicitly marked Accepted and converted to a DRAFT sales invoice using Xero quote line details",
-    "Duplicate invoice guard checks existing Xero invoices by unique source quote reference",
-    "Value Proposal kan sy bestaande lynitems en verkooppryse direk as 'n Xero Draft Quote skep",
-    "App Updates is geskuif na Settings → App Updates, met 'n oop-/toemaakmenu",
-    "Flagship: aparte Clock In en Clock Out op die Timesheets-skerm",
-    "Clock status word op die bediener gelees; tydelike verbindingsprobleme wys 'n fout in plaas van oneindige Loading",
-    "Timesheet word ná Clock Out vir admin-goedkeuring ingestuur",
-    "App Updates wys nou weergawe-notas en toetslys",
-    "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
+    "Attendance review: correct/cancel pending and approved shifts with mandatory reason and retained original.",
+    "Submitted by and Approved by with timestamps; yellow overtime rows.",
+    "Printable approved overtime report with two blank rows between worker/pay-cycle groups."
   ],
   "tests": [
-    "Save unfinished work, then open Settings > App Updates > Check for updates.",
-    "When an update is ready, tap Apply update / Reload; reopen App Updates and confirm Open app shows v150 or later.",
-    "Open Purchase Orders and confirm the Xero item dropdown and existing purchase order list are present."
-  ],
-  "notes": "Sommige funksies vereis dat die opgedateerde Google Apps Script Web App reeds ontplooi is. Moenie toetsinskrywings as finale betaalstate gebruik nie."
+    "Clock in/out; verify shift belongs to the submitting employee.",
+    "Admin: correct a Sunday/Saturday entry, approve/reject or cancel with a reason; refresh and verify totals.",
+    "Print approved overtime and verify dates, yellow rows, two blank lines and submitter/approver.",
+    "Hi Service: verify the displayed Xero organisation before creating a real order; choose an item and check the account.",
+    "Create one intentional purchase order, then share its PDF without creating a duplicate.",
+    "Settings: check for updates, apply and verify the open app version."
+  ]
 }
