@@ -1,0 +1,27 @@
+name: Publish Xero permission diagnostics
+on:
+  push:
+    branches: [fix/xero-401-diagnostics]
+    paths: [.github/workflows/publish-xero-permission-diagnostics.yml]
+permissions:
+  contents: read
+concurrency:
+  group: apps-script-production
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish request error diagnostics
+        env:
+          SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
+        run: node tools/deploy-xero-permission-diagnostics.mjs
