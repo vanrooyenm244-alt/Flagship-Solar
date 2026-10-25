@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="flagship-release" content="flagship-ops-v150-reliable-updates">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -768,10 +769,10 @@ table.page{border-collapse:collapse}
 </style>
   <!-- Optional, public-key-only Supabase adapter. The configuration file is
        intentionally not committed; without it existing offline/Sheets flows remain available. -->
-  <script src="./supabase-config.js"></script>
-  <script src="./supabase-client.js"></script>
-  <script src="./timesheet-sync.js"></script>
-<script src="vendor/rrule.min.js"></script><script src="timetree-calendar.071000ecf91b.js"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css"></head>
+  <script src="./supabase-config.js?release=flagship-ops-v150-reliable-updates"></script>
+  <script src="./supabase-client.js?release=flagship-ops-v150-reliable-updates"></script>
+  <script src="./timesheet-sync.js?release=flagship-ops-v150-reliable-updates"></script>
+<script src="vendor/rrule.min.js?release=flagship-ops-v150-reliable-updates"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v150-reliable-updates"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css?release=flagship-ops-v150-reliable-updates"></head>
 <body>
 
 
@@ -1395,7 +1396,7 @@ table.page{border-collapse:collapse}
 </div>
 
 
-<script src="user-privileges.js"></script><script src="stock-count.js"></script><script>
+<script src="user-privileges.js?release=flagship-ops-v150-reliable-updates"></script><script src="stock-count.js?release=flagship-ops-v150-reliable-updates"></script><script>
 (function(){
 "use strict";
 
@@ -6239,7 +6240,7 @@ if(stAddBtn){
 }
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}) });
+  window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(function(){}) });
 }
 // Standalone start/end attendance for the signed-in Flagship account.
 var fsClockBusy_=false;
@@ -6277,11 +6278,11 @@ fsClockRefresh_();
 
 })();
 </script>
-<script src="./xero-customer.js"></script>
-<script src="./po-inventory.js"></script>
-<script src="./purchase-orders.js"></script>
-<script src="./ops-dashboard.js?v=20261021-no-letterhead"></script>
-<script src="./ops-updates-v135.js"></script>
+<script src="./xero-customer.js?release=flagship-ops-v150-reliable-updates"></script>
+<script src="./po-inventory.js?release=flagship-ops-v150-reliable-updates"></script>
+<script src="./purchase-orders.js?release=flagship-ops-v150-reliable-updates"></script>
+<script src="./ops-dashboard.js?release=flagship-ops-v150-reliable-updates"></script>
+<script src="./ops-updates-v135.js?release=flagship-ops-v150-reliable-updates"></script>
 
 </body>
 </html>
