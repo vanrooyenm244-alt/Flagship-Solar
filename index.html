@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v150-reliable-updates">
+<meta name="flagship-release" content="flagship-ops-v151-attendance">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -769,10 +769,10 @@ table.page{border-collapse:collapse}
 </style>
   <!-- Optional, public-key-only Supabase adapter. The configuration file is
        intentionally not committed; without it existing offline/Sheets flows remain available. -->
-  <script src="./supabase-config.js?release=flagship-ops-v150-reliable-updates"></script>
-  <script src="./supabase-client.js?release=flagship-ops-v150-reliable-updates"></script>
-  <script src="./timesheet-sync.js?release=flagship-ops-v150-reliable-updates"></script>
-<script src="vendor/rrule.min.js?release=flagship-ops-v150-reliable-updates"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v150-reliable-updates"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css?release=flagship-ops-v150-reliable-updates"></head>
+  <script src="./supabase-config.js?release=flagship-ops-v151-attendance"></script>
+  <script src="./supabase-client.js?release=flagship-ops-v151-attendance"></script>
+  <script src="./timesheet-sync.js?release=flagship-ops-v151-attendance"></script>
+<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css?release=flagship-ops-v151-attendance"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style></head>
 <body>
 
 
@@ -990,7 +990,7 @@ table.page{border-collapse:collapse}
     <div id="fsClockPanel" style="border:1px solid #b9cddd;border-radius:12px;padding:14px;margin-bottom:15px">
   <h3 style="margin:0 0 8px">My Clock In / Clock Out</h3>
   <p style="font-size:12px;color:#68778a">Submit aankoms en vertrek apart. Werklike bedienertyd word gebruik en finale ure wag op admin-goedkeuring.</p>
-  <div id="fsClockStatus">Loading clock status…</div>
+  <label>Client / site<input id="fsClockSite" placeholder="Office or client / site"></label><label>Break / lunch minutes<input id="fsClockLunch" type="number" min="0" value="60"></label><label>Work / overtime reason<input id="fsClockNote"></label><div id="fsClockStatus">Loading clock status…</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
     <button type="button" class="btn" id="fsClockIn" disabled>Clock In</button>
     <button type="button" class="btn" id="fsClockOut" disabled>Clock Out</button>
@@ -1396,7 +1396,7 @@ table.page{border-collapse:collapse}
 </div>
 
 
-<script src="user-privileges.js?release=flagship-ops-v150-reliable-updates"></script><script src="stock-count.js?release=flagship-ops-v150-reliable-updates"></script><script>
+<script src="user-privileges.js?release=flagship-ops-v151-attendance"></script><script src="stock-count.js?release=flagship-ops-v151-attendance"></script><script>
 (function(){
 "use strict";
 
@@ -5919,6 +5919,7 @@ function fillDays(bd,name){
       var paint=function(){
         if(g===6 && Number(r.lu)!==0){r.lu=0;row.querySelector('.lu').value='0';}
         var c=calcShift(k,r.ti,r.to,r.lu);
+        row.classList.toggle('has-overtime',!!(c&&c.overtime>0));
         var s=row.querySelector('.sum');
         if(!c){ s.className='sum bad'; s.textContent=shiftReviewReason(k,r.ti,r.to,r.lu); return; }
         if(!FlagshipTimesheetSync.validLunch(r.lu)){s.className='sum bad';s.textContent='Enter lunch minutes explicitly (0 is valid); this row cannot be sent yet.';return;}
@@ -5936,6 +5937,7 @@ function fillDays(bd,name){
           // Administrators can delete centrally stored entries, not only local drafts.
           // Always check the server for a matching row even when local status is draft.
           if(ME.role==='Admin' && CFG.url){
+            alert('Use Attendance / Timesheet review below to cancel the server entry with a reason.');return;
             try{
               var response=await fetch(CFG.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
                 body:JSON.stringify({action:'timesheetDelete',user:ME.username,pass:ME.pass,worker:name,date:k})});
@@ -6264,7 +6266,7 @@ function fsClockSubmit_(clockAction){
   fsClockBusy_=true;
   document.getElementById('fsClockIn').disabled=true;document.getElementById('fsClockOut').disabled=true;
   document.getElementById('fsClockMessage').textContent='Saving attendance…';
-  api({action:'flagshipClockAction',clockAction:clockAction}).then(function(j){
+  api({action:'flagshipClockAction',clockAction:clockAction,job:document.getElementById('fsClockSite').value,lunch:document.getElementById('fsClockLunch').value,note:document.getElementById('fsClockNote').value}).then(function(j){
     document.getElementById('fsClockMessage').textContent=(clockAction==='in'?'Clock in: '+j.timeIn:'Clock out: '+j.timeOut)+' · confirmed by server'+(j.approval?' · '+j.approval:'');
   }).catch(function(e){
     document.getElementById('fsClockMessage').textContent='Not confirmed: '+e.message+'. Refresh before retrying.';
@@ -6278,11 +6280,12 @@ fsClockRefresh_();
 
 })();
 </script>
-<script src="./xero-customer.js?release=flagship-ops-v150-reliable-updates"></script>
-<script src="./po-inventory.js?release=flagship-ops-v150-reliable-updates"></script>
-<script src="./purchase-orders.js?release=flagship-ops-v150-reliable-updates"></script>
-<script src="./ops-dashboard.js?release=flagship-ops-v150-reliable-updates"></script>
-<script src="./ops-updates-v135.js?release=flagship-ops-v150-reliable-updates"></script>
+<script src="./xero-customer.js?release=flagship-ops-v151-attendance"></script>
+<script src="./po-inventory.js?release=flagship-ops-v151-attendance"></script>
+<script src="./purchase-orders.js?release=flagship-ops-v151-attendance"></script>
+<script src="./ops-dashboard.js?release=flagship-ops-v151-attendance"></script>
+<script src="./ops-updates-v135.js?release=flagship-ops-v151-attendance"></script>
 
-</body>
+<script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script></body>
 </html>
+
