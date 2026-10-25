@@ -29,12 +29,15 @@ function patch(files){
  if(!code)fail('Remote Code missing.');
  for(const rule of rules){
    const re=new RegExp('^function '+rule.name+'\\([^]*?(?=^function |$(?![^]))','gm');
-   const match=code.source.match(re);
-   if(!match||match.length!==1)fail('Expected handler missing: '+rule.name);
+   const candidates=next.filter(f=>f.type==='SERVER_JS'&&new RegExp('function '+rule.name+'\\(').test(f.source));
+   if(candidates.length!==1){console.log('Available clock functions: '+next.filter(f=>f.type==='SERVER_JS').map(f=>f.name+': '+(f.source.match(/function (?:hiClock|flagshipClock)\\w+/g)||[]).join(', ')).join('; '));fail('Expected handler missing or duplicated: '+rule.name);}
+   const target=candidates[0],match=target.source.match(re);
+   if(!match||match.length!==1)fail('Expected handler format differs: '+rule.name);
    let source=match[0];
    if(source.includes(rule.to))continue;
    if(source.split(rule.from).length!==2)fail('Live handler differs at '+rule.name+'; stopped before write.');
-   code.source=code.source.replace(source,source.replace(rule.from,rule.to));
+   target.source=target.source.replace(source,source.replace(rule.from,rule.to));
+   new vm.Script(target.source);
  }
  new vm.Script(code.source);
  const old=next.find(f=>f.name==='TimesheetAudit');
