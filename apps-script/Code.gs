@@ -595,6 +595,7 @@ function workerTabError_(message) {
 function workerTabKey_(name) { return String(name).trim().toLowerCase(); }
 function reservedWorkerTabs_() {
   return Object.keys(SHEETS).concat(['Summary', 'Sheet1','UserPermissions','TimeTreeEvents','TimeTreeHistory','TimeTreeSourceArchive',
+    'Timesheet Audit','Timesheet Approvals','Flagship Clock Events','Hi Clock Events','PurchaseOrders',
     typeof STOCK_SHEET === 'string' ? STOCK_SHEET : 'Stock',
     typeof STOCK_COUNT_SHEET === 'string' ? STOCK_COUNT_SHEET : 'Stock_Counts']).map(workerTabKey_);
 }
@@ -736,9 +737,9 @@ function rebuildWorkerTabs(requestedWorkers) {
   preflightWorkerTabs_(scoped ? requestedWorkers : [], scoped);
   var src = sheet_('Timesheets');
   var n = src.getLastRow() - 1;
-  if (n < 1) return 'No data yet.';
+  if(n<1&&!scoped)return 'No data yet.';
 
-  var data = src.getRange(2, 1, n, 14).getValues();
+  var data = n>0?src.getRange(2, 1, n, 14).getValues():[];
   var byWorker = Object.create(null);
   data.forEach(function (r) {
     var w = String(r[3] || '').trim();
@@ -749,13 +750,14 @@ function rebuildWorkerTabs(requestedWorkers) {
                       r[7], r[8], r[9], r[10], r[11], r[12], r[13]]);
   });
 
+  if(scoped)requestedWorkers.forEach(function(w){if(!byWorker[w])byWorker[w]=[];});
   var count = 0;
   Object.keys(byWorker).forEach(function (w) {
     validateWorkerTab_(w, workerMasterRows_());
     var sh = workerSheet_(w);
     if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, WORKER_COLS.length).clearContent();
-    sh.getRange(2, 5, byWorker[w].length, 2).setNumberFormat('@');
-    sh.getRange(2, 1, byWorker[w].length, WORKER_COLS.length).setValues(byWorker[w]);
+    if(byWorker[w].length)sh.getRange(2, 5, byWorker[w].length, 2).setNumberFormat('@');
+    if(byWorker[w].length)sh.getRange(2, 1, byWorker[w].length, WORKER_COLS.length).setValues(byWorker[w]);
     sortWorkerTab_(sh);
     count++;
   });
@@ -798,7 +800,7 @@ function hiClockAction_(body){
     if(f.row[5])return {ok:true,status:String(f.row[6]),timeIn:String(f.row[4]),timeOut:String(f.row[5]),unchanged:true};
     if(time<=String(f.row[4]))throw Error('Clock out must be later than clock in. Ask an admin to correct an overnight shift.');
     // Stage for admin approval; times do not enter the payroll master yet.
-    var lunch=new Date(day+'T00:00:00Z').getUTCDay()===6?0:60;
+    var lunch=new Date(day+'T00:00:00Z').getUTCDay()===6?0:(body.lunch==null?60:Number(body.lunch));
     var result=tsStage_(u,[{worker:canonicalWorkerForUser_(u),date:day,timeIn:String(f.row[4]),timeOut:time,lunch:lunch,job:String(body.job||''),note:String(body.note||'')}],true);
     if(!result.ok||!result.results||!result.results[0]||['added','unchanged'].indexOf(result.results[0].status)<0)
       throw Error('Could not stage clock out for approval: '+(result.results&&result.results[0]?result.results[0].reason:'unknown error'));
@@ -838,7 +840,7 @@ function flagshipClockAction_(body){
     if(f.row[5])return {ok:true,status:String(f.row[6]),timeIn:String(f.row[4]),timeOut:String(f.row[5]),unchanged:true};
     if(time<=String(f.row[4]))throw Error('Clock out must be later than clock in. Ask an admin to correct an overnight shift.');
     // Stage for admin approval; times do not enter the payroll master yet.
-    var lunch=new Date(day+'T00:00:00Z').getUTCDay()===6?0:60;
+    var lunch=new Date(day+'T00:00:00Z').getUTCDay()===6?0:(body.lunch==null?60:Number(body.lunch));
     var result=tsStage_(u,[{worker:canonicalWorkerForUser_(u),date:day,timeIn:String(f.row[4]),timeOut:time,lunch:lunch,job:String(body.job||''),note:'Flagship Solar · '+String(body.note||'')}],true);
     if(!result.ok||!result.results||!result.results[0]||['added','unchanged'].indexOf(result.results[0].status)<0)
       throw Error('Could not stage clock out for approval: '+(result.results&&result.results[0]?result.results[0].reason:'unknown error'));
@@ -866,13 +868,15 @@ function tsStage_(user,rows,alreadyLocked){
     rows.forEach(function(r,i){
       r=r||{};var worker=String(r.worker||'').trim(),ds=String(r.date||'');
       var status='pending',reason='';
-      if(user.role==='Worker'&&worker.toLowerCase()!==canonicalWorkerForUser_(user).toLowerCase()){status='blocked';reason='Workers may only submit their own time.';}
+      if(user.role!=='Admin'&&worker.toLowerCase()!==canonicalWorkerForUser_(user).toLowerCase()){status='blocked';reason='Workers may only submit their own time.';}
+      else if(ds>hiClockToday_()){status='blocked';reason='Future shifts are not allowed.';}
+      else if(findEntry_(worker,ds)){status='blocked';reason='An approved entry exists. Admin must use Attendance review to correct it with a reason.';}
       else if(user.role!=='Admin'&&!isCurrentCycle_(ds)){status='closed';reason='Pay cycle closed.';}
       else if(!calc_(ds,r.timeIn,r.timeOut,r.lunch)){status='skipped';reason=shiftReviewReason_(ds,r.timeIn,r.timeOut,r.lunch);}
       if(status==='pending'){
         var prev=existing.findIndex(function(v){return v[6]==='Pending'&&String(v[1]).toLowerCase()===worker.toLowerCase()&&dateStr_(v[2])===ds;});
         var clean={worker:worker,date:ds,job:String(r.job||''),timeIn:String(r.timeIn||''),timeOut:String(r.timeOut||''),lunch:new Date(ds+'T00:00:00Z').getUTCDay()===6?0:Number(r.lunch),note:String(r.note||'')};
-        if(prev>=0){sh.getRange(prev+2,4).setValue(JSON.stringify(clean));sh.getRange(prev+2,5,1,2).setValues([[user.username,new Date()]]);}
+        if(prev>=0){tsAudit_(user,'resubmit',worker,ds,'Updated pending submission',existing[prev],clean);sh.getRange(prev+2,4).setValue(JSON.stringify(clean));sh.getRange(prev+2,5,1,2).setValues([[user.username,new Date()]]);}
         else {var rec=[Utilities.getUuid(),worker,ds,JSON.stringify(clean),user.username,new Date(),'Pending','','',''];sh.appendRow(rec);existing.push(rec);}
       }
       // 'added' confirms receipt into the approval inbox, NOT into Timesheets.
@@ -897,6 +901,7 @@ function tsReview_(user,body){
       if(result.skipped)throw Error(result.reason||'Invalid hours');
       rebuildWorkerTabs([data.worker]);
     }
+    tsAudit_(user,action,String(row[1]),dateStr_(row[2]),String(body.reason||''),row,{decision:action,reviewer:user.username});
     sh.getRange(at+2,7,1,4).setValues([[action==='approve'?'Approved':'Rejected',user.username,new Date(),String(body.reason||'')]]);
     log_(user.username,'timesheet '+action,String(row[1])+' '+dateStr_(row[2]),'Pending',String(body.reason||''));
     return {ok:true,status:action==='approve'?'Approved':'Rejected'};
@@ -1290,7 +1295,7 @@ function xeroCreateContact_(body){
 function poSheet_(){
   var ss=SpreadsheetApp.getActiveSpreadsheet();
   var sh=ss.getSheetByName('PurchaseOrders')||ss.insertSheet('PurchaseOrders');
-  if(sh.getLastRow()===0)sh.appendRow(['Client Key','PO ID','PO Number','Supplier','Job','Created By','Created At','Status']);
+  if(sh.getLastRow()===0)sh.appendRow(['Client Key','PO ID','PO Number','Supplier','Job','Created By','Created At','Status','Company']);
   return sh;
 }
 function poFind_(key){
@@ -1326,7 +1331,7 @@ function poCreate_(body){
   var j=xeroRaw_(XERO_API_+'/PurchaseOrders',token,'post',{PurchaseOrders:[doc]},tenant,key);
   var p=(j.PurchaseOrders&&j.PurchaseOrders[0])||{};
   if(!p.PurchaseOrderID)throw Error('Xero returned no PurchaseOrderID. Check Xero before retrying.');
-  poSheet_().appendRow([key,p.PurchaseOrderID,p.PurchaseOrderNumber||'',String(po.supplier||''),String(po.job||''),u.username,new Date(),p.Status||'DRAFT']);
+  poSheet_().appendRow([key,p.PurchaseOrderID,p.PurchaseOrderNumber||'',String(po.supplier||''),String(po.job||''),u.username,new Date(),p.Status||'DRAFT',company]);
   log_(u.username,'poCreate',String(p.PurchaseOrderNumber||''),String(po.supplier||''),String(p.PurchaseOrderID));
   return {ok:true,purchaseOrderID:p.PurchaseOrderID,purchaseOrderNumber:p.PurchaseOrderNumber||'',status:p.Status||'DRAFT'};
 }
@@ -1335,7 +1340,7 @@ function poRecent_(body){
  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PurchaseOrders');
  if(!sh||sh.getLastRow()<2)return {ok:true,purchaseOrders:[]};
  var n=sh.getLastRow()-1,start=Math.max(2,sh.getLastRow()-19);
- var rows=sh.getRange(start,1,Math.min(n,20),8).getValues();
+ var rows=sh.getRange(start,1,Math.min(n,20),9).getValues().filter(function(r){return String(r[8]||'Flagship Solar')===String(body.company||'Flagship Solar');});
  return {ok:true,purchaseOrders:rows.reverse().filter(function(r){return r[1];}).map(function(r){return {purchaseOrderID:String(r[1]),purchaseOrderNumber:String(r[2]||''),supplier:String(r[3]||''),job:String(r[4]||''),status:String(r[7]||'')};})};
 }
 function poPdf_(body){
@@ -1684,6 +1689,8 @@ function doGet(e) {
       return out_({ ok: true, entries: rows });
     }
 
+    if (p.action === 'attendanceHistory') return out_(tsHistory_(Object.assign({},body,p)));
+    if (p.action === 'attendanceRecords') return out_(tsRecords_(Object.assign({},body,p)));
     if (p.action === 'timesheetPending') return out_({ok:true,entries:tsPendingList_(auth_(body,['Admin']))});
     if (p.action === 'timesheetAll') {
       var admin = auth_(body, ['Admin', 'Technician']);
@@ -1819,7 +1826,10 @@ function doPost(e) {
       return out_({ ok: true, name: name });
     }
 
+    if (body.action === 'attendanceManage') return out_(tsManage_(body));
     if (body.action === 'timesheetDelete') {
+      return out_({ok:false,error:'Use Attendance review → Cancel incorrect entry and provide a reason. Original records must be retained.'});
+      /* Legacy deletion disabled. */
       var deletingUser=auth_(body,['Admin']);
       var workerToDelete=String(body.worker||'').trim(), dateToDelete=String(body.date||'').trim();
       var dateCheck=new Date(dateToDelete+'T00:00:00Z');
