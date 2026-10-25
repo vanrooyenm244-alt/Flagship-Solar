@@ -29,3 +29,5 @@ jobs:
 # Retry after correcting ES module imports.
 
 # Verify deployment propagation with uncached reads.
+
+# Reconcile only an already-published callback helper.
