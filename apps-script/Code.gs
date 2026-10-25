@@ -1079,9 +1079,13 @@ function xeroCfg_(){
           taxType:p.getProperty('XERO_TAX_TYPE')||'OUTPUT3'};
 }
 function xeroHtmlRedirect_(url,msg){
-  var u=JSON.stringify(String(url||''));
-  return HtmlService.createHtmlOutput('<!doctype html><html><body style="font-family:Arial;padding:30px">'+
-    '<p>'+escXeroHtml_(msg||'Returning to Flagship…')+'</p><script>window.top.location.replace('+u+');</script></body></html>');
+  var destination=String(url||'').trim();
+  if(!/^https:\/\//i.test(destination))throw new Error('Invalid Xero return URL.');
+  var message=String(msg||'Xero connected.').replace('Returning to Flagship…','Select Return to Flagship to continue.');
+  return HtmlService.createHtmlOutput('<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="font-family:Arial;padding:30px">'+
+    '<p>'+escXeroHtml_(message)+'</p>'+
+    '<p><a id="xeroReturn" target="_top" href="'+escXeroHtml_(destination)+'" style="display:inline-block;padding:14px 20px;background:#1f4e79;color:white;border-radius:8px;text-decoration:none">Return to Flagship</a></p>'+
+    '<p>If the button does not open the app, <a target="_blank" rel="noopener noreferrer" href="'+escXeroHtml_(destination)+'">open Flagship in a new tab</a>.</p></body></html>');
 }
 function escXeroHtml_(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]});}
 function xeroSetConfig_(body){
