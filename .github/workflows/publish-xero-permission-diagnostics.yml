@@ -27,3 +27,4 @@ jobs:
         run: node tools/deploy-xero-permission-diagnostics.mjs
 
 # Publish validated request handler.
+# Retry guarded publication.
