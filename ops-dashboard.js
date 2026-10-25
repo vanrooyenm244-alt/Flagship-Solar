@@ -14,7 +14,7 @@ view.innerHTML='<div class="ops-hero"><div><div class="ops-welcome-label">WELCOM
 old.parentNode.insertBefore(view,old);
 
 var sales=view.querySelector('#opsSalesModules'),internal=view.querySelector('#opsInternalModules');
-var tiles=Array.from(old.querySelectorAll('.tile[data-go]')),salesKeys={jobs:1,jobcards:1,calendar:1,props:1,quote:1};
+var tiles=Array.from(old.querySelectorAll('.tile')),salesKeys={jobs:1,jobcards:1,calendar:1,props:1,quote:1};
 tiles.forEach(function(t){(salesKeys[t.dataset.go]?sales:internal).appendChild(t);});old.remove();
 var quick=view.querySelector('.ops-shortcuts');
 [['newJob','New Job','📋'],['props','Proposal','📄'],['quote','Create Quote','📝'],['jobcards','Job Card','👷'],['time','Timesheets','⏱']].forEach(function(item){var b=document.createElement('button');b.type='button';b.dataset.quick=item[0];b.innerHTML='<span class="glyph"></span><span></span>';b.children[0].textContent=item[2];b.children[1].textContent=item[1];quick.appendChild(b);b.addEventListener('click',function(){run(item[0]);});});
