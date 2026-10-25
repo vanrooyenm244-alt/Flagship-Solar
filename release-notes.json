@@ -1,8 +1,11 @@
 {
-  "version": "flagship-ops-csv-quote-debug-v140",
-  "date": "2026-10-22",
+  "version": "v150 — Reliable app updates",
+  "date": "2026-10-25",
   "title": "Xero Inventory Quotes en Draft Invoices",
   "changes": [
+    "App Updates distinguishes the open page version from the active downloaded release.",
+    "After a complete update, Apply update / Reload opens the new version.",
+    "First-party scripts and styles use release-specific URLs; required files must download before the worker activates.",
     "When CSV inventory exists locally, 'Load Xero inventory items' uses that catalog without a network request (avoids Xero Items API 401).",
     "Backend can identify nested field validation errors for rejected Xero Draft Quotes (requires live Apps Script deployment).",
     "Inventory CSV: automatically suggest high-confidence matches, leaving ambiguous lines for review.",
@@ -20,25 +23,9 @@
     "Update-kontrole wys geïnstalleerde en gepubliseerde cache-weergawes"
   ],
   "tests": [
-    "Reopen saved Value Proposal: verify imported inventory is available without Xero Items API 401.",
-    "Create a test Draft Quote and capture the full error from deployed backend if still rejected; do not retry until checked in Xero.",
-    "Import InventoryItems CSV; confirm Auto-match suggestions match the correct item codes and Sales Descriptions.",
-    "Attempt only a safe test Draft Quote and capture the exact field-level Xero validation response if it fails.",
-    "Import Xero InventoryItems CSV and verify item codes 05, 04 and sales descriptions; check quote tax rates manually.",
-    "Open Value Proposal and load Xero inventory; match each proposal line and verify Sales Descriptions in Xero",
-    "Create draft quote; confirm all line prices, units, account codes and tax treatments against original estimate",
-    "With an approved test quote, Mark as Accepted → Convert to Draft Invoice; verify no invoice is emailed or authorised",
-    "Repeat conversion and confirm an existing invoice is returned rather than creating a second one",
-    "Kies Xero Contact in Value Proposal en verifieer Draft Quote se items, pryse en BTW in Xero",
-    "Open Settings en kies App Updates; bevestig dat die weergawe-notas en toetslys vertoon",
-    "Maak Timesheets oop; Clock status moet binne 12 sekondes laai of 'n fout wys",
-    "Clock In: druk een keer en bevestig dat die bedienertyd verskyn",
-    "Maak app toe en oop; Clock In moet steeds gestoor wees",
-    "Clock Out: bevestig eindtyd en Pending approval (toets eers op 'n geskikte toetsdag)",
-    "Admin: kontroleer dat die inskrywing in die goedkeuringslys verskyn",
-    "Saterdag: verifieer dat geen middagete afgetrek word nie",
-    "App Updates: Check for updates wys die nuutste weergawe en hierdie notas",
-    "Bestaande Timesheets en PDF's: bevestig dat ou data en skerms steeds werk"
+    "Save unfinished work, then open Settings > App Updates > Check for updates.",
+    "When an update is ready, tap Apply update / Reload; reopen App Updates and confirm Open app shows v150 or later.",
+    "Open Purchase Orders and confirm the Xero item dropdown and existing purchase order list are present."
   ],
   "notes": "Sommige funksies vereis dat die opgedateerde Google Apps Script Web App reeds ontplooi is. Moenie toetsinskrywings as finale betaalstate gebruik nie."
 }
