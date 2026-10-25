@@ -1640,7 +1640,7 @@ function proposalPublicHtml_(token){
 
 /* ================= web app ================= */
 
-function doGet(e) {
+function attendanceLegacyGet_(e) {
  
   var p = (e && e.parameter) || {};
   try {
@@ -1786,7 +1786,7 @@ function doGet(e) {
   }
 }
 
-function doPost(e) {
+function attendanceLegacyPost_(e) {
   
   var body;
   
