@@ -8,7 +8,7 @@ var S='flagship-po-draft-v1';
 var inventory=[],inventoryKey='flagship-po-inventory-v1',itemHelper=window.FlagshipPOInventory;
 try{inventory=JSON.parse(localStorage.getItem(inventoryKey)||'[]');if(!Array.isArray(inventory))inventory=[];}catch(e){}
 function el(id){return document.getElementById(id)}
-function h(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function h(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function alertMsg(msg){el('poMessage').textContent=msg}
 function accountOptions(select,current){
  select.replaceChildren();var options=[['','Choose purchase account']].concat(itemHelper.accounts);
@@ -37,7 +37,7 @@ function row(item){
 function lines(){return Array.from(document.querySelectorAll('#poLines .po-line')).map(function(e){var raw=e.querySelector('.po-price').value;return {itemCode:e.querySelector('.po-item').value,description:e.querySelector('.po-desc').value.trim(),quantity:Number(e.querySelector('.po-qty').value),unitAmount:raw===''?null:Number(raw),accountCode:e.querySelector('.po-account').value};});}
 function catalog(items,label){
  if(!Array.isArray(items)||items.some(function(x){return !x||!x.code;}))throw Error('Invalid Xero inventory list.');
- inventory=items.filter(function(x){return x.active!==false;});
+ inventory=items.filter(function(x){return x.purchaseActive!==false;});
  try{localStorage.setItem(inventoryKey,JSON.stringify(inventory));}catch(e){throw Error('Could not save the item list on this browser.');}
  document.querySelectorAll('#poLines .po-item').forEach(function(s){itemOptions(s,s.value);});
  el('poInventoryStatus').textContent=inventory.length+' items ready ('+label+'). Choose an item on each line.';
