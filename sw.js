@@ -1,7 +1,7 @@
 /* Calendar release filenames contain content hashes; keep them in sync with source files. */
 /* Flagship — offline shell.
    Bump CACHE when you change any file, otherwise phones keep the old copy. */
-const CACHE = 'flagship-ops-v146-xero-list-downloads';
+const CACHE = 'flagship-ops-v147-po-busy-status';
 const SHELL = [
   './',
   './index.html', './ops-dashboard.js', './ops-updates-v135.js', './release-notes.json', './calendar-ui.364cf824c602.css', './vendor/rrule.min.js', './timetree-calendar.071000ecf91b.js', './stock-count.js','./user-privileges.js',
