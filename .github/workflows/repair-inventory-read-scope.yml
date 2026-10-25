@@ -1,0 +1,27 @@
+name: Publish Xero inventory read scope
+on:
+  push:
+    branches: [fix/xero-inventory-read-scope]
+    paths: [.github/workflows/repair-inventory-read-scope.yml]
+permissions:
+  contents: read
+concurrency:
+  group: apps-script-production
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Publish read-scope request without changing existing Xero grants
+        env:
+          SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
+        run: node tools/deploy-inventory-read-scope.mjs
