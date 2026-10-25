@@ -1,0 +1,29 @@
+name: Publish audited attendance backend
+on:
+  push:
+    branches: [feat/audited-attendance]
+    paths: [.github/workflows/publish-attendance-review.yml]
+permissions:
+  contents: read
+concurrency:
+  group: apps-script-production
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test audit permissions, corrections and cancellation
+        run: node tests/attendance-review.test.cjs
+      - name: Publish only reviewed attendance changes
+        env:
+          SCRIPT_ID: ${{ secrets.APPS_SCRIPT_ID }}
+          DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          CLASP_CREDENTIALS: ${{ secrets.APPS_SCRIPT_CLASP_CREDENTIALS }}
+        run: node tools/deploy-attendance-review.mjs
