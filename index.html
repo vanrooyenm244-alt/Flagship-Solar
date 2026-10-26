@@ -1528,7 +1528,7 @@ function makeSlot(cap,sans,img){
     var chosen=this;
     var f = chosen.files && chosen.files[0];
     if(!f) return;
-    if(f.type.indexOf('image/') !== 0 && !/\\.(heic|heif)$/i.test(f.name||'')){
+    if(f.type.indexOf('image/') !== 0 && !/\.(heic|heif)$/i.test(f.name||'')){
       alert('That is not a picture. Tap again and choose Camera, or pick a photo from the gallery.');
       chosen.value = '';
       return;
@@ -1560,12 +1560,12 @@ function makeSlot(cap,sans,img){
 }
 
 function shrink(file,done){
-  var isHeic=/\\.(heic|heif)$/i.test(file.name||'') || /^image\\/(heic|heif)$/i.test(file.type||'');
+  var isHeic=/\.(heic|heif)$/i.test(file.name||'') || /^image\/(heic|heif)$/i.test(file.type||'');
   if(isHeic){
     function convertHeic(){
       window.heic2any({blob:file,toType:'image/jpeg',quality:0.85}).then(function(converted){
         var jpeg=Array.isArray(converted)?converted[0]:converted;
-        shrink(new File([jpeg],(file.name||'photo').replace(/\\.(heic|heif)$/i,'.jpg'),{type:'image/jpeg'}),done);
+        shrink(new File([jpeg],(file.name||'photo').replace(/\.(heic|heif)$/i,'.jpg'),{type:'image/jpeg'}),done);
       }).catch(function(e){console.error('HEIC conversion failed',e);alert('Could not convert HEIC photo. Please select another image or convert to JPEG.');});
     }
     if(typeof window.heic2any==='function'){convertHeic();return;}
