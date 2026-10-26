@@ -1,5 +1,5 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v151-attendance';
+const CACHE = 'flagship-ops-v152-heic-upload';
 const SHELL = [
   "./",
   "./index.html",
