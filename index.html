@@ -5930,7 +5930,7 @@ function fillDays(bd,name){
       // Multiple job descriptions per day, persisted in the existing Job / Site column.
       // Existing single-job records remain readable. New entries are a pipe-separated list.
       var jobsBox=row.querySelector('.ts-job-fields');
-      var jobEntries=String(r.job||'').split(/\\s*\\|\\s*/).filter(Boolean);
+      var jobEntries=String(r.job||'').split(/\s*\|\s*/).filter(Boolean);
       while(jobEntries.length<3)jobEntries.push('');
       function renderJobFields(){
         jobsBox.innerHTML='';
@@ -5951,7 +5951,7 @@ function fillDays(bd,name){
         r.ti=row.querySelector('.ti').value;
         r.to=row.querySelector('.to').value;
         r.lu=g===6?0:row.querySelector('.lu').value;
-        r.job=jobEntries.map(function(x){return String(x).trim().replace(/\\|/g,'/');}).filter(Boolean).join(' | ');
+        r.job=jobEntries.map(function(x){return String(x).trim().replace(/\|/g,'/');}).filter(Boolean).join(' | ');
         r.note=row.querySelector('.nt2').value;
         /* Changed after it went through, so it must go again. The script
            updates the existing row rather than adding a duplicate. */
