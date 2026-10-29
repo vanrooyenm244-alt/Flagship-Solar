@@ -1700,7 +1700,25 @@ function flagshipHomeToday_(){
    var clock=e.source==='timetree'&&e.occurrenceStart?new Date(e.occurrenceStart).toLocaleTimeString('en-ZA',{timeZone:'Africa/Johannesburg',hour:'2-digit',minute:'2-digit'}):String(e.startTime||e.time||'');
    head.textContent=(clock?clock+' · ':'')+(e.customer||e.title||'Booking');
    var sub=document.createElement('div');sub.textContent=e.site||e.technician||'';
-   line.append(head,sub);box.append(line);
+   var wrap=document.createElement('label');wrap.style.cssText='display:flex;align-items:center;gap:8px;margin-top:9px;font-size:13px;cursor:pointer';
+   var input=document.createElement('input');input.type='checkbox';
+   var existing=e.completionByDate&&e.completionByDate[today];
+   input.checked=!!(existing&&existing.completed);
+   var caption=document.createElement('span');caption.textContent=input.checked?'Job completed':'Mark job completed';
+   wrap.append(input,caption);
+   input.addEventListener('change',function(){
+     var requested=input.checked;input.disabled=true;caption.textContent='Saving completion…';
+     api({action:'calendarCompletionSet',company:'Flagship Solar',eventId:e.id,occurrenceDate:today,completed:requested})
+       .then(function(result){
+         if(!result||result.ok===false)throw Error(result&&result.error||'Update failed');
+         caption.textContent=requested?'Job completed':'Mark job completed';
+         if(!e.completionByDate)e.completionByDate={};
+         e.completionByDate[today]={completed:requested,completedBy:result.completedBy||ME.name};
+       }).catch(function(error){
+         input.checked=!requested;caption.textContent='Could not save: '+String(error.message||error);
+       }).finally(function(){input.disabled=false;});
+   });
+   line.append(head,sub,wrap);box.append(line);
   });
  }).catch(function(err){if(who===calOwner_())box.textContent='Could not load today’s bookings: '+err.message;});
 }
