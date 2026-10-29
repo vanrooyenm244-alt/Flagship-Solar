@@ -12,7 +12,24 @@ var SPLIT_SHEETS_MAP_ = {
   'Stock_Counts':'1aj7stY5JWY5ztlfAkwGJJ9Gm6OW8_eAe9vubGqcJin8',
   'HiService_Stock':'14LGYSmY0TNGOqfaKEe3cnujE4FVApm1tu9vSWkHWxQs',
   'HiService_Stock_Counts':'1Lwdpos3Uswtf97HRCJV3PbStJoJGiceIoo5nAh6arvc',
-  'HiService_Stock_Movements':'1Zqc2R3GYGX7AN-9Oz-x6edj4W1Bp4SdyYQsoH7gWGhw'
+  'HiService_Stock_Movements':'1Zqc2R3GYGX7AN-9Oz-x6edj4W1Bp4SdyYQsoH7gWGhw',
+  'UserPermissions':'1POVfLZB8CxL6vCqJe-oqVAOKCTd7KRyaqB3Nkuh0mjI',
+  'PurchaseOrders':'1-J0Hz5IPqZlBRAOyGv43Xi06q5TU48RmLt9-OOpbG14',
+  'PriceUpdates':'1j8iNP9Wo4s-gnXOjUAcA5DpXjr0tpiss_xydGpnffqM',
+  'Calendar':'1x3IVqaLVq0MUM_bWs7-Cw-tcmPW-eeHvhNKIzyx3_W8',
+  'Sangwani':'1Em_pK20pnmosAEg_vKw-U3oVHGnK2-fJFhH81L6ud5I',
+  'sangwannyasulu':'1dEuu2Ac5v2Jy_bwIF_CoGiATeQ31KZHMNTGZwEHbGZw',
+  'Michael':'1VylUNL_gYt67eFJoUW_fzJE7ZTF1-4BpY9ZILp_c77Y',
+  'Ian':'11bz44sgtE-h4ERVATmJTT5K3LYxOEgSX2coZ9ELUI4E',
+  'Jacobus':'1dwbo01bZUT8ikElCcfTNBa12GEDaNcmnGDNHY7uMkbY',
+  'Frank':'1RDDdxRKDQFb3ryTBKMGgqR-q_ElN5vfq5OAZCxZswW8',
+  'Workers':'1d6D2Dq4FSTDSCQ4Ea3shsmv70hpaeos7u0wnP7ZfQcE',
+  'Summary':'1cHlAF9sx0wd6wvrIIWTTgJH4ZzaplR0PM4tYgV1vrpc',
+  'JobCards':'1eC6rqi4OLoF0u4bEqVNscFVDPcmBep3jsb9shb2JtmQ',
+  'Prices':'1nXhrDwAwxPb6nknKQSB6zPkFBYxPqa6n9a_7UBtHA7Q',
+  'Proposals':'1Aj-HUZeWoUN6zGy1j64tDafEzjl8dMi6F96_gl9hGN8',
+  'Log':'1zVuLd-c6hbOebF7mVA4DhkRGxD8oBO9S3wsM0uSiPrA',
+  'Users':'1QhzViC5kPmC71qQlIM8INLYbQ_RgnbJoRHgyZz_tW7s'
 };
 function splitSheetsEnabled_() {
   return PropertiesService.getScriptProperties().getProperty('SPLIT_SHEETS_ENABLED') === 'true';
