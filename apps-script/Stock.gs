@@ -1,3 +1,5 @@
+/* Dedicated Flagship stock workbook. Staged, not production deployed. */
+function flagshipStockWorkbook_(){return SpreadsheetApp.openById('1zhWI_SYGYo275o9r19WtKJhuEsjjYSDFieiI3x5F9ME');}
 /**
  * Flagship Solar — stock count
  * ==================================================================
@@ -39,7 +41,7 @@ var STOCK_CATS = ['Wire & Cable', 'Conduit & Trunking', 'DB & Enclosures',
 /* ================= setup ================= */
 
 function setupStock() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = flagshipStockWorkbook_();
   var sh = ss.getSheetByName(STOCK_SHEET) || ss.insertSheet(STOCK_SHEET);
 
   sh.getRange(1, 1, 1, STOCK_HEAD.length).setValues([STOCK_HEAD])
@@ -56,7 +58,7 @@ function setupStock() {
 
 /** Total column is a formula so the sheet stays readable on its own. */
 function stockTotals_() {
-  var sh = sheet_(STOCK_SHEET);
+  var sh = flagshipStockWorkbook_().getSheetByName(STOCK_SHEET);
   var n = sh.getLastRow() - 1;
   if (n < 1) return;
   var f = [];
@@ -67,7 +69,7 @@ function stockTotals_() {
 /* ================= reading ================= */
 
 function stockRows_() {
-  var sh = sheet_(STOCK_SHEET);
+  var sh = flagshipStockWorkbook_().getSheetByName(STOCK_SHEET);
   var n = sh.getLastRow() - 1;
   if (n < 1) return [];
   var v = sh.getRange(2, 1, n, STOCK_HEAD.length).getValues();
@@ -103,7 +105,7 @@ function stockSave_(user, place, counts) {
   if (STOCK_PLACES.indexOf(place) === -1) throw new Error('unknown place');
   var col = 5 + STOCK_PLACES.indexOf(place);          // E, F or G
 
-  var sh = sheet_(STOCK_SHEET);
+  var sh = flagshipStockWorkbook_().getSheetByName(STOCK_SHEET);
   var all = stockRows_();
   var byName = Object.create(null);
   all.forEach(function(r){var k=r.item.trim().toLowerCase();byName[k]=byName[k]===undefined?r:null;});
@@ -142,7 +144,7 @@ function stockAdd_(user, it) {
   }
   var cat = String(it.category || 'Other');
   if (STOCK_CATS.indexOf(cat) === -1) cat = 'Other';
-  sheet_(STOCK_SHEET).appendRow([name, cat, String(it.unit || ''),
+  flagshipStockWorkbook_().getSheetByName(STOCK_SHEET).appendRow([name, cat, String(it.unit || ''),
     Number(it.price) || 0, 0, 0, 0, '', '', user.username]);
   stockTotals_();
   log_(user.username, 'stockAdd', name, '', cat);
@@ -162,7 +164,7 @@ function stockUpload_(user, place, rows, source, reference) {
   if (STOCK_PLACES.indexOf(place) === -1) throw new Error('unknown stock destination');
   if (!rows || !rows.length) throw new Error('no stock rows received');
 
-  var sh = sheet_(STOCK_SHEET);
+  var sh = flagshipStockWorkbook_().getSheetByName(STOCK_SHEET);
   var all = stockRows_();
   var byName = Object.create(null);
   all.forEach(function(r){var k=stockNorm_(r.item);byName[k]=byName[k]===undefined?r:null;});
@@ -204,8 +206,8 @@ function stockUpload_(user, place, rows, source, reference) {
 /* ================= web app hooks ================= */
 
 /** Returns a response, or null if this was not a stock request. */
-function stockCountSheet_(){var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName(STOCK_COUNT_SHEET)||ss.insertSheet(STOCK_COUNT_SHEET);if(!sh.getLastRow())sh.appendRow(['Timestamp','User','Location','Item','Old','Count','Movement']);return sh;}
-function stockDailyReport_(date){var ss=SpreadsheetApp.getActiveSpreadsheet(),tz=ss.getSpreadsheetTimeZone()||'Africa/Johannesburg',sh=stockCountSheet_(),counts=[];date=date||Utilities.formatDate(new Date(),tz,'yyyy-MM-dd');if(sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,7).getValues().forEach(function(r){if(Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd')===date)counts.push({timestamp:Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd HH:mm:ss'),user:r[1],location:r[2],description:r[3],old:r[4],count:r[5],delta:r[6]});});return {date:date,counts:counts,movements:counts.filter(function(x){return x.delta!==0;})};}
+function stockCountSheet_(){var ss=flagshipStockWorkbook_(),sh=ss.getSheetByName(STOCK_COUNT_SHEET)||ss.insertSheet(STOCK_COUNT_SHEET);if(!sh.getLastRow())sh.appendRow(['Timestamp','User','Location','Item','Old','Count','Movement']);return sh;}
+function stockDailyReport_(date){var ss=flagshipStockWorkbook_(),tz=ss.getSpreadsheetTimeZone()||'Africa/Johannesburg',sh=stockCountSheet_(),counts=[];date=date||Utilities.formatDate(new Date(),tz,'yyyy-MM-dd');if(sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,7).getValues().forEach(function(r){if(Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd')===date)counts.push({timestamp:Utilities.formatDate(new Date(r[0]),tz,'yyyy-MM-dd HH:mm:ss'),user:r[1],location:r[2],description:r[3],old:r[4],count:r[5],delta:r[6]});});return {date:date,counts:counts,movements:counts.filter(function(x){return x.delta!==0;})};}
 
 function stockGet_(p, body) {
   if(p.action==='stockReport'){auth_(body);return out_({ok:true,report:stockDailyReport_(p.date)});}
@@ -519,7 +521,7 @@ function seedStock_() {
   var rows = L.map(function (r) {
     return [r[0], r[1], r[2], r[3], 0, 0, 0, '', '', ''];
   });
-  sheet_(STOCK_SHEET).getRange(2, 1, rows.length, STOCK_HEAD.length).setValues(rows);
+  flagshipStockWorkbook_().getSheetByName(STOCK_SHEET).getRange(2, 1, rows.length, STOCK_HEAD.length).setValues(rows);
   log_('system', 'seedStock', rows.length + ' items', '', '');
   return rows.length;
 }
