@@ -772,7 +772,15 @@ table.page{border-collapse:collapse}
   <script src="./supabase-config.js?release=flagship-ops-v151-attendance"></script>
   <script src="./supabase-client.js?release=flagship-ops-v151-attendance"></script>
   <script src="./timesheet-sync.js?release=flagship-ops-v151-attendance"></script>
-<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css?release=flagship-ops-v151-attendance"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style></head>
+<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css?release=flagship-ops-v151-attendance"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style><style id="timesheet-multi-jobs-style">
+.ts-jobs{display:flex;flex-direction:column;gap:7px;min-width:0;width:100%}
+.ts-job-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:7px}
+.ts-job-entry{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ts-job-entry span{font-size:12px;font-weight:600;opacity:.8}
+.ts-job-entry input{width:100%;min-width:0}
+.ts-add-job{align-self:flex-start;padding:7px 12px;border:1px solid currentColor;border-radius:8px;background:transparent;cursor:pointer}
+</style>
+</head>
 <body>
 
 
@@ -5913,17 +5921,37 @@ function fillDays(bd,name){
             '<input type="number" class="lu" value="'+(g===6?'0':esc(r.lu==null?'':r.lu))+'" min="0" step="5" inputmode="numeric" '+(g===6?'disabled ':'')+'title="'+(g===6?'No lunch deduction on Saturdays':'Lunch minutes (0 is valid)')+'">'+
           '</div>'+
           '<div class="ln2">'+
-            '<input class="jn" placeholder="Job / site" value="'+esc(r.job||'')+'">'+
+            ''<div class="ts-jobs"><div class="ts-job-fields"></div><button type="button" class="ts-add-job">+ Add more jobs</button></div>'+'+
             '<input class="nt2" placeholder="Note — sick, off, etc." value="'+esc(r.note||'')+'">'+
           '</div>'+
           '<div class="sum"></div>'+
         '</div>';
 
+      // Multiple job descriptions per day, persisted in the existing Job / Site column.
+      // Existing single-job records remain readable. New entries are a pipe-separated list.
+      var jobsBox=row.querySelector('.ts-job-fields');
+      var jobEntries=String(r.job||'').split(/\\s*\\|\\s*/).filter(Boolean);
+      while(jobEntries.length<3)jobEntries.push('');
+      function renderJobFields(){
+        jobsBox.innerHTML='';
+        jobEntries.forEach(function(value,index){
+          var wrap=document.createElement('label');wrap.className='ts-job-entry';
+          var title=document.createElement('span');title.textContent='Job '+(index+1);
+          var inp=document.createElement('input');inp.className='jn';inp.placeholder='Job / site / work completed';inp.value=value;
+          inp.addEventListener('input',function(){jobEntries[index]=inp.value;upd();});
+          wrap.appendChild(title);wrap.appendChild(inp);jobsBox.appendChild(wrap);
+        });
+      }
+      row.querySelector('.ts-add-job').addEventListener('click',function(){
+        if(jobEntries.length>=20){alert('Maximum 20 jobs per day');return;}
+        jobEntries.push('');renderJobFields();jobsBox.querySelector('.jn:last-child').focus();
+      });
+      renderJobFields();
       var upd=function(){
         r.ti=row.querySelector('.ti').value;
         r.to=row.querySelector('.to').value;
         r.lu=g===6?0:row.querySelector('.lu').value;
-        r.job=row.querySelector('.jn').value;
+        r.job=jobEntries.map(function(x){return String(x).trim().replace(/\\|/g,'/');}).filter(Boolean).join(' | ');
         r.note=row.querySelector('.nt2').value;
         /* Changed after it went through, so it must go again. The script
            updates the existing row rather than adding a duplicate. */
