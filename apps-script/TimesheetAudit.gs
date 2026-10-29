@@ -1,6 +1,6 @@
 /* Attendance review: originals remain in an append-only audit sheet. */
 function tsAuditSheet_(){
- var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Timesheet Audit');
+ var ss=dataSpreadsheet_('Timesheet Audit'),sh=ss.getSheetByName('Timesheet Audit');
  if(!sh){sh=ss.insertSheet('Timesheet Audit');sh.appendRow(['ID','Recorded At','Changed By','Action','Worker','Date','Reason','Before JSON','After JSON']);}
  return sh;
 }
@@ -68,7 +68,7 @@ function tsManage_(body){
 function tsHistory_(body){
  var u=auth_(body),worker=String(body.worker||'');
  if(u.role!=='Admin'&&worker.toLowerCase()!==canonicalWorkerForUser_(u).toLowerCase())throw Error('Own attendance history only');
- var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Timesheet Audit'),out=[];
+ var sh=dataSpreadsheet_('Timesheet Audit').getSheetByName('Timesheet Audit'),out=[];
  if(sh&&sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,9).getValues().forEach(function(r){if(String(r[4])===worker)out.push({at:String(r[1]),by:String(r[2]),action:String(r[3]),date:dateStr_(r[5]),reason:String(r[6]),before:String(r[7]),after:String(r[8])});});
  return {ok:true,history:out.slice(-200).reverse()};
 }
