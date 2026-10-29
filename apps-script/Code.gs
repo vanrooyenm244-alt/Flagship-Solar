@@ -1595,7 +1595,7 @@ function jobNumberAllocate_(body){
     var last=sh.getLastRow(),highest=0;
     if(last>1)sh.getRange(2,1,last-1,1).getDisplayValues().forEach(function(v){
       var str=String(v[0]||'').trim();
-      if(/^\\d+$/.test(str))highest=Math.max(highest,Number(str));
+      if(/^[0-9]+$/.test(str))highest=Math.max(highest,Number(str));
     });
     var number=highest+1;
     sh.appendRow([number,u.name||u.username,'',client,String(body.address||''),'New job',String(body.description||''),String(body.phone||''),String(body.email||''),company,'','','']);
@@ -1605,7 +1605,7 @@ function jobNumberAllocate_(body){
 
 function proposalPublish_(body){
   var u=auth_(body,['Admin','Technician']), d=body.proposal||{};
-  if(d.jobNo&&/^\\d+$/.test(String(d.jobNo)))d.no='VP-'+String(Number(d.jobNo));
+  if(d.jobNo&&/^[0-9]+$/.test(String(d.jobNo)))d.no='VP-'+String(Number(d.jobNo));
   if(!String(d.client||'').trim()) throw new Error('Customer name is required.');
   if(!Array.isArray(d.items)||!d.items.length) throw new Error('The proposal has no priced lines.');
   d.items.forEach(function(it){validateQuoteAmounts_(it.qty,it.sell);});
