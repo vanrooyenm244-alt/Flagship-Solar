@@ -308,8 +308,9 @@ function onOpen() {
 /* ================= helpers ================= */
 
 function sheet_(name) {
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
-  if (!sh) { setup(); sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name); }
+  var sh = dataSpreadsheet_(name).getSheetByName(name);
+  if (!sh && !splitSheetsEnabled_()) { setup(); sh = dataSpreadsheet_(name).getSheetByName(name); }
+  if (!sh) throw new Error('Sheet unavailable: ' + name);
   return sh;
 }
 
@@ -528,7 +529,7 @@ function findUser_(username) {
 var APP_PERMISSION_CATALOG_={"Flagship Solar": [{"key": "inspections.view", "label": "Inspections \u2014 view / capture"}, {"key": "job_cards.view", "label": "Job Cards \u2014 view"}, {"key": "job_cards.edit", "label": "Job Cards \u2014 save / submit"}, {"key": "calendar.view", "label": "Calendar \u2014 view"}, {"key": "calendar.edit", "label": "Calendar \u2014 schedule / change"}, {"key": "stock.view", "label": "Stock \u2014 view"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.manage", "label": "Stock \u2014 add items / receive file"}, {"key": "stock.report", "label": "Stock \u2014 reports"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 own entries"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "timesheets.view_all", "label": "Timesheets \u2014 all employees"}, {"key": "prices.view", "label": "Price List \u2014 sell prices"}, {"key": "prices.cost", "label": "Price List \u2014 supplier costs / markup"}, {"key": "prices.manage", "label": "Price List \u2014 edit / import"}, {"key": "quotes.view", "label": "Quotes \u2014 build / view"}, {"key": "quotes.create", "label": "Quotes \u2014 create in Xero"}, {"key": "proposals.view", "label": "Value Proposals \u2014 build / view"}, {"key": "proposals.send", "label": "Value Proposals \u2014 send / publish"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}], "Hi Service": [{"key":"calendar.view","label":"Calendar — TimeTree bookings"},{"key": "stock.view", "label": "Stock \u2014 view / count screen"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.overview", "label": "Stock \u2014 overview / totals"}, {"key": "stock.report", "label": "Stock \u2014 daily reports / PDF"}, {"key": "stock.manage", "label": "Stock \u2014 add items / file import"}, {"key": "stock.transfer", "label": "Stock \u2014 transfer between locations"}, {"key": "stock.receive", "label": "Stock \u2014 receive / invoices"}, {"key": "stock.adjust", "label": "Stock \u2014 adjust quantities"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 view"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "estimates.view", "label": "Cost Estimation \u2014 build / share"}, {"key":"quotes.create","label":"Xero — create Hi Service draft quotes"}, {"key":"quotes.view","label":"Xero — connection status"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}]};
 var APP_PERMISSION_ACTIONS_={"hiCalendar":"calendar.view","jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroQuoteAcceptInvoice":"quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit", "hiClockAction":"timesheets.submit", "hiClockStatus":"timesheets.view_own", "flagshipClockStatus":"timesheets.view_own", "flagshipClockAction":"timesheets.submit", "hiXeroContacts":"quotes.view", "hiXeroStatus":"quotes.view", "hiXeroCreateContact":"quotes.create", "hiXeroCreateQuote":"quotes.create"};
 function permissionCompany_(body){return /^hi[A-Z]/.test(String(body.action||''))?'Hi Service':(['userAccess','userPermissions','saveUserPermissions','me','login'].indexOf(body.action)>=0&&body.company==='Hi Service'?'Hi Service':'Flagship Solar');}
-function permissionRecord_(username,company){var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(!sh||sh.getLastRow()<2)return null;var rows=sh.getRange(2,1,sh.getLastRow()-1,5).getValues(),key=String(username).toLowerCase();for(var i=0;i<rows.length;i++)if(String(rows[i][0]).toLowerCase()===key&&rows[i][1]===company){var permissions;try{permissions=JSON.parse(rows[i][2]);}catch(e){throw Error('Invalid stored user permissions; ask an Admin to repair.');}if(!Array.isArray(permissions))throw Error('Invalid stored user permissions');return {row:i+2,permissions:permissions};}return null;}
+function permissionRecord_(username,company){var sh=dataSpreadsheet_('UserPermissions').getSheetByName('UserPermissions');if(!sh||sh.getLastRow()<2)return null;var rows=sh.getRange(2,1,sh.getLastRow()-1,5).getValues(),key=String(username).toLowerCase();for(var i=0;i<rows.length;i++)if(String(rows[i][0]).toLowerCase()===key&&rows[i][1]===company){var permissions;try{permissions=JSON.parse(rows[i][2]);}catch(e){throw Error('Invalid stored user permissions; ask an Admin to repair.');}if(!Array.isArray(permissions))throw Error('Invalid stored user permissions');return {row:i+2,permissions:permissions};}return null;}
 function permissionDefaults_(u,company){var keys=APP_PERMISSION_CATALOG_[company].map(function(x){return x.key;});if(u.role==='Admin')return keys;if(company==='Hi Service')return keys.filter(function(k){return k!=='users.manage';});var worker=['inspections.view','job_cards.view','job_cards.edit','calendar.view','stock.view','stock.count','stock.report','timesheets.view_own','timesheets.submit'];return u.role==='Technician'?keys.filter(function(k){return ['users.manage','prices.cost','prices.manage'].indexOf(k)<0;}):worker;}
 function permissionKeys_(u,company){var rec=permissionRecord_(u.username,company);return rec?rec.permissions:permissionDefaults_(u,company);}
 function permissionAllowed_(u,company,key){return permissionKeys_(u,company).indexOf(key)>=0;}
@@ -600,7 +601,7 @@ function reservedWorkerTabs_() {
     typeof STOCK_COUNT_SHEET === 'string' ? STOCK_COUNT_SHEET : 'Stock_Counts']).map(workerTabKey_);
 }
 function workerMasterRows_() {
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Timesheets');
+  var sh = dataSpreadsheet_('Timesheets').getSheetByName('Timesheets');
   return sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 14).getValues() : [];
 }
 function workerProjection_(r) {
@@ -769,7 +770,7 @@ function rebuildWorkerTabs(requestedWorkers) {
 /* Approval inbox: submissions stay outside Timesheets until admin approval. */
 /* Separate server-confirmed clock in/out events for Hi Service. */
 function hiClockSheet_(){
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Hi Clock Events');
+  var ss=dataSpreadsheet_('Hi Clock Events'),sh=ss.getSheetByName('Hi Clock Events');
   if(!sh){sh=ss.insertSheet('Hi Clock Events');sh.appendRow(['ID','Account','Worker','Date','Time In','Time Out','Status','Recorded In','Recorded Out','Approval']);}
   return sh;
 }
@@ -849,7 +850,7 @@ function flagshipClockAction_(body){
   }finally{lock.releaseLock();}
 }
 function tsApprovalSheet_(){
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Timesheet Approvals');
+  var ss=dataSpreadsheet_('Timesheet Approvals'),sh=ss.getSheetByName('Timesheet Approvals');
   if(!sh){sh=ss.insertSheet('Timesheet Approvals');sh.appendRow(['ID','Worker','Date','Payload JSON','Submitted By','Submitted At','Status','Reviewed By','Reviewed At','Reason']);}
   return sh;
 }
@@ -1293,7 +1294,7 @@ function xeroCreateContact_(body){
 
 /* Purchase orders: create in Xero, retain a local reference, return Xero's own PDF. */
 function poSheet_(){
-  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  var ss=dataSpreadsheet_('PurchaseOrders');
   var sh=ss.getSheetByName('PurchaseOrders')||ss.insertSheet('PurchaseOrders');
   if(sh.getLastRow()===0)sh.appendRow(['Client Key','PO ID','PO Number','Supplier','Job','Created By','Created At','Status','Company']);
   return sh;
@@ -1337,7 +1338,7 @@ function poCreate_(body){
 }
 function poRecent_(body){
  auth_(body,['Admin']);
- var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PurchaseOrders');
+ var sh=dataSpreadsheet_('PurchaseOrders').getSheetByName('PurchaseOrders');
  if(!sh||sh.getLastRow()<2)return {ok:true,purchaseOrders:[]};
  var n=sh.getLastRow()-1,start=Math.max(2,sh.getLastRow()-19);
  var rows=sh.getRange(start,1,Math.min(n,20),9).getValues().filter(function(r){return String(r[8]||'Flagship Solar')===String(body.company||'Flagship Solar');});
@@ -2084,7 +2085,7 @@ function attendanceLegacyPost_(e) {
       if (t2.username.toLowerCase() === admin2.username.toLowerCase()) {
         return out_({ ok: false, error: 'you cannot delete yourself' });
       }
-      var privilegeSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(privilegeSheet&&privilegeSheet.getLastRow()>1){var privilegeUsers=privilegeSheet.getRange(2,1,privilegeSheet.getLastRow()-1,1).getValues();for(var pi=privilegeUsers.length-1;pi>=0;pi--)if(String(privilegeUsers[pi][0]).toLowerCase()===t2.username.toLowerCase())privilegeSheet.deleteRow(pi+2);}
+      var privilegeSheet=dataSpreadsheet_('UserPermissions').getSheetByName('UserPermissions');if(privilegeSheet&&privilegeSheet.getLastRow()>1){var privilegeUsers=privilegeSheet.getRange(2,1,privilegeSheet.getLastRow()-1,1).getValues();for(var pi=privilegeUsers.length-1;pi>=0;pi--)if(String(privilegeUsers[pi][0]).toLowerCase()===t2.username.toLowerCase())privilegeSheet.deleteRow(pi+2);}
       sheet_('Users').deleteRow(t2.row);
       log_(admin2.username, 'deleteUser', t2.username, t2.role + ' / ' + t2.status, 'deleted');
       return out_({ ok: true });
