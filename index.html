@@ -1728,6 +1728,7 @@ window.addEventListener('load',function(){
 });
 function calIsMine_(e){if(e.source==='timetree')return TimeTreeCalendar.visible(e,'Flagship Solar',ME);if(CAL_ALL)return true;var n=ME&&ME.name?String(ME.name).toLowerCase():'';return !!n&&String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
 var CAL_DAY=null,CAL_VIEW='agenda',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
+var CAL_LIVE_EVENTS=null,CAL_LIVE_OWNER='';
 function calOwner_(){return JSON.stringify([CFG.url,ME&&ME.username,ME&&ME.pass]);}
 function calMerge_(incoming,owner){
   return getAll('calendar').then(function(saved){
@@ -1754,9 +1755,17 @@ function showCalendar(force){
   var request=apiGet({action:'calendar'}).then(function(j){
     if(who!==calOwner_()||!hasPermission_('calendar.view'))return;
     if(!Array.isArray(j.events))throw Error('Invalid calendar response');
-    return calMerge_(j.events,who).then(function(){if(who!==calOwner_())return;
+    CAL_LIVE_EVENTS=j.events;CAL_LIVE_OWNER=who;
+    return calMerge_(j.events,who).catch(function(error){
+      // IndexedDB may be temporarily unavailable on Android. Show the fresh
+      // server response rather than leaving the calendar stuck on loading.
+      console.warn('Calendar offline cache unavailable',error);
+      document.getElementById('calSyncStatus').textContent='Showing live bookings · Offline cache unavailable.';
+    }).then(function(){if(who!==calOwner_())return;
       CAL_SYNC_OWNER=who;CAL_SYNC_AT=Date.now();
-      document.getElementById('calSyncStatus').textContent=j.lastImportAt?'TimeTree updated '+new Date(j.lastImportAt).toLocaleString():'No TimeTree import yet.';
+      if(document.getElementById('calSyncStatus').textContent.indexOf('Offline cache unavailable')<0){
+        document.getElementById('calSyncStatus').textContent=j.lastImportAt?'TimeTree updated '+new Date(j.lastImportAt).toLocaleString():'No TimeTree import yet.';
+      }
       return calRender_();
     });
   }).catch(function(err){if(who===calOwner_())document.getElementById('calSyncStatus').textContent='Showing saved bookings · Update failed: '+err.message;
@@ -1765,8 +1774,13 @@ function showCalendar(force){
 }
 function calRender_(){
   var render=++CAL_RENDER;
-  return getAll('calendar').then(function(items){
+  return getAll('calendar').catch(function(){return []}).then(function(items){
     if(render!==CAL_RENDER)return;
+    if(CAL_LIVE_OWNER===calOwner_()&&Array.isArray(CAL_LIVE_EVENTS)){
+      var combined=new Map(items.map(function(e){return [e.id,e]}));
+      CAL_LIVE_EVENTS.forEach(function(e){combined.set(e.id,e);});
+      items=Array.from(combined.values());
+    }
     items=items.filter(calIsMine_);
     document.getElementById('calTitle').textContent=CAL_DATE.toLocaleString(undefined,{month:'long',year:'numeric'});
     document.getElementById('calModeTag').textContent=CAL_ALL?'All jobs':'My jobs';
