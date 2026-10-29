@@ -63,7 +63,39 @@ function timeTreeList_(u,company){
   });
   return {ok:true,events:events,lastImportAt:PropertiesService.getScriptProperties().getProperty('TIMETREE_LAST_IMPORT_AT')||null};
 }
-function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);return timeTreeList_(u,'Hi Service');}
+/* Enrich existing TimeTree appointments with the central Job List.
+ * No booking gets created or changed; only exact quote/job-number matches link.
+ * Unknown or ambiguous matches are deliberately left unlinked. */
+function hiCalendar_(body){
+  var u=auth_(body,['Admin','Technician','Worker']);
+  var result=timeTreeList_(u,'Hi Service');
+  var rows=[],sh=SpreadsheetApp.openById('1Kz4shFHxg5XzCGqsj68TEFEszbVooemi5AEhfklvVPs').getSheetByName('Sheet1');
+  if(sh&&sh.getLastRow()>1)rows=sh.getRange(2,1,Math.min(sh.getLastRow()-1,3000),14).getDisplayValues();
+  var byRef={};
+  rows.forEach(function(r){
+    if(!/hi[\\s-]*service/i.test(String(r[9]||'')))return;
+    [String(r[0]||''),String(r[2]||'')].forEach(function(ref){
+      ref=ref.trim().toUpperCase();
+      if(!ref||ref==='CANCEL'||ref==='FERNANDO'||ref.length<3)return;
+      if(!byRef[ref])byRef[ref]=[];
+      byRef[ref].push(r);
+    });
+  });
+  result.events.forEach(function(e){
+    var blob=[e.title,e.name,e.description,e.notes,e.customer,e.site,e.jobNo,e.quoteNo].filter(Boolean).join(' ').toUpperCase();
+    var refs=Object.keys(byRef).filter(function(ref){
+      return (ref.indexOf('QU-')===0||ref.indexOf('INV-')===0)&&new RegExp('(^|[^A-Z0-9])'+ref.replace(/[.*+?^$()|[\\]{}]/g,'\\function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);return timeTreeList_(u,'Hi Service');}')+'(?=$|[^A-Z0-9])').test(blob);
+    });
+    if(refs.length!==1||byRef[refs[0]].length!==1)return;
+    var r=byRef[refs[0]][0];
+    // Only authorised workers see details of jobs tagged to them.
+    var assigned=String(r[13]||'').toLowerCase();
+    var identity=String(u.name||u.username||'').toLowerCase();
+    if(u.role==='Worker'&&(!assigned||assigned.indexOf(identity)<0))return;
+    e.jobLink={jobNo:String(r[0]),quoteNo:String(r[2]),customer:String(r[3]),address:String(r[4]),description:String(r[6]),phone:String(r[7]),email:String(r[8]),invoiceNo:String(r[12])};
+  });
+  return result;
+}
 
 function ttTagKey_(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s*([/\-])\s*/g,'$1').replace(/\s+/g,' ');}
 function ttEventTags_(e){return (Array.isArray(e.tags)&&e.tags.length?e.tags:[e.jobType||'']).map(function(t){return ttTagKey_(typeof t==='object'?t.name:t);});}
