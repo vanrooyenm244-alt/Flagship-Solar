@@ -315,7 +315,7 @@ var FLAGSHIP_MIGRATION_WORKBOOKS_={
   'Timesheets':'1JGHKEL4DY7hcA9nv95G2ZMDNtLyVmu8IY6jYyTT4_dQ'
 };
 function sheet_(name) {
-  var id=FLAGSHIP_MIGRATION_WORKBOOKS_[name];
+  var id=PropertiesService.getScriptProperties().getProperty('ENABLE_FLAGSHIP_SHEETS_CUTOVER')==='true'?FLAGSHIP_MIGRATION_WORKBOOKS_[name]:null;
   if(id) {
     var target=SpreadsheetApp.openById(id).getSheetByName(name);
     if(!target)throw new Error('Missing routed Flagship sheet: '+name);
