@@ -4,7 +4,7 @@
  */
 var TT_EVENTS_='TimeTreeEvents',TT_HISTORY_='TimeTreeHistory';
 function ttSheet_(name,headers){
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName(name)||ss.insertSheet(name);
+  var ss=dataSpreadsheet_(name),sh=ss.getSheetByName(name)||ss.insertSheet(name);
   if(sh.getMaxColumns()<headers.length)sh.insertColumnsAfter(sh.getMaxColumns(),headers.length-sh.getMaxColumns());
   if(!sh.getLastRow())sh.appendRow(headers);
   var actual=sh.getRange(1,1,1,headers.length).getValues()[0];
@@ -54,7 +54,7 @@ function timeTreeApply_(events,requestId){
   return {ok:true,acceptedIds:accepted,changed:changed};
 }
 function timeTreeList_(u,company){
-  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TT_EVENTS_),events=[];
+  var sh=dataSpreadsheet_(TT_EVENTS_).getSheetByName(TT_EVENTS_),events=[];
   if(sh&&sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,5).getValues().forEach(function(r){
     var e=JSON.parse(r[3]);if(e.targets.indexOf(company)<0)return;
     if(!ttTagVisible_(e,company,u))return;
