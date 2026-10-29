@@ -307,7 +307,20 @@ function onOpen() {
 
 /* ================= helpers ================= */
 
+/* Migration staging: explicitly route Flagship operational Timesheets to the new
+ * company workbook. Keep central identity and all unclassified legacy tables
+ * bound to the existing workbook until historical approval data is reconciled.
+ * No implicit setup() in the destination workbook. */
+var FLAGSHIP_MIGRATION_WORKBOOKS_={
+  'Timesheets':'1JGHKEL4DY7hcA9nv95G2ZMDNtLyVmu8IY6jYyTT4_dQ'
+};
 function sheet_(name) {
+  var id=FLAGSHIP_MIGRATION_WORKBOOKS_[name];
+  if(id) {
+    var target=SpreadsheetApp.openById(id).getSheetByName(name);
+    if(!target)throw new Error('Missing routed Flagship sheet: '+name);
+    return target;
+  }
   var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
   if (!sh) { setup(); sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name); }
   return sh;
@@ -1535,7 +1548,30 @@ function jobCardDeleteLocked_(body){
 
 /* ================= CALENDAR / SCHEDULING ================= */
 function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar'):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:mirror.events,lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:out.concat(mirror.events),lastImportAt:mirror.lastImportAt};}
-function calendarSave_(body){var u=auth_(body,['Admin','Technician']),e=body.event||{},id=String(e.id||'').trim(),customer=String(e.customer||'').trim(),date=String(e.date||'').trim();if(id.indexOf('tt:')===0)throw Error('Edit this booking in TimeTree');if(!id||!customer||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Calendar ID, customer and valid date are required.');var sh=sheet_('Calendar'),n=sh.getLastRow(),row=0;if(n>=2){var ids=sh.getRange(2,1,n-1,1).getValues();for(var i=0;i<ids.length;i++)if(String(ids[i][0])===id){row=i+2;break;}}var now=new Date(),data=[id,customer,String(e.site||''),date,String(e.startTime||''),String(e.endTime||''),String(e.technician||''),String(e.company||''),String(e.jobType||''),String(e.notes||''),String(e.status||'SCHEDULED'),now];if(row)sh.getRange(row,1,1,12).setValues([data]);else sh.appendRow(data);log_(u.username,'calendarSave',id,customer,date);return {id:id,updatedAt:now.getTime()};}
+function calendarSave_(body){var u=auth_(body,['Admin','Technician']),e=body.event||{},id=String(e.id||'').trim(),customer=String(e.customer||'').trim(),date=String(e.date||'').trim();if(id.indexOf('tt:')===0)throw Error('Edit this booking in TimeTree');if(!id||!customer||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Calendar ID, customer and valid date are required.');var linked=e.jobNo?quoteJobListEntry_(e.jobNo,e.company):null;if(e.jobNo&&!linked)throw Error('The job number was not found in the selected company Quote Job List.');var sh=sheet_('Calendar'),n=sh.getLastRow(),row=0;if(n>=2){var ids=sh.getRange(2,1,n-1,1).getValues();for(var i=0;i<ids.length;i++)if(String(ids[i][0])===id){row=i+2;break;}}var now=new Date(),data=[id,customer,String(e.site||''),date,String(e.startTime||''),String(e.endTime||''),String(e.technician||''),String(e.company||''),String(e.jobType||''),String(e.notes||''),String(e.status||'SCHEDULED'),now];if(row)sh.getRange(row,1,1,12).setValues([data]);else sh.appendRow(data);log_(u.username,'calendarSave',id,customer,date);return {id:id,updatedAt:now.getTime()};}
+
+
+/* Existing central Quote Job List, read-only lookup. Never replace TimeTree.
+ * Company and assigned technician must be checked by the caller before
+ * displaying customer details to a worker. */
+var QUOTE_JOB_LIST_ID_='1Kz4shFHxg5XzCGqsj68TEFEszbVooemi5AEhfklvVPs';
+function quoteJobListEntry_(jobNo,company){
+  var sh=SpreadsheetApp.openById(QUOTE_JOB_LIST_ID_).getSheetByName('Sheet1');
+  if(!sh)throw Error('Central Quote Job List not accessible');
+  var n=sh.getLastRow();if(n<2)return null;
+  var rows=sh.getRange(2,1,n-1,14).getValues();
+  var wanted=String(jobNo||'').trim().toLowerCase();
+  var owner=String(company||'').trim().toLowerCase();
+  for(var i=0;i<rows.length;i++){
+    var r=rows[i],current=String(r[0]||'').trim().toLowerCase(),
+    label=String(r[9]||'').trim().toLowerCase();
+    if(current!==wanted)continue;
+    if(owner&&owner.indexOf('hi')>=0&&label.indexOf('hi')<0)return null;
+    if(owner&&owner.indexOf('flagship')>=0&&label.indexOf('flagship')<0)return null;
+    return {jobNo:String(r[0]),quoteNo:String(r[2]||''),customer:String(r[3]||''),address:String(r[4]||''),description:String(r[6]||''),phone:String(r[7]||''),email:String(r[8]||''),company:String(r[9]||''),invoiceNo:String(r[12]||'')};
+  }
+  return null;
+}
 
 /* ================= VALUE PROPOSAL SERVER WORKFLOW ================= */
 function proposalSheet_(){ return sheet_('Proposals'); }
