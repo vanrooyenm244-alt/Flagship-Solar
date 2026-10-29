@@ -527,6 +527,7 @@ function findUser_(username) {
 /* Per-user, per-company checkbox privileges. Existing role/assignment rules remain. */
 var APP_PERMISSION_CATALOG_={"Flagship Solar": [{"key": "inspections.view", "label": "Inspections \u2014 view / capture"}, {"key": "job_cards.view", "label": "Job Cards \u2014 view"}, {"key": "job_cards.edit", "label": "Job Cards \u2014 save / submit"}, {"key": "calendar.view", "label": "Calendar \u2014 view"}, {"key": "calendar.edit", "label": "Calendar \u2014 schedule / change"}, {"key": "stock.view", "label": "Stock \u2014 view"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.manage", "label": "Stock \u2014 add items / receive file"}, {"key": "stock.report", "label": "Stock \u2014 reports"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 own entries"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "timesheets.view_all", "label": "Timesheets \u2014 all employees"}, {"key": "prices.view", "label": "Price List \u2014 sell prices"}, {"key": "prices.cost", "label": "Price List \u2014 supplier costs / markup"}, {"key": "prices.manage", "label": "Price List \u2014 edit / import"}, {"key": "quotes.view", "label": "Quotes \u2014 build / view"}, {"key": "quotes.create", "label": "Quotes \u2014 create in Xero"}, {"key": "proposals.view", "label": "Value Proposals \u2014 build / view"}, {"key": "proposals.send", "label": "Value Proposals \u2014 send / publish"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}], "Hi Service": [{"key":"calendar.view","label":"Calendar — TimeTree bookings"},{"key": "stock.view", "label": "Stock \u2014 view / count screen"}, {"key": "stock.count", "label": "Stock \u2014 submit counts"}, {"key": "stock.overview", "label": "Stock \u2014 overview / totals"}, {"key": "stock.report", "label": "Stock \u2014 daily reports / PDF"}, {"key": "stock.manage", "label": "Stock \u2014 add items / file import"}, {"key": "stock.transfer", "label": "Stock \u2014 transfer between locations"}, {"key": "stock.receive", "label": "Stock \u2014 receive / invoices"}, {"key": "stock.adjust", "label": "Stock \u2014 adjust quantities"}, {"key": "timesheets.view_own", "label": "Timesheets \u2014 view"}, {"key": "timesheets.submit", "label": "Timesheets \u2014 submit own hours"}, {"key": "estimates.view", "label": "Cost Estimation \u2014 build / share"}, {"key":"quotes.create","label":"Xero — create Hi Service draft quotes"}, {"key":"quotes.view","label":"Xero — connection status"}, {"key": "users.manage", "label": "Users / permissions \u2014 Admin only"}]};
 var APP_PERMISSION_ACTIONS_={"hiCalendar":"calendar.view","jobCards": "job_cards.view", "jobCardSave": "job_cards.edit", "jobCardDelete": "job_cards.edit", "calendar": "calendar.view", "calendarSave": "calendar.edit", "stock": "stock.view", "stockCount": "stock.count", "stockAdd": "stock.manage", "stockUpload": "stock.manage", "stockReport": "stock.report", "entries": "timesheets.view_own", "timesheets": "timesheets.submit", "timesheetAll": "timesheets.view_all", "addWorker": "timesheets.view_all", "prices": "prices.view", "savePrice": "prices.manage", "createSupplierPrices": "prices.manage", "updatePriceList": "prices.manage", "logPriceUpdate": "prices.manage", "deletePrice": "prices.manage", "xeroItems": "quotes.view", "xeroContacts": "quotes.view", "xeroCreateQuote": "quotes.create", "xeroQuoteAcceptInvoice":"quotes.create", "xeroCreateContact": "quotes.create", "proposalPublish": "proposals.send", "proposalSendToXero": "proposals.send", "users": "users.manage", "setUser": "users.manage", "deleteUser": "users.manage", "resetPassword": "users.manage", "userPermissions": "users.manage", "saveUserPermissions": "users.manage", "hiStock": ["stock.view", "stock.overview", "stock.transfer", "stock.receive", "stock.adjust", "estimates.view"], "hiStockCount": "stock.count", "hiStockAdd": "stock.manage", "hiStockReport": "stock.report", "hiStockTransfer": "stock.transfer", "hiStockReceive": "stock.receive", "hiStockAdjust": "stock.adjust", "hiTimesheet": "timesheets.submit", "hiClockAction":"timesheets.submit", "hiClockStatus":"timesheets.view_own", "flagshipClockStatus":"timesheets.view_own", "flagshipClockAction":"timesheets.submit", "hiXeroContacts":"quotes.view", "hiXeroStatus":"quotes.view", "hiXeroCreateContact":"quotes.create", "hiXeroCreateQuote":"quotes.create"};
+APP_PERMISSION_ACTIONS_.calendarCompletionSet='calendar.view';
 function permissionCompany_(body){return /^hi[A-Z]/.test(String(body.action||''))?'Hi Service':(['userAccess','userPermissions','saveUserPermissions','me','login'].indexOf(body.action)>=0&&body.company==='Hi Service'?'Hi Service':'Flagship Solar');}
 function permissionRecord_(username,company){var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('UserPermissions');if(!sh||sh.getLastRow()<2)return null;var rows=sh.getRange(2,1,sh.getLastRow()-1,5).getValues(),key=String(username).toLowerCase();for(var i=0;i<rows.length;i++)if(String(rows[i][0]).toLowerCase()===key&&rows[i][1]===company){var permissions;try{permissions=JSON.parse(rows[i][2]);}catch(e){throw Error('Invalid stored user permissions; ask an Admin to repair.');}if(!Array.isArray(permissions))throw Error('Invalid stored user permissions');return {row:i+2,permissions:permissions};}return null;}
 function permissionDefaults_(u,company){var keys=APP_PERMISSION_CATALOG_[company].map(function(x){return x.key;});if(u.role==='Admin')return keys;if(company==='Hi Service')return keys.filter(function(k){return k!=='users.manage';});var worker=['inspections.view','job_cards.view','job_cards.edit','calendar.view','stock.view','stock.count','stock.report','timesheets.view_own','timesheets.submit'];return u.role==='Technician'?keys.filter(function(k){return ['users.manage','prices.cost','prices.manage'].indexOf(k)<0;}):worker;}
@@ -1534,7 +1535,62 @@ function jobCardDeleteLocked_(body){
 }
 
 /* ================= CALENDAR / SCHEDULING ================= */
-function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar'):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:mirror.events,lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:out.concat(mirror.events),lastImportAt:mirror.lastImportAt};}
+function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar'):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:jobCompletionOverlay_(mirror.events,'Flagship Solar'),lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:jobCompletionOverlay_(out.concat(mirror.events),'Flagship Solar'),lastImportAt:mirror.lastImportAt};}
+/* Completion tracking is separate from TimeTree and the Quote Job List.
+ * Every change is append-only, authenticated, and scoped to one event and date. */
+var JOB_COMPLETION_SPREADSHEET_ID_='1Kz4shFHxg5XzCGqsj68TEFEszbVooemi5AEhfklvVPs';
+function jobCompletionSheet_(){
+ var sh=SpreadsheetApp.openById(JOB_COMPLETION_SPREADSHEET_ID_).getSheetByName('Job Completion Log');
+ if(!sh)throw Error('Job Completion Log is missing');
+ return sh;
+}
+function jobCompletionRecords_(company){
+ var sh=jobCompletionSheet_(),n=sh.getLastRow(),byId={};
+ if(n<=1)return byId;
+ sh.getRange(2,1,n-1,10).getValues().forEach(function(r){
+  if(String(r[1])!==company)return;
+  var id=String(r[0]),date=String(r[9]);
+  if(!id||!date)return;
+  if(!byId[id])byId[id]={};
+  byId[id][date]={completed:String(r[5])==='COMPLETED',completedBy:String(r[3]||''),completedAt:r[4] instanceof Date?r[4].getTime():null};
+ });
+ return byId;
+}
+function jobCompletionOverlay_(events,company){
+ try{
+  var saved=jobCompletionRecords_(company);
+  events.forEach(function(e){
+   e.completionByDate=saved[String(e.id)]||{};
+   if(e.date&&e.completionByDate[e.date])e.completion=e.completionByDate[e.date];
+  });
+ }catch(err){Logger.log('Completion data unavailable: '+err);}
+ return events;
+}
+function calendarCompletionSet_(body){
+ var u=auth_(body,['Admin','Technician','Worker']);
+ var company=String(body.company||'')==='Hi Service'?'Hi Service':'Flagship Solar';
+ var id=String(body.eventId||'').trim(),date=String(body.occurrenceDate||'').trim();
+ if(!id||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date))throw Error('Valid appointment ID and occurrence date are required');
+ if(typeof body.completed!=='boolean')throw Error('Completion status must be true or false');
+ var visible=[],jobNo='';
+ if(id.indexOf('tt:')===0){
+  visible=timeTreeList_(u,company).events;
+ }else if(company==='Flagship Solar'){
+  var sh=sheet_('Calendar'),n=sh.getLastRow();
+  if(n>1)sh.getRange(2,1,n-1,12).getValues().forEach(function(r){
+   if(String(r[0])!==id)return;
+   if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;
+   visible.push({id:id,date:date,technician:r[6]});
+  });
+ }
+ if(!visible.some(function(e){return String(e.id)===id;}))throw Error('This appointment is not accessible to your account');
+ var lock=LockService.getScriptLock();lock.waitLock(30000);
+ try{
+  jobCompletionSheet_().appendRow([id,company,jobNo,String(u.name||u.username),new Date(),body.completed?'COMPLETED':'REOPENED','',u.username,new Date(),date]);
+ }finally{lock.releaseLock();}
+ return {ok:true,eventId:id,occurrenceDate:date,completed:body.completed,completedBy:String(u.name||u.username)};
+}
+
 function calendarSave_(body){var u=auth_(body,['Admin','Technician']),e=body.event||{},id=String(e.id||'').trim(),customer=String(e.customer||'').trim(),date=String(e.date||'').trim();if(id.indexOf('tt:')===0)throw Error('Edit this booking in TimeTree');if(!id||!customer||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Calendar ID, customer and valid date are required.');var sh=sheet_('Calendar'),n=sh.getLastRow(),row=0;if(n>=2){var ids=sh.getRange(2,1,n-1,1).getValues();for(var i=0;i<ids.length;i++)if(String(ids[i][0])===id){row=i+2;break;}}var now=new Date(),data=[id,customer,String(e.site||''),date,String(e.startTime||''),String(e.endTime||''),String(e.technician||''),String(e.company||''),String(e.jobType||''),String(e.notes||''),String(e.status||'SCHEDULED'),now];if(row)sh.getRange(row,1,1,12).setValues([data]);else sh.appendRow(data);log_(u.username,'calendarSave',id,customer,date);return {id:id,updatedAt:now.getTime()};}
 
 /* ================= VALUE PROPOSAL SERVER WORKFLOW ================= */
@@ -1924,6 +1980,7 @@ function attendanceLegacyPost_(e) {
     if (body.action === 'jobCardSave') return out_(jobCardSave_(body));
     if (body.action === 'jobCardDelete') return out_(jobCardDelete_(body));
     if (body.action === 'calendarSave') return out_(calendarSave_(body));
+    if (body.action === 'calendarCompletionSet') return out_(calendarCompletionSet_(body));
 
 
     if (body.action === 'savePrice') {

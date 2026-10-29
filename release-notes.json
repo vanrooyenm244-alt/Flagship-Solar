@@ -1,7 +1,9 @@
 {
-  "version": "flagship-ops-v153-calendar-today",
+  "version": "flagship-ops-v154-completion",
   "date": "2026-10-29",
   "changes": [
+    "Technicians can mark today's booking as completed or reopened, with central audit history and recurring-date scope.",
+    "Flagship calendar falls back to direct server data when Android local storage is unavailable.",
     "Today’s bookings now use the same TimeTree date and recurring-appointment handling as the calendar.",
     "New mobile dashboard styling and optional light/dark theme.",
     "Attendance review: correct/cancel pending and approved shifts with mandatory reason and retained original.",
@@ -9,6 +11,8 @@
     "Printable approved overtime report with two blank rows between worker/pay-cycle groups."
   ],
   "tests": [
+    "Complete one real assigned appointment and verify it remains completed after refresh; reopen it and verify the audit log.",
+    "Disable local storage or test an affected device and confirm the Calendar shows live server bookings.",
     "Open dashboard and compare today's bookings with Calendar and TimeTree, including repeating jobs.",
     "Check Android back button, stock overview and timesheet pages still open normally.",
     "Clock in/out; verify shift belongs to the submitting employee.",

@@ -63,7 +63,7 @@ function timeTreeList_(u,company){
   });
   return {ok:true,events:events,lastImportAt:PropertiesService.getScriptProperties().getProperty('TIMETREE_LAST_IMPORT_AT')||null};
 }
-function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);return timeTreeList_(u,'Hi Service');}
+function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);var result=timeTreeList_(u,'Hi Service');result.events=jobCompletionOverlay_(result.events,'Hi Service');return result;}
 
 function ttTagKey_(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s*([/\-])\s*/g,'$1').replace(/\s+/g,' ');}
 function ttEventTags_(e){return (Array.isArray(e.tags)&&e.tags.length?e.tags:[e.jobType||'']).map(function(t){return ttTagKey_(typeof t==='object'?t.name:t);});}
