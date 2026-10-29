@@ -1681,14 +1681,28 @@ function calEsc_(x){return esc(x||'');}
 function flagshipHomeToday_(){
  var box=document.getElementById('fsTodayBookings');if(!box||!ME)return;
  box.textContent='Checking your schedule…';
+ var who=calOwner_();
  apiGet({action:'calendar'}).then(function(j){
+  if(who!==calOwner_())return;
   if(!Array.isArray(j.events))throw Error('Calendar response unavailable');
-  var today=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-  var rows=j.events.filter(function(e){return calIsMine_(e)&&String(e.date||e.startDate||e.start||'').slice(0,10)===today;});
+  var dateParts=new Intl.DateTimeFormat('en-GB',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  var p={};dateParts.forEach(function(v){p[v.type]=v.value});
+  var today=p.year+'-'+p.month+'-'+p.day;
+  var selected=j.events.filter(calIsMine_);
+  var expanded=TimeTreeCalendar.entries(selected,today,today);
+  var rows=expanded.events;
   box.replaceChildren();
-  if(!rows.length){box.textContent='No appointments shown for today.';return;}
-  rows.forEach(function(e){var line=document.createElement('div');line.style.cssText='padding:10px 0;border-top:1px solid #dde5ec';var head=document.createElement('strong');head.textContent=(e.startTime||e.time||'')+' '+(e.customer||e.title||'Booking');var sub=document.createElement('div');sub.textContent=e.site||e.technician||'';line.append(head,sub);box.append(line);});
- }).catch(function(err){box.textContent='Could not load today’s bookings: '+err.message;});
+  if(expanded.errors.length){var warning=document.createElement('p');warning.textContent='Recurring appointment warning: '+expanded.errors.join('; ');box.append(warning);}
+  if(!rows.length){var empty=document.createElement('p');empty.textContent='No appointments shown for today.';box.append(empty);return;}
+  rows.forEach(function(e){
+   var line=document.createElement('div');line.style.cssText='padding:10px 0;border-top:1px solid #dde5ec';
+   var head=document.createElement('strong');
+   var clock=e.source==='timetree'&&e.occurrenceStart?new Date(e.occurrenceStart).toLocaleTimeString('en-ZA',{timeZone:'Africa/Johannesburg',hour:'2-digit',minute:'2-digit'}):String(e.startTime||e.time||'');
+   head.textContent=(clock?clock+' · ':'')+(e.customer||e.title||'Booking');
+   var sub=document.createElement('div');sub.textContent=e.site||e.technician||'';
+   line.append(head,sub);box.append(line);
+  });
+ }).catch(function(err){if(who===calOwner_())box.textContent='Could not load today’s bookings: '+err.message;});
 }
 window.addEventListener('load',function(){
  var b=document.getElementById('fsTodayRefresh');if(b)b.addEventListener('click',flagshipHomeToday_);
