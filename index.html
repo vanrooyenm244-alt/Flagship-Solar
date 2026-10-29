@@ -810,6 +810,10 @@ table.page{border-collapse:collapse}
 
 <!-- ================= HOME ================= -->
 <div class="wrap" id="screenHome">
+  <section id="fsTodayCard" style="border:1px solid #c6d6e5;border-radius:13px;padding:16px;margin:12px 0 18px;background:var(--paper,#fff)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><strong>Today's bookings</strong><button type="button" class="btn" id="fsTodayRefresh">Refresh</button></div>
+    <div id="fsTodayBookings" style="margin-top:10px">Loading today's appointments…</div>
+  </section>
   <div class="home">
     <button class="tile" data-go="jobs" data-role="Admin,Technician" type="button">
       <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.2a1 1 0 0 0 .84-.46l.92-1.42A1 1 0 0 1 9.3 4.6h5.4a1 1 0 0 1 .84.52l.92 1.42a1 1 0 0 0 .84.46h2.2A1.5 1.5 0 0 1 21 8.5v9A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/><circle cx="12" cy="12.8" r="3.6"/></svg></span>
@@ -1674,6 +1678,22 @@ var CAL_DATE=new Date(), CAL_ALL=false, CAL_MODE_INIT=false;
 function calPad_(n){return String(n).padStart(2,'0');}
 function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
 function calEsc_(x){return esc(x||'');}
+function flagshipHomeToday_(){
+ var box=document.getElementById('fsTodayBookings');if(!box||!ME)return;
+ box.textContent='Checking your schedule…';
+ apiGet({action:'calendar'}).then(function(j){
+  if(!Array.isArray(j.events))throw Error('Calendar response unavailable');
+  var today=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Johannesburg',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  var rows=j.events.filter(function(e){return calIsMine_(e)&&String(e.date||e.startDate||e.start||'').slice(0,10)===today;});
+  box.replaceChildren();
+  if(!rows.length){box.textContent='No appointments shown for today.';return;}
+  rows.forEach(function(e){var line=document.createElement('div');line.style.cssText='padding:10px 0;border-top:1px solid #dde5ec';var head=document.createElement('strong');head.textContent=(e.startTime||e.time||'')+' '+(e.customer||e.title||'Booking');var sub=document.createElement('div');sub.textContent=e.site||e.technician||'';line.append(head,sub);box.append(line);});
+ }).catch(function(err){box.textContent='Could not load today’s bookings: '+err.message;});
+}
+window.addEventListener('load',function(){
+ var b=document.getElementById('fsTodayRefresh');if(b)b.addEventListener('click',flagshipHomeToday_);
+ var home=document.getElementById('screenHome');if(home&&window.MutationObserver){new MutationObserver(function(){if(!home.classList.contains('hidden'))flagshipHomeToday_();}).observe(home,{attributes:true,attributeFilter:['class']});}
+});
 function calIsMine_(e){if(e.source==='timetree')return TimeTreeCalendar.visible(e,'Flagship Solar',ME);if(CAL_ALL)return true;var n=ME&&ME.name?String(ME.name).toLowerCase():'';return !!n&&String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
 var CAL_DAY=null,CAL_VIEW='agenda',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
 function calOwner_(){return JSON.stringify([CFG.url,ME&&ME.username,ME&&ME.pass]);}
