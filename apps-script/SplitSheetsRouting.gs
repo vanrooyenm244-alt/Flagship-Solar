@@ -52,3 +52,31 @@ function splitSheetsPreflight_() {
   });
   return result;
 }
+
+/** Read-only migration reconciliation. Reports copy drift before any cutover.
+ * Current source remains authoritative during migration.
+ */
+function splitSheetsReconcile_(){
+  var old=SpreadsheetApp.openById('1OtZIGMbX-mdaANNI9R8Ly9yFWlsYnME76eUCPCfD55w');
+  var report={checkedAt:new Date().toISOString(),matched:[],mismatched:[],errors:[],unmapped:[]};
+  old.getSheets().forEach(function(sh){
+    var name=sh.getName(),destId=SPLIT_SHEETS_MAP_[name];
+    if(!destId){report.unmapped.push(name);return;}
+    try{
+      var dst=SpreadsheetApp.openById(destId).getSheetByName(name);
+      if(!dst)throw new Error('Destination tab missing');
+      var a={rows:sh.getLastRow(),columns:sh.getLastColumn()};
+      var b={rows:dst.getLastRow(),columns:dst.getLastColumn()};
+      // Compare headers and the last populated row, in addition to dimensions.
+      var n=Math.max(a.columns,b.columns),headA=n?sh.getRange(1,1,1,n).getDisplayValues()[0]:[];
+      var headB=n?dst.getRange(1,1,1,n).getDisplayValues()[0]:[];
+      var tailA=a.rows?sh.getRange(a.rows,1,1,n).getDisplayValues()[0]:[];
+      var tailB=b.rows?dst.getRange(b.rows,1,1,n).getDisplayValues()[0]:[];
+      var same=a.rows===b.rows&&a.columns===b.columns&&
+        JSON.stringify(headA)===JSON.stringify(headB)&&JSON.stringify(tailA)===JSON.stringify(tailB);
+      (same?report.matched:report.mismatched).push({name:name,source:a,destination:b});
+    }catch(e){report.errors.push({name:name,error:String(e)});}
+  });
+  report.ready=report.unmapped.length===0&&report.errors.length===0&&report.mismatched.length===0;
+  return report;
+}
