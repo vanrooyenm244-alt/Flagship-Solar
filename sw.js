@@ -1,8 +1,10 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v152-heic-upload';
+const CACHE = 'flagship-ops-v153-calendar-today';
 const SHELL = [
   "./",
   "./index.html",
+  "./ops-theme.css?release=20261029",
+  "./ops-theme.js?release=20261029",
   "./ops-dashboard.js?release=flagship-ops-v151-attendance",
   "./ops-updates-v135.js?release=flagship-ops-v151-attendance",
   "./release-notes.json",
