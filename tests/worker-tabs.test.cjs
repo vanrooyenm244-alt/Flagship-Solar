@@ -8,7 +8,7 @@ let passed = 0;
 function fixture() {
   const writes = [], errors = [], sheets = [];
   const ctx = {console:{error:s=>errors.push(s)}};
-  vm.createContext(ctx); vm.runInContext(code + '\n' + stock, ctx);
+  vm.createContext(ctx); vm.runInContext(code + '\n' + stock + '\n' + fs.readFileSync('apps-script/TimesheetAudit.gs','utf8') + '\n' + fs.readFileSync('apps-script/AttendanceRoutes.gs','utf8'), ctx);
   function sheet(name, rows, marked) {
     const sh = {name, rows:rows.map(r=>Array.from(r)), tags:[],
       getName(){return this.name;}, getLastRow(){return this.rows.length;},
