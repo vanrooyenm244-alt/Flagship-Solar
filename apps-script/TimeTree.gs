@@ -84,7 +84,15 @@ function hiCalendar_(body){
   result.events.forEach(function(e){
     var blob=[e.title,e.name,e.description,e.notes,e.customer,e.site,e.jobNo,e.quoteNo].filter(Boolean).join(' ').toUpperCase();
     var refs=Object.keys(byRef).filter(function(ref){
-      return (ref.indexOf('QU-')===0||ref.indexOf('INV-')===0)&&new RegExp('(^|[^A-Z0-9])'+ref.replace(/[.*+?^$()|[\\]{}]/g,'\\function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);return timeTreeList_(u,'Hi Service');}')+'(?=$|[^A-Z0-9])').test(blob);
+      if(ref.indexOf('QU-')!==0)return false;
+      var at=blob.indexOf(ref);
+      while(at>=0){
+        var before=at===0?' ':blob.charAt(at-1);
+        var after=at+ref.length>=blob.length?' ':blob.charAt(at+ref.length);
+        if(!/[A-Z0-9]/.test(before)&&!/[A-Z0-9]/.test(after))return true;
+        at=blob.indexOf(ref,at+1);
+      }
+      return false;
     });
     if(refs.length!==1||byRef[refs[0]].length!==1)return;
     var r=byRef[refs[0]][0];
