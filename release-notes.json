@@ -1,12 +1,16 @@
 {
-  "version": "flagship-ops-v151-attendance",
-  "date": "2026-10-25",
+  "version": "flagship-ops-v153-calendar-today",
+  "date": "2026-10-29",
   "changes": [
+    "Today’s bookings now use the same TimeTree date and recurring-appointment handling as the calendar.",
+    "New mobile dashboard styling and optional light/dark theme.",
     "Attendance review: correct/cancel pending and approved shifts with mandatory reason and retained original.",
     "Submitted by and Approved by with timestamps; yellow overtime rows.",
     "Printable approved overtime report with two blank rows between worker/pay-cycle groups."
   ],
   "tests": [
+    "Open dashboard and compare today's bookings with Calendar and TimeTree, including repeating jobs.",
+    "Check Android back button, stock overview and timesheet pages still open normally.",
     "Clock in/out; verify shift belongs to the submitting employee.",
     "Admin: correct a Sunday/Saturday entry, approve/reject or cancel with a reason; refresh and verify totals.",
     "Print approved overtime and verify dates, yellow rows, two blank lines and submitter/approver.",
