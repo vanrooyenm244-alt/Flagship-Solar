@@ -1581,8 +1581,31 @@ function proposalRow_(token){
   for(var i=0;i<vals.length;i++) if(String(vals[i][0])===String(token)) return {row:i+2,values:vals[i]};
   return null;
 }
+/* Central job numbers are issued once, under the script lock.
+ * Document references derive from the same number; never use an independent counter. */
+function jobNumberAllocate_(body){
+  var u=auth_(body,['Admin','Technician']);
+  var company=String(body.company||'').toLowerCase().indexOf('hi')>=0?'Hi-Service':'Flagship';
+  var client=String(body.customer||'').trim();
+  if(!client)throw Error('Customer required to allocate a job number');
+  var lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{
+    var sh=SpreadsheetApp.openById(QUOTE_JOB_LIST_ID_).getSheetByName('Sheet1');
+    if(!sh)throw Error('Central Quote Job List missing');
+    var last=sh.getLastRow(),highest=0;
+    if(last>1)sh.getRange(2,1,last-1,1).getDisplayValues().forEach(function(v){
+      var str=String(v[0]||'').trim();
+      if(/^\\d+$/.test(str))highest=Math.max(highest,Number(str));
+    });
+    var number=highest+1;
+    sh.appendRow([number,u.name||u.username,'',client,String(body.address||''),'New job',String(body.description||''),String(body.phone||''),String(body.email||''),company,'','','']);
+    return {ok:true,jobNo:number,documentNo:(company==='Hi-Service'?'CS-':'VP-')+number,company:company};
+  }finally{lock.releaseLock();}
+}
+
 function proposalPublish_(body){
   var u=auth_(body,['Admin','Technician']), d=body.proposal||{};
+  if(d.jobNo&&/^\\d+$/.test(String(d.jobNo)))d.no='VP-'+String(Number(d.jobNo));
   if(!String(d.client||'').trim()) throw new Error('Customer name is required.');
   if(!Array.isArray(d.items)||!d.items.length) throw new Error('The proposal has no priced lines.');
   d.items.forEach(function(it){validateQuoteAmounts_(it.qty,it.sell);});
@@ -1942,6 +1965,7 @@ function attendanceLegacyPost_(e) {
     if (body.action === 'xeroSetConfig') return out_(xeroSetConfig_(body));
     if (body.action === 'xeroStart') return out_(xeroStart_(body));
     if (body.action === 'xeroItems') { auth_(body,['Admin','Technician']); return out_(xeroItems_()); }
+    if (body.action === 'jobNumberAllocate') return out_(jobNumberAllocate_(body));
     if (body.action === 'proposalPublish') return out_(proposalPublish_(body));
     if (body.action === 'poCreate') return out_(poCreate_(body));
     if (body.action === 'poPdf') return out_(poPdf_(body));
