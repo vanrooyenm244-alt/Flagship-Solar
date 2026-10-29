@@ -1,0 +1,7 @@
+/* Shared operations light/dark mode, preserves Flagship navy branding. */
+:root[data-ops-theme="dark"]{--navy:#315f91;--navy-deep:#183d60;--slate:#111820;--slate-2:#202b38;--edge:#465366;--paper:#202934;--ink:#e6ebf3;--muted:#b5bfca;--rule:#53616e;color-scheme:dark}
+[data-ops-theme="dark"] body{background:#111820;color:#e6ebf3}
+[data-ops-theme="dark"] .tile,[data-ops-theme="dark"] .card,[data-ops-theme="dark"] .panel{background:#202b38;color:#e6ebf3;border-color:#465366}
+[data-ops-theme="dark"] input,[data-ops-theme="dark"] select,[data-ops-theme="dark"] textarea{background:#263441;color:#e6ebf3;border-color:#526274}
+[data-ops-theme="dark"] .tile span,[data-ops-theme="dark"] .tile strong{color:#e6ebf3}
+.ops-theme-toggle{position:fixed;right:15px;bottom:calc(15px + env(safe-area-inset-bottom,0px));z-index:9999;border:1px solid #315f91;border-radius:20px;padding:10px 15px;background:#1F4E79;color:#fff;font-weight:700;box-shadow:0 3px 12px #0004;cursor:pointer}
