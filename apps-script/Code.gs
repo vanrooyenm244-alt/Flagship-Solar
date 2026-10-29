@@ -1547,7 +1547,51 @@ function jobCardDeleteLocked_(body){
 }
 
 /* ================= CALENDAR / SCHEDULING ================= */
-function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar'):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:mirror.events,lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:out.concat(mirror.events),lastImportAt:mirror.lastImportAt};}
+function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar'):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:calendarCompletionOverlay_(mirror.events,'Flagship Solar'),lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:calendarCompletionOverlay_(out.concat(mirror.events),'Flagship Solar'),lastImportAt:mirror.lastImportAt};}
+/* Append-only completion ledger in the central Quote Job List.
+ * Completion applies to one appointment on one date, not every instance of a
+ * recurring TimeTree booking; TimeTree itself remains read-only. */
+function calendarCompletionSheet_(){
+ var sh=SpreadsheetApp.openById(QUOTE_JOB_LIST_ID_).getSheetByName('Job Completion Log');
+ if(!sh)throw Error('Job Completion Log was not created.');
+ return sh;
+}
+function calendarCompletionKey_(id,date){return String(id||'').trim()+'|'+String(date||'').trim();}
+function calendarCompletionOverlay_(events,company){
+ var sh=calendarCompletionSheet_(),count=sh.getLastRow()-1,latest={};
+ if(count>0)sh.getRange(2,1,count,9).getValues().forEach(function(r){
+  if(String(r[1])!==company)return;
+  var key=calendarCompletionKey_(r[0],r[2]);
+  // Date column contains the occurrence date, not an issued job number.
+  latest[key]={completed:String(r[5])==='COMPLETED',completedBy:String(r[3]),completedAt:r[4] instanceof Date?r[4].getTime():0};
+ });
+ events.forEach(function(e){
+  var date=String(e.date||'');
+  if(date&&latest[calendarCompletionKey_(e.id,date)])e.completion=latest[calendarCompletionKey_(e.id,date)];
+ });
+ return events;
+}
+function calendarComplete_(body){
+ var u=auth_(body,['Admin','Technician','Worker']),id=String(body.eventId||'').trim(),
+ date=String(body.occurrenceDate||'').trim(),done=body.completed===true;
+ if(!id||!/^\\d{4}-\\d{2}-\\d{2}$/.test(date))throw Error('Appointment and occurrence date required');
+ var allowed=false;
+ if(id.indexOf('tt:')===0){
+  var seen=timeTreeList_(u,'Flagship Solar').events;
+  allowed=seen.some(function(e){return String(e.id)===id;});
+ }else{
+  var rows=sheet_('Calendar').getDataRange().getValues();
+  allowed=rows.slice(1).some(function(r){
+   return String(r[0])===id&&(u.role==='Admin'||String(r[6]||'').toLowerCase().indexOf(String(u.name||u.username).toLowerCase())>=0);
+  });
+ }
+ if(!allowed)throw Error('Appointment not assigned or accessible to your account');
+ var sh=calendarCompletionSheet_(),lock=LockService.getScriptLock();lock.waitLock(30000);
+ try{
+  sh.appendRow([id,'Flagship Solar',date,String(u.name||u.username),new Date(),done?'COMPLETED':'REOPENED','',u.username,new Date()]);
+ }finally{lock.releaseLock();}
+ return {ok:true,eventId:id,date:date,completed:done,completedBy:u.name||u.username};
+}
 function calendarSave_(body){var u=auth_(body,['Admin','Technician']),e=body.event||{},id=String(e.id||'').trim(),customer=String(e.customer||'').trim(),date=String(e.date||'').trim();if(id.indexOf('tt:')===0)throw Error('Edit this booking in TimeTree');if(!id||!customer||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw new Error('Calendar ID, customer and valid date are required.');var linked=e.jobNo?quoteJobListEntry_(e.jobNo,e.company):null;/* Job reference is optional for scheduling; a quote/job link can be added later. */var sh=sheet_('Calendar'),n=sh.getLastRow(),row=0;if(n>=2){var ids=sh.getRange(2,1,n-1,1).getValues();for(var i=0;i<ids.length;i++)if(String(ids[i][0])===id){row=i+2;break;}}var now=new Date(),data=[id,customer,String(e.site||''),date,String(e.startTime||''),String(e.endTime||''),String(e.technician||''),String(e.company||''),String(e.jobType||''),String(e.notes||''),String(e.status||'SCHEDULED'),now];if(row)sh.getRange(row,1,1,12).setValues([data]);else sh.appendRow(data);log_(u.username,'calendarSave',id,customer,date);return {id:id,updatedAt:now.getTime()};}
 
 
@@ -1984,6 +2028,7 @@ function attendanceLegacyPost_(e) {
     if (body.action === 'jobCardSave') return out_(jobCardSave_(body));
     if (body.action === 'jobCardDelete') return out_(jobCardDelete_(body));
     if (body.action === 'calendarSave') return out_(calendarSave_(body));
+    if (body.action === 'calendarComplete') return out_(calendarComplete_(body));
 
 
     if (body.action === 'savePrice') {
