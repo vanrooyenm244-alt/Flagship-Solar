@@ -70,10 +70,13 @@ function ttEventTags_(e){return (Array.isArray(e.tags)&&e.tags.length?e.tags:[e.
 function ttTagVisible_(e,company,user){
   if(e.source!=='timetree')return true;
   var tags=ttEventTags_(e),flag=['flagship electric','jacobus'],hi=['allaistair-kai','allistair-kai','andre','freddie/andre'];
+  var cross=company==='Hi Service'&&tags.indexOf('jacobus')>=0&&/(gas|regulator|lpg)/i.test([e.customer,e.notes].join(' '));
   var allowed=company==='Flagship Solar'?flag:company==='Hi Service'?hi:[];
-  var matches=tags.filter(function(t){return allowed.indexOf(t)>=0;});if(!matches.length)return false;
+  var matches=tags.filter(function(t){return allowed.indexOf(t)>=0;});
+  if(!matches.length&&!cross)return false;
+  if(cross)return !user||user.role==='Admin'||[user.name,user.username].some(function(n){return /^jacobus(?:\s|$)/i.test(String(n||'').trim());});
   if(!user||user.role==='Admin'||(company==='Hi Service'&&user.role!=='Worker'))return true;
   var names=[user.name,user.username].map(ttTagKey_).map(function(n){return n.split(/\s+/)[0];});
   if(company==='Flagship Solar')return matches.some(function(t){return t==='flagship electric'?names.some(function(n){return ['jacobus','frank','ian','sangwani','sangwannyasulu','michael'].indexOf(n)>=0;}):names.indexOf(t)>=0;});
-  return matches.some(function(t){return t.split(/[/\-]/).some(function(n){return names.indexOf(n)>=0||(n==='kai'&&names.indexOf('kia')>=0)||(n==='allaistair'&&names.indexOf('allistair')>=0);});});
+  return matches.some(function(t){return t.split(/[\/\-]/).some(function(n){return names.indexOf(n)>=0||(n==='kai'&&names.indexOf('kia')>=0)||(n==='allaistair'&&names.indexOf('allistair')>=0);});});
 }
