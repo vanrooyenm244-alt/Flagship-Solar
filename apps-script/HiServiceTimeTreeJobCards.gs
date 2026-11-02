@@ -13,7 +13,7 @@ function hiTtJobCardUrl_(event) {
   var base=String(PropertiesService.getScriptProperties().getProperty('HI_SERVICE_APP_URL')||'').trim();
   if(!/^https:\/\/[^\s?#]+$/.test(base))return '';
   base=base.replace(/\/$/,'');
-  return base+'/jobcard?source=timetree&booking='+encodeURIComponent(event.id);
+  return base+'/?source=timetree&booking='+encodeURIComponent(event.id);
 }
 function hiTtIsHiService_(event) {
   if(event.source!=='timetree'||event.status==='ARCHIVED'||event.targets.indexOf('Hi Service')<0)return false;
