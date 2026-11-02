@@ -25,13 +25,13 @@ function hiTimeTreePhotos_(body) {
   var props=PropertiesService.getScriptProperties();
   var email=props.getProperty('TIMETREE_EMAIL'),password=props.getProperty('TIMETREE_PASSWORD');
   if(!email||!password)throw Error('TimeTree read credentials are not configured');
-  var login=ttFetch_('/auth/email/signin','',{uid:email,password:password,uuid:Utilities.getUuid().replace(/-/g,'')});
+  var login;try{login=ttFetch_('/auth/email/signin','',{uid:email,password:password,uuid:Utilities.getUuid().replace(/-/g,'')});}catch(err){throw Error('TimeTree sign-in failed: '+String(err.message||err));}
   var cookie=ttCookie_(login.headers);
   if(!cookie)throw Error('TimeTree did not issue a session');
-  var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities?since=0';
+  var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities';
   var records=[],cursor=null,seen={};
   for(var page=0;page<5;page++){
-    var response=ttFetch_(endpoint+(cursor===null?'':'&since='+encodeURIComponent(cursor)),cookie).json;
+    var response;try{response=ttFetch_(endpoint+(cursor===null?'':'?since='+encodeURIComponent(cursor)),cookie).json;}catch(err){throw Error('TimeTree activity request failed: '+String(err.message||err));}
     var feed=response&&(Array.isArray(response.event_activities)?response.event_activities:response.activities);
     if(!Array.isArray(feed))throw Error('TimeTree activity response schema changed');
     records=records.concat(feed);
