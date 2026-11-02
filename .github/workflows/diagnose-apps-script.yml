@@ -32,7 +32,8 @@ jobs:
           printf '{"scriptId":"%s","rootDir":"."}\n' "$SCRIPT_ID" > "$RUNNER_TEMP/clasp-read-only/.clasp.json"
       - name: Test read access (no writes)
         working-directory: ${{ runner.temp }}/clasp-read-only
-        run: clasp pull > /dev/null && echo "Read access to the script: OK"
+        run: |
+          clasp pull > /dev/null && echo "Read access to the script: OK"
       - name: Test Apps Script API access (no writes)
         working-directory: ${{ runner.temp }}/clasp-read-only
         shell: bash
