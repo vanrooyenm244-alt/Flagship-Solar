@@ -43,7 +43,7 @@ function hiTimeTreePhotos_(body) {
   var links=[],used={};
   function add(raw){
     if(!raw||typeof raw!=='object')return;
-    var fields=[raw.image_url,raw.imageUrl,raw.photo_url,raw.photoUrl,raw.original_url,raw.originalUrl,raw.url];
+    var fields=[raw.image_url,raw.imageUrl,raw.photo_url,raw.photoUrl,raw.original_url,raw.originalUrl,raw.url,raw.download_url,raw.downloadUrl,raw.src];
     if(raw.image&&typeof raw.image==='object')fields.push(raw.image.url,raw.image.original_url);
     if(raw.photo&&typeof raw.photo==='object')fields.push(raw.photo.url,raw.photo.original_url);
     if(raw.attachment&&typeof raw.attachment==='object')fields.push(raw.attachment.url);
@@ -58,6 +58,16 @@ function hiTimeTreePhotos_(body) {
   }
   // Some TimeTree clients attach media directly to the source event rather than activities.
   if(source.raw){add(source.raw);['attachments','images','photos','files'].forEach(function(k){if(Array.isArray(source.raw[k]))source.raw[k].forEach(add);});}
+  // TimeTree activities vary between message/image shapes. Inspect bounded nested
+  // attachment objects without treating arbitrary strings as download URLs.
+  function scan(v,depth){
+    if(depth>5||!v||typeof v!=='object')return;
+    if(Array.isArray(v)){v.slice(0,30).forEach(function(child){scan(child,depth+1);});return;}
+    add(v);
+    Object.keys(v).slice(0,35).forEach(function(k){if(v[k]&&typeof v[k]==='object')scan(v[k],depth+1);});
+  }
+  scan(source.raw,0);
+  records.forEach(function(a){scan(a,0);});
   records.forEach(function(a){
     add(a);
     ['attachments','images','photos','files'].forEach(function(k){
