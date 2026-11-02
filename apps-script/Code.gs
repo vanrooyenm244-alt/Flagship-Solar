@@ -1496,6 +1496,8 @@ function jobCardsList_(body){
     if(!r[0])return;
     if(u.role==='Worker' && !jobCardAssigned_(r[5],u.name))return;
     var d={};try{d=JSON.parse(String(r[11]||'{}'));}catch(e){}
+    if(String(body.company||'')==='Hi Service' && d.company!=='Hi Service')return;
+    if(String(body.company||'')==='Flagship Solar' && d.company==='Hi Service')return;
     out.push({id:String(r[0]),number:String(r[1]),customer:String(r[2]),site:String(r[3]),date:dateStr_(r[4]),technicians:String(r[5]),types:String(r[6]),status:String(r[7]),createdBy:String(r[8]),created:r[9],updated:r[10],data:d});
   });
   return {ok:true,jobCards:out};
@@ -1507,6 +1509,24 @@ function jobCardSave_(body){
 function jobCardSaveLocked_(body){
   var u=auth_(body,['Admin','Technician','Worker']),j=body.jobCard||{};
   var id=String(j.id||'').trim(); if(!id)throw new Error('Job Card ID is required.');
+  // Hi Service gas cards are company-scoped and must be backed by a mirrored TimeTree booking.
+  if(String(body.company||'')==='Hi Service'){
+    if(j.company!=='Hi Service'||!/^hi:tt:[0-9]+:[A-Za-z0-9_-]+$/.test(id)||j.sourceBookingId!==id.slice(3))
+      throw new Error('Invalid Hi Service Job Card company or booking identity.');
+    var sourceSheet=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TimeTreeEvents');
+    if(!sourceSheet||sourceSheet.getLastRow()<2)throw new Error('TimeTree booking import unavailable.');
+    var sourceRows=sourceSheet.getRange(2,1,sourceSheet.getLastRow()-1,5).getValues(),source=null;
+    sourceRows.some(function(r){if(String(r[0])!==j.sourceBookingId)return false;source=JSON.parse(String(r[3]||'{}'));return true;});
+    if(!source||source.status==='ARCHIVED'||!Array.isArray(source.targets)||source.targets.indexOf('Hi Service')<0)
+      throw new Error('Booking is not authorized for Hi Service.');
+    var eligible=ttTagVisible_(source,'Hi Service',u);
+    if(!eligible)throw new Error('User is not assigned to this Hi Service gas booking.');
+    if(!/\\bgas\\b|regulator|lpg|gas line/i.test([source.customer,source.notes].join(' ')) &&
+       ttEventTags_(source).indexOf('jacobus')>=0)
+      throw new Error('Jacobus cross-company booking requires an explicit gas job.');
+  } else if(/^hi:tt:/.test(id) || j.company==='Hi Service'){
+    throw new Error('Hi Service Job Card cannot be saved from Flagship Solar.');
+  }
   var no=String(j.number||'').trim(),customer=String(j.customer||'').trim(),site=String(j.site||'').trim(),date=String(j.date||'').trim();
   if(!customer||!site||!date)throw new Error('Customer, site and date are required.');
   if(!Array.isArray(j.types)||!j.types.length)throw new Error('At least one Job Card type is required.');
