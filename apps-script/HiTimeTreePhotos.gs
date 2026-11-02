@@ -28,10 +28,10 @@ function hiTimeTreePhotos_(body) {
   var login=ttFetch_('/auth/email/signin','',{uid:email,password:password,uuid:Utilities.getUuid().replace(/-/g,'')});
   var cookie=ttCookie_(login.headers);
   if(!cookie)throw Error('TimeTree did not issue a session');
-  var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities';
+  var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities?since=0';
   var records=[],cursor=null,seen={};
   for(var page=0;page<5;page++){
-    var response=ttFetch_(endpoint+(cursor===null?'':'?since='+encodeURIComponent(cursor)),cookie).json;
+    var response=ttFetch_(endpoint+(cursor===null?'':'&since='+encodeURIComponent(cursor)),cookie).json;
     var feed=response&&(Array.isArray(response.event_activities)?response.event_activities:response.activities);
     if(!Array.isArray(feed))throw Error('TimeTree activity response schema changed');
     records=records.concat(feed);
@@ -64,7 +64,7 @@ function hiTimeTreePhotos_(body) {
       if(Array.isArray(a[k]))a[k].forEach(add);
     });
     if(a.comment&&typeof a.comment==='object'){add(a.comment);if(Array.isArray(a.comment.images))a.comment.images.forEach(add);if(Array.isArray(a.comment.attachments))a.comment.attachments.forEach(add);}
-    if(a.attachment&&typeof a.attachment==='object')add(a.attachment);
+    if(a.attachment){if(typeof a.attachment==='object')add(a.attachment);else if(typeof a.attachment==='string'){try{add(JSON.parse(a.attachment));}catch(ignore){}}}
     if(a.content&&typeof a.content==='object'){
       add(a.content);
       if(Array.isArray(a.content.attachments))a.content.attachments.forEach(add);
