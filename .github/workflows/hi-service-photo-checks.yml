@@ -1,0 +1,31 @@
+name: Hi Service photo checks
+
+on:
+  pull_request:
+    paths:
+      - 'apps-script/HiTimeTreePhotos.gs'
+      - 'apps-script/Code.gs'
+      - 'tests/hi-timetree-photos.test.cjs'
+      - '.github/workflows/hi-service-photo-checks.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps-script/HiTimeTreePhotos.gs'
+      - 'tests/hi-timetree-photos.test.cjs'
+
+permissions:
+  contents: read
+
+jobs:
+  photo-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test photo access, download, storage, and restricted hosts
+        run: node --test tests/hi-timetree-photos.test.cjs
+      - name: Check backend source syntax
+        run: node -e "const fs=require('fs'),vm=require('vm');for(const p of ['apps-script/Code.gs','apps-script/TimeTree.gs','apps-script/TimeTreeSync.gs','apps-script/HiTimeTreePhotos.gs'])new vm.Script(fs.readFileSync(p,'utf8'),{filename:p});"
