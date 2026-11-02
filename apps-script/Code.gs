@@ -1521,7 +1521,7 @@ function jobCardSaveLocked_(body){
       throw new Error('Booking is not authorized for Hi Service.');
     var eligible=ttTagVisible_(source,'Hi Service',u);
     if(!eligible)throw new Error('User is not assigned to this Hi Service gas booking.');
-    if(!/\\bgas\\b|regulator|lpg|gas line/i.test([source.customer,source.notes].join(' ')) &&
+    if(!/(gas|regulator|lpg)/i.test([source.customer,source.notes].join(' ')) &&
        ttEventTags_(source).indexOf('jacobus')>=0)
       throw new Error('Jacobus cross-company booking requires an explicit gas job.');
   } else if(/^hi:tt:/.test(id) || j.company==='Hi Service'){
