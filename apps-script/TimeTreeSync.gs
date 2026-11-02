@@ -40,7 +40,10 @@ function timeTreeSyncScheduled(){
     // Store every source page before changing the mirror. Never overwrite past archives.
     ttAppendRows_(ttSheet_('TimeTreeSourceArchive',['Captured at','Run ID','Calendar ID','Part','Source JSON chunk','Full source digest']),archiveRows);
     Object.keys(digests).forEach(function(id){props.setProperty('TIMETREE_SOURCE_DIGEST_'+id,digests[id]);});
-    var result=timeTreeApply_(events,run);props.setProperty('TIMETREE_LAST_RUN_STATUS','OK: '+events.length+' records; '+result.changed+' changed');return result;
+    var result=timeTreeApply_(events,run);
+    // Stage stable Hi Service job-card links. No TimeTree mutation until a safe writer is verified.
+    if(typeof hiTtStageJobCardLinks_==='function'){try{result.jobCardLinks=hiTtStageJobCardLinks_(events);}catch(linkError){result.jobCardLinkError=String(linkError.message||linkError);}}
+    props.setProperty('TIMETREE_LAST_RUN_STATUS','OK: '+events.length+' records; '+result.changed+' changed'+(result.jobCardLinkError?'; link staging ERROR: '+result.jobCardLinkError:''));return result;
   }catch(e){props.setProperty('TIMETREE_LAST_RUN_STATUS','ERROR: '+String(e.message||e));throw e;}
   finally{lock.releaseLock();}
 }
