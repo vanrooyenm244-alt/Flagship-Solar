@@ -21,3 +21,7 @@ The original TimeTree notes, events, stock, timesheets and job cards are never m
 - Integrate scheduler `Create / Open Job Card` with a single card per TimeTree booking.
 - Verify and implement external TimeTree write-back; preserve pre-existing notes; deduplicate; handle concurrent edits, failed writes and safe retries.
 - Test and deploy the changes in the real Apps Script project and both app frontends.
+
+## Frontend implementation (Hi-Service branch)
+
+The Hi Service frontend branch `feature/hi-service-jobcards-20261102` now has a calendar detail button and booking-prefilled Job Card form using the existing `jobCards` and `jobCardSave` backend actions. It supports client name/address/contact, technician, date, materials and work description. Before/after photo uploads, stock deductions, PDF generation, dedicated Hi Service storage isolation, production deployment and tested TimeTree WRITE remain outstanding. Treat as development-only, not production-ready.
