@@ -65,19 +65,30 @@ function hiTimeTreePhotos_(body) {
       if(Array.isArray(a.content.attachments))a.content.attachments.forEach(add);
     }
   });
-  // Image payloads can exceed ContentService limits; cap image count and bytes.
-  var photos=[];
+  // Cache source images in a restricted Drive folder so revisiting a job card
+  // works even if TimeTree changes an attachment's temporary URL.
+  var folderName='HiServiceTimeTreeJobCardPhotos',root=DriveApp.getRootFolder();
+  var folders=root.getFoldersByName(folderName);
+  var folder=folders.hasNext()?folders.next():root.createFolder(folderName);
+  var photos=[],failures=0;
   links.slice(0,12).forEach(function(url,i){
-    try{
-      var res=UrlFetchApp.fetch(url,{headers:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
-      if(res.getResponseCode()!==200)return;
-      var headers=res.getAllHeaders(),type=String(headers['Content-Type']||headers['content-type']||'').split(';')[0].trim().toLowerCase();
-      if(!/^image\/(?:jpeg|png|webp)$/.test(type))return;
-      var bytes=res.getContent();
-      if(bytes.length>2000000)return;
-      photos.push({id:ttDigest_(url),name:'TimeTree photo '+(i+1),mimeType:type,dataUrl:'data:'+type+';base64,'+Utilities.base64Encode(bytes)});
-    }catch(ignore){/* Unavailable image is skipped. */}
+    var hash=ttDigest_(id+'|'+url),existing=folder.getFilesByName(hash);
+    var file=existing.hasNext()?existing.next():null;
+    if(!file){
+      try{
+        var res=UrlFetchApp.fetch(url,{headers:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
+        if(res.getResponseCode()!==200){failures++;return;}
+        var headers=res.getAllHeaders(),type=String(headers['Content-Type']||headers['content-type']||'').split(';')[0].trim().toLowerCase();
+        if(!/^image\/(?:jpeg|png|webp)$/.test(type)){failures++;return;}
+        var bytes=res.getContent();
+        if(bytes.length>2000000){failures++;return;}
+        file=folder.createFile(Utilities.newBlob(bytes,type,hash)).setDescription('Hi Service booking '+id);
+      }catch(ignore){failures++;return;}
+    }
+    var bytes=file.getBlob().getBytes(),mime=String(file.getMimeType()||'').toLowerCase();
+    if(bytes.length>2000000||!/^image\/(?:jpeg|png|webp)$/.test(mime)){failures++;return;}
+    photos.push({id:hash,name:'TimeTree photo '+(i+1),mimeType:mime,dataUrl:'data:'+mime+';base64,'+Utilities.base64Encode(bytes)});
   });
-  return {ok:true,bookingId:id,photos:photos,activityCount:records.length,discoveredUrls:links.length,downloaded:photos.length,
+  return {ok:true,bookingId:id,photos:photos,activityCount:records.length,discoveredUrls:links.length,downloaded:photos.length,failedDownloads:failures,
     note:links.length===0?'No supported image attachment URLs were found in TimeTree activities. Verify source format.':''};
 }
