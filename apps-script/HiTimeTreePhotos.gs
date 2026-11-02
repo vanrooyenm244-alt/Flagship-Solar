@@ -55,6 +55,8 @@ function hiTimeTreePhotos_(body) {
       used[v]=true;links.push(v);
     });
   }
+  // Some TimeTree clients attach media directly to the source event rather than activities.
+  if(source.raw){add(source.raw);['attachments','images','photos','files'].forEach(function(k){if(Array.isArray(source.raw[k]))source.raw[k].forEach(add);});}
   records.forEach(function(a){
     add(a);
     ['attachments','images','photos','files'].forEach(function(k){
