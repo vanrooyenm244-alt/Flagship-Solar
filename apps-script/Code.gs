@@ -1819,6 +1819,7 @@ function attendanceLegacyGet_(e) {
     if (p.action === 'xeroCreateContact') return out_(xeroCreateContact_(body));
     if (p.action === 'jobCards') { return out_(jobCardsList_(body)); }
     if (p.action === 'hiCalendar') { if(typeof hiCalendar_!=='function')throw Error('Deploy TimeTree.gs to enable the calendar');return out_(hiCalendar_(body)); }
+    if (p.action === 'hiTimeTreePhotos') { if(typeof hiTimeTreePhotos_!=='function')throw Error('Deploy HiTimeTreePhotos.gs first');body.bookingId=p.bookingId;return out_(hiTimeTreePhotos_(body)); }
     if (p.action === 'calendar') { return out_(calendarList_(body)); }
 
 
