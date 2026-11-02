@@ -1,0 +1,83 @@
+/**
+ * Read-only, authenticated TimeTree photo import for an existing Hi Service
+ * booking. Never exposes TimeTree credentials or downloads arbitrary URLs.
+ * TimeTree's web interface is unofficial: unknown schemas fail closed.
+ */
+function hiTimeTreePhotos_(body) {
+  var user=auth_(body,['Admin','Technician','Worker']);
+  if(String(body.company||'')!=='Hi Service')throw Error('Hi Service company is required');
+  var id=String(body.bookingId||'');
+  var m=/^tt:(\d+):([A-Za-z0-9_-]+)$/.exec(id);
+  if(!m)throw Error('Invalid TimeTree booking ID');
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TimeTreeEvents');
+  if(!sh||sh.getLastRow()<2)throw Error('No mirrored bookings');
+  var source=null;
+  sh.getRange(2,1,sh.getLastRow()-1,5).getValues().some(function(row){
+    if(String(row[0])!==id)return false;
+    source=JSON.parse(String(row[3]||'{}'));return true;
+  });
+  if(!source||String(source.sourceCalendarId)!==m[1]||
+     String(source.sourceEventId)!==m[2]||
+     source.status==='ARCHIVED'||
+     !Array.isArray(source.targets)||source.targets.indexOf('Hi Service')<0||
+     !ttTagVisible_(source,'Hi Service',user))
+    throw Error('TimeTree booking is unavailable for this Hi Service user');
+  var props=PropertiesService.getScriptProperties();
+  var email=props.getProperty('TIMETREE_EMAIL'),password=props.getProperty('TIMETREE_PASSWORD');
+  if(!email||!password)throw Error('TimeTree read credentials are not configured');
+  var login=ttFetch_('/auth/email/signin','',{uid:email,password:password,uuid:Utilities.getUuid().replace(/-/g,'')});
+  var cookie=ttCookie_(login.headers);
+  if(!cookie)throw Error('TimeTree did not issue a session');
+  var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities';
+  var records=[],cursor=null,seen={};
+  for(var page=0;page<5;page++){
+    var response=ttFetch_(endpoint+(cursor===null?'':'?since='+encodeURIComponent(cursor)),cookie).json;
+    if(!response||!Array.isArray(response.activities))throw Error('TimeTree activity response schema changed');
+    records=records.concat(response.activities);
+    if(records.length>100)throw Error('Too many TimeTree activities to import safely');
+    if(response.chunk!==true)break;
+    if(response.since==null||seen[String(response.since)])throw Error('TimeTree activity cursor invalid');
+    seen[String(response.since)]=true;cursor=response.since;
+  }
+  var links=[],used={};
+  function add(raw){
+    if(!raw||typeof raw!=='object')return;
+    var fields=[raw.image_url,raw.imageUrl,raw.photo_url,raw.photoUrl,raw.original_url,raw.originalUrl,raw.url];
+    if(raw.image&&typeof raw.image==='object')fields.push(raw.image.url,raw.image.original_url);
+    if(raw.photo&&typeof raw.photo==='object')fields.push(raw.photo.url,raw.photo.original_url);
+    if(raw.attachment&&typeof raw.attachment==='object')fields.push(raw.attachment.url);
+    if(raw.file&&typeof raw.file==='object')fields.push(raw.file.url);
+    fields.forEach(function(v){
+      if(typeof v!=='string'||!/^https:\/\//i.test(v)||used[v])return;
+      // Allow only TimeTree-owned media hosts. Avoid general-purpose URL fetch.
+      var host=/^https:\/\/([^\/?#]+)(?:[\/?#]|$)/i.exec(v);
+      if(!host||!/^(?:[a-z0-9-]+\.)*(?:timetreeapp\.com|timetree\.com)$/i.test(host[1]))return;
+      used[v]=true;links.push(v);
+    });
+  }
+  records.forEach(function(a){
+    add(a);
+    ['attachments','images','photos','files'].forEach(function(k){
+      if(Array.isArray(a[k]))a[k].forEach(add);
+    });
+    if(a.content&&typeof a.content==='object'){
+      add(a.content);
+      if(Array.isArray(a.content.attachments))a.content.attachments.forEach(add);
+    }
+  });
+  // Image payloads can exceed ContentService limits; cap image count and bytes.
+  var photos=[];
+  links.slice(0,12).forEach(function(url,i){
+    try{
+      var res=UrlFetchApp.fetch(url,{headers:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
+      if(res.getResponseCode()!==200)return;
+      var headers=res.getAllHeaders(),type=String(headers['Content-Type']||headers['content-type']||'').split(';')[0].trim().toLowerCase();
+      if(!/^image\/(?:jpeg|png|webp)$/.test(type))return;
+      var bytes=res.getContent();
+      if(bytes.length>2000000)return;
+      photos.push({id:ttDigest_(url),name:'TimeTree photo '+(i+1),mimeType:type,dataUrl:'data:'+type+';base64,'+Utilities.base64Encode(bytes)});
+    }catch(ignore){/* Unavailable image is skipped. */}
+  });
+  return {ok:true,bookingId:id,photos:photos,activityCount:records.length,discoveredUrls:links.length,downloaded:photos.length,
+    note:links.length===0?'No supported image attachment URLs were found in TimeTree activities. Verify source format.':''};
+}
