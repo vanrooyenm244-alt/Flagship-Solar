@@ -32,8 +32,9 @@ function hiTimeTreePhotos_(body) {
   var records=[],cursor=null,seen={};
   for(var page=0;page<5;page++){
     var response=ttFetch_(endpoint+(cursor===null?'':'?since='+encodeURIComponent(cursor)),cookie).json;
-    if(!response||!Array.isArray(response.activities))throw Error('TimeTree activity response schema changed');
-    records=records.concat(response.activities);
+    var feed=response&&(Array.isArray(response.event_activities)?response.event_activities:response.activities);
+    if(!Array.isArray(feed))throw Error('TimeTree activity response schema changed');
+    records=records.concat(feed);
     if(records.length>100)throw Error('Too many TimeTree activities to import safely');
     if(response.chunk!==true)break;
     if(response.since==null||seen[String(response.since)])throw Error('TimeTree activity cursor invalid');
@@ -62,6 +63,8 @@ function hiTimeTreePhotos_(body) {
     ['attachments','images','photos','files'].forEach(function(k){
       if(Array.isArray(a[k]))a[k].forEach(add);
     });
+    if(a.comment&&typeof a.comment==='object'){add(a.comment);if(Array.isArray(a.comment.images))a.comment.images.forEach(add);if(Array.isArray(a.comment.attachments))a.comment.attachments.forEach(add);}
+    if(a.attachment&&typeof a.attachment==='object')add(a.attachment);
     if(a.content&&typeof a.content==='object'){
       add(a.content);
       if(Array.isArray(a.content.attachments))a.content.attachments.forEach(add);
