@@ -147,6 +147,7 @@ function timeTreeBackupTick(){
     try{status.activities=ttBackupActivities_(Math.min(started+270000,Date.now()+90000));}catch(err){status.activityError=String(err.message||err);}
     finally{lock.releaseLock();}
   }
+  if(typeof ttBackupAlbumBatch_==='function')try{status.album=ttBackupAlbumBatch_(Math.min(started+270000,Date.now()+90000));}catch(err){status.albumError=String(err.message||err);}
   status.retryAfter=p.getProperty('TIMETREE_AUTH_RETRY_AFTER')||null;
   p.setProperty('TIMETREE_BACKUP_STATUS',JSON.stringify(status));console.log(JSON.stringify(status));return status;
 }
