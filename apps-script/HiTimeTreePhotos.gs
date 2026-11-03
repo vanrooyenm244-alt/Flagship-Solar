@@ -126,7 +126,7 @@ function hiTimeTreeCachedPhotos_(folder,id){
     try{var manifest=JSON.parse(files.next().getBlob().getDataAsString());if(manifest.version===1&&manifest.bookingId===id&&Array.isArray(manifest.ids))ids=manifest.ids;}catch(ignore){return null;}
   }else if(typeof folder.searchFiles==='function'){
     // Recover photos cached before manifests existed, without a TimeTree login.
-    var old=folder.searchFiles("description contains 'Hi Service booking "+id+"'");ids=[];
+    var old=folder.searchFiles("trashed = false and fullText contains '\"Hi Service booking "+id+"\"'");ids=[];
     while(old.hasNext()&&ids.length<12){var f=old.next();if(f.getDescription()==='Hi Service booking '+id&&/^[a-f0-9]{64}$/.test(f.getName()))ids.push(f.getName());}
     if(!ids.length)return null;
     hiTimeTreeSaveManifest_(folder,id,ids);

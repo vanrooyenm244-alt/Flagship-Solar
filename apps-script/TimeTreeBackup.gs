@@ -118,7 +118,7 @@ function ttBackupCachedPhotos_(id){
     if(manifest.version!==1||manifest.bookingId!==id||!Array.isArray(manifest.names))return null;
     names=manifest.names;
   }else if(typeof folder.searchFiles==='function'){
-    var old=folder.searchFiles("description contains 'TimeTree booking "+id+"'");
+    var old=folder.searchFiles("trashed = false and fullText contains '\"TimeTree booking "+id+"\"'");
     while(old.hasNext()&&names.length<12){var file=old.next();if(file.getDescription()==='TimeTree booking '+id)names.push(file.getName());}
   }
   var photos=[],unavailable=0;
