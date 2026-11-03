@@ -2,7 +2,7 @@
 var TT_BACKUP_FOLDER_ID_='1FUjnowziz9p_CTe_HCXYh7ky58f9ZRoM';
 function authorizeTimeTreeBackup(){
   // Run interactively as the owner to request any outstanding Google Drive consent.
-  var folder=DriveApp.getFolderById(TT_BACKUP_FOLDER_ID_);
+  var folder=ttBackupFolder_('Calendar records');
   console.log('Backup folder access confirmed: '+folder.getName());
   return {ok:true,folderId:folder.getId()};
 }
