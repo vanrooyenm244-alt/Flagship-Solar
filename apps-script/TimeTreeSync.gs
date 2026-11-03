@@ -6,13 +6,13 @@ function ttFetch_(path,cookie,payload){
   var options={method:payload?'put':'get',contentType:'application/json',headers:{'X-Timetreea':'web/2.1.0/en'},muteHttpExceptions:true,followRedirects:false};
   if(cookie)options.headers.Cookie=cookie;if(payload)options.payload=JSON.stringify(payload);
   var r=UrlFetchApp.fetch('https://timetreeapp.com/api/v1'+path,options);
-  if(r.getResponseCode()!==200)throw Error('TimeTree HTTP '+r.getResponseCode()+'; previous bookings retained');
+  if(r.getResponseCode()!==200){var error=Error('TimeTree HTTP '+r.getResponseCode()+'; previous bookings retained');error.httpStatus=r.getResponseCode();throw error;}
   return {json:JSON.parse(r.getContentText()),headers:r.getAllHeaders()};
 }
 function ttCookie_(headers){var values=[];Object.keys(headers).forEach(function(k){if(k.toLowerCase()==='set-cookie')values=values.concat(headers[k]);});return values.map(function(c){return String(c).split(';')[0];}).join('; ');}
 function ttSourcePages_(calendarId,cookie,deadline){var pages=[],cursor=null,seen={};for(var n=0;n<1000;n++){
   if(Date.now()>deadline)throw Error('TimeTree read exceeded safe run time; no bookings imported');
-  var j=ttFetch_('/calendar/'+calendarId+'/events/sync'+(cursor===null?'':'?since='+encodeURIComponent(cursor)),cookie).json;
+  var j=ttSessionFetch_('/calendar/'+calendarId+'/events/sync'+(cursor===null?'':'?since='+encodeURIComponent(cursor))).json;
   if(!Array.isArray(j.events)||typeof j.chunk!=='boolean')throw Error('Unexpected TimeTree source response');pages.push(j);
   if(!j.chunk)return pages;if(j.since===undefined||seen[String(j.since)])throw Error('TimeTree cursor did not advance');seen[String(j.since)]=true;cursor=j.since;Utilities.sleep(350);
 }throw Error('TimeTree pagination limit reached');}
@@ -27,8 +27,8 @@ function timeTreeSyncScheduled(){
   var props=PropertiesService.getScriptProperties(),deadline=Date.now()+240000,run=Utilities.getUuid();
   try{
     var email=props.getProperty('TIMETREE_EMAIL'),password=props.getProperty('TIMETREE_PASSWORD');if(!email||!password)throw Error('Configure TimeTree credentials in Script Properties');
-    var login=ttFetch_('/auth/email/signin','',{uid:email,password:password,uuid:Utilities.getUuid().replace(/-/g,'')}),cookie=ttCookie_(login.headers);if(!cookie)throw Error('TimeTree did not issue a session');
-    var calendars=ttFetch_('/calendars?since=0',cookie).json.calendars;if(!Array.isArray(calendars))throw Error('Unexpected calendar response');
+    var cookie=ttSessionCookie_();
+    var calendars=ttSessionFetch_('/calendars?since=0').json.calendars;if(!Array.isArray(calendars))throw Error('Unexpected calendar response');
     var allowed=(props.getProperty('TIMETREE_ALLOWED_CALENDAR_IDS')||'63108444,96534365').split(',').map(function(x){return x.trim();}),routes=JSON.parse(props.getProperty('TIMETREE_ROUTES_JSON')||'{}'),events=[],archiveRows=[],digests={};
     allowed.forEach(function(id){var m=calendars.filter(function(x){return String(x.id)===id;})[0];if(!m)throw Error('Approved calendar unavailable: '+id);var pages=ttSourcePages_(id,cookie,deadline),source=JSON.stringify({metadata:m,pages:pages});
       var digest=ttDigest_(source);digests[id]=digest;
@@ -49,3 +49,4 @@ function installTimeTreeSync(){
   if(!existing.length)ScriptApp.newTrigger('timeTreeSyncScheduled').timeBased().everyMinutes(15).create();
   return 'TimeTree sync trigger ready (every 15 minutes). Run timeTreeSyncScheduled once and inspect the result.';
 }
+

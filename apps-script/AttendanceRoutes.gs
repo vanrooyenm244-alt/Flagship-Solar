@@ -1,6 +1,6 @@
 /* New attendance routes delegate every unrelated action to the preserved live router. */
 function doGet(e){
- var p=e&&e.parameter||{},body={user:p.user,pass:p.pass,action:p.action,company:p.company};
+ var p=e&&e.parameter||{},body={user:p.user,pass:p.pass,action:p.action,company:p.company,id:p.id,from:p.from,to:p.to,bookingId:p.bookingId};
  try{
   if(p.action==='attendanceRecords')return out_(tsRecords_(Object.assign({},body,p)));
   if(p.action==='attendanceHistory')return out_(tsHistory_(Object.assign({},body,p)));
@@ -25,3 +25,4 @@ function doPost(e){
  }catch(error){return out_({ok:false,error:String(error.message||error)});}
  return attendanceLegacyPost_(e);
 }
+
