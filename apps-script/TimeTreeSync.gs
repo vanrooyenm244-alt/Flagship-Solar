@@ -6,7 +6,7 @@ function ttFetch_(path,cookie,payload){
   var options={method:payload?'put':'get',contentType:'application/json',headers:{'X-Timetreea':'web/2.1.0/en'},muteHttpExceptions:true,followRedirects:false};
   if(cookie)options.headers.Cookie=cookie;if(payload)options.payload=JSON.stringify(payload);
   var r=UrlFetchApp.fetch('https://timetreeapp.com/api/v1'+path,options);
-  if(r.getResponseCode()!==200){var text=r.getContentText().toLowerCase(),reason=/too many|try again later|rate.limit|temporarily.block/.test(text)?'rate-limited':/captcha|challenge|cloudflare/.test(text)?'browser-verification':/password|credential|invalid.email|invalid.login/.test(text)?'credentials-rejected':/verif|confirm.*email/.test(text)?'verification-required':'request-rejected';var error=Error('TimeTree HTTP '+r.getResponseCode()+' at '+path.split('?')[0]+' ('+reason+'); previous bookings retained');error.httpStatus=r.getResponseCode();throw error;}
+  if(r.getResponseCode()!==200){var text=r.getContentText().toLowerCase(),reason=/too many|try again later|rate.limit|temporarily.block/.test(text)?'rate-limited':/captcha|challenge|cloudflare/.test(text)?'browser-verification':/password|credential|invalid.email|invalid.login/.test(text)?'credentials-rejected':/verif|confirm.*email/.test(text)?'verification-required':'request-rejected';var detail=ttSafeProviderError_(r);var error=Error('TimeTree HTTP '+r.getResponseCode()+' at '+path.split('?')[0]+' ('+reason+')'+(detail?': '+detail:'')+'; previous bookings retained');error.httpStatus=r.getResponseCode();throw error;}
   return {json:JSON.parse(r.getContentText()),headers:r.getAllHeaders()};
 }
 function ttCookie_(headers){var values=[];Object.keys(headers).forEach(function(k){if(k.toLowerCase()==='set-cookie')values=values.concat(headers[k]);});return values.map(function(c){return String(c).split(';')[0];}).join('; ');}
@@ -66,3 +66,23 @@ function timeTreeConnectionCheck(){
   return report;
 }
 
+
+/** Return only bounded provider error fields; redact configured credentials and tokens. */
+function ttSafeProviderError_(response){
+  var j;try{j=JSON.parse(response.getContentText());}catch(ignore){return '';}
+  var values=[],p=PropertiesService.getScriptProperties();
+  function add(v){if(typeof v==='string'||typeof v==='number')values.push(String(v));}
+  add(j.code);add(j.error_code);add(j.message);add(j.error_description);
+  if(typeof j.error==='string')add(j.error);
+  else if(j.error&&typeof j.error==='object'){add(j.error.code);add(j.error.message);}
+  if(Array.isArray(j.errors))j.errors.slice(0,3).forEach(function(e){if(typeof e==='object'&&e){add(e.code);add(e.message);}else add(e);});
+  var result=values.join(' | ');
+  ['TIMETREE_EMAIL','TIMETREE_PASSWORD'].forEach(function(k){var secret=p.getProperty(k);if(secret)result=result.split(secret).join('[redacted]');});
+  result=result.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/ig,'[email]').replace(/[A-Za-z0-9_-]{32,}/g,'[token]').replace(/[\r\n]+/g,' ').slice(0,500);
+  return result;
+}
+function timeTreeRetryConnectionOnce(){
+  var p=PropertiesService.getScriptProperties();
+  p.setProperty('TIMETREE_AUTH_RETRY_AFTER','0');
+  return timeTreeConnectionCheck();
+}
