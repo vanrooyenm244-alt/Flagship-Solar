@@ -22,6 +22,24 @@ function harness(events=[]){
  c.ttBackupFolder_=()=>folder;c.ttBackupJson_=()=>{};
  return {c,props,files,folder,requests,blob,iterator};
 }
+function albumHarness(photos=[{url:'https://album-attachment.timetreeapp.com/images/calendars/63108444/123/photo.jpg?Signature=old',sourceMonth:'November 2026'}]){
+ const h=harness();let locked=false;h.props.set('TT_BACKUP_ALBUM_QUEUE_FILE_ID','queue');
+ h.c.Utilities.getUuid=()=> 'lease-token';h.c.LockService={getScriptLock:()=>({tryLock(){locked=true;return true;},waitLock(){locked=true;},releaseLock(){locked=false;}})};
+ h.c.DriveApp.getFileById=()=>({getBlob:()=>({getDataAsString:()=>JSON.stringify({version:1,calendarId:'63108444',photos})})});
+ h.downloads=[];h.c.UrlFetchApp={fetch:(url,opts)=>{assert.equal(locked,false,'image download must not hold the business write lock');h.downloads.push({url,opts});return {getResponseCode:()=>200,getBlob:()=>h.blob([1,2,3],'image/jpeg','')};}};
+ vm.runInContext(fs.readFileSync('apps-script/TimeTreeAlbumBackup.gs','utf8'),h.c);return h;
+}
+test('album originals resume from Drive without cookies and deduplicate a refreshed signed export',()=>{
+ const h=albumHarness();let result=h.c.ttBackupAlbumBatch_(Date.now()+60000);assert.equal(result.complete,true);assert.equal(result.archived,1);assert.equal(h.downloads.length,1);assert.equal(h.downloads[0].opts.headers.Cookie,undefined);assert.equal(h.props.has('TT_BACKUP_ALBUM_LEASE'),false);
+ h.props.set('TT_BACKUP_ALBUM_QUEUE_FILE_ID','refreshed-queue');h.props.set('TT_BACKUP_ALBUM_ROW','0');result=h.c.ttBackupAlbumBatch_(Date.now()+60000);assert.equal(result.reusedThisRun,1);assert.equal(h.downloads.length,1);
+});
+test('expired album links retain the next position and release their lease rather than claiming completion',()=>{
+ const h=albumHarness();h.c.UrlFetchApp.fetch=()=>({getResponseCode:()=>403});assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/HTTP 403/);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),undefined);assert.equal(h.props.has('TT_BACKUP_ALBUM_COMPLETED_QUEUE'),false);assert.equal(h.props.has('TT_BACKUP_ALBUM_LEASE'),false);
+});
+test('album archive rejects other calendars and hosts, and concurrent batches do not duplicate work',()=>{
+ for(const url of ['https://example.test/photo.jpg','https://album-attachment.timetreeapp.com/images/calendars/99999/123/photo.jpg','https://album-attachment.timetreeapp.com:443/images/calendars/63108444/123/photo.jpg']){const h=albumHarness([{url}]);assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/Unapproved/);assert.equal(h.downloads.length,0);}
+ const h=albumHarness();h.props.set('TT_BACKUP_ALBUM_LEASE_UNTIL',String(Date.now()+100000));assert.equal(h.c.ttBackupAlbumBatch_(Date.now()+60000).busy,true);assert.equal(h.downloads.length,0);
+});
 test('shared-calendar backup advances past historical records outside the new account share',()=>{
  const h=harness([{id:'tt:96534365:old',sourceCalendarId:'96534365',sourceEventId:'old',raw:{}},{id:booking,sourceCalendarId:'63108444',sourceEventId:'event-a',raw:{}}]);
  h.c.ttSessionCookie_=()=> 'test';const result=h.c.ttBackupActivities_(Date.now()+60000);
