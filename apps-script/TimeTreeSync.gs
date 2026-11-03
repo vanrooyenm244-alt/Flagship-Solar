@@ -10,7 +10,7 @@ function ttFetch_(path,cookie,payload){
   return {json:JSON.parse(r.getContentText()),headers:r.getAllHeaders()};
 }
 function ttCookie_(headers){var values=[];Object.keys(headers).forEach(function(k){if(k.toLowerCase()==='set-cookie')values=values.concat(headers[k]);});return values.map(function(c){return String(c).split(';')[0];}).join('; ');}
-function ttSourcePages_(calendarId,cookie,deadline){var pages=[],cursor=null,seen={};for(var n=0;n<1000;n++){
+function ttSourcePages_(calendarId,cookie,deadline){var pages=[],cursor=PropertiesService.getScriptProperties().getProperty('TT_SOURCE_CURSOR_'+calendarId)||null,seen={};for(var n=0;n<1000;n++){
   if(Date.now()>deadline)throw Error('TimeTree read exceeded safe run time; no bookings imported');
   var j=ttSessionFetch_('/calendar/'+calendarId+'/events/sync'+(cursor===null?'':'?since='+encodeURIComponent(cursor))).json;
   if(!Array.isArray(j.events)||typeof j.chunk!=='boolean')throw Error('Unexpected TimeTree source response');pages.push(j);
@@ -29,9 +29,11 @@ function timeTreeSyncScheduled(){
     var email=props.getProperty('TIMETREE_EMAIL'),password=props.getProperty('TIMETREE_PASSWORD');if(!email||!password)throw Error('Configure TimeTree credentials in Script Properties');
     var cookie=ttSessionCookie_();
     var calendars=ttSessionFetch_('/calendars?since=0').json.calendars;if(!Array.isArray(calendars))throw Error('Unexpected calendar response');
-    var allowed=(props.getProperty('TIMETREE_ALLOWED_CALENDAR_IDS')||'63108444,96534365').split(',').map(function(x){return x.trim();}),routes=JSON.parse(props.getProperty('TIMETREE_ROUTES_JSON')||'{}'),events=[],archiveRows=[],digests={};
+    var allowed=(props.getProperty('TIMETREE_ALLOWED_CALENDAR_IDS')||'63108444,96534365').split(',').map(function(x){return x.trim();}),routes=JSON.parse(props.getProperty('TIMETREE_ROUTES_JSON')||'{}'),events=[],archiveRows=[],digests={},cursors={};
     allowed.forEach(function(id){var m=calendars.filter(function(x){return String(x.id)===id;})[0];if(!m)throw Error('Approved calendar unavailable: '+id);var pages=ttSourcePages_(id,cookie,deadline),source=JSON.stringify({metadata:m,pages:pages});
       var digest=ttDigest_(source);digests[id]=digest;
+      ttBackupJson_(ttBackupFolder_('Source pages'),'calendar-'+id,{metadata:m,pages:pages});
+      var finalPage=pages[pages.length-1];if(finalPage&&finalPage.since!=null)cursors[id]=String(finalPage.since);
       if(props.getProperty('TIMETREE_SOURCE_DIGEST_'+id)!==digest)for(var offset=0,part=0;offset<source.length;offset+=40000,part++)archiveRows.push([new Date(),run,id,part,"'"+source.slice(offset,offset+40000),digest]);
       var byId={};pages.forEach(function(p){p.events.forEach(function(raw){var old=byId[raw.uuid];if(!old||Number(raw.updated_at)>=Number(old.updated_at))byId[raw.uuid]=raw;});});
       Object.keys(byId).forEach(function(k){events.push(ttNormalizeSource_(byId[k],m,routes[m.name]||['Flagship Solar','Hi Service']));});
@@ -40,7 +42,7 @@ function timeTreeSyncScheduled(){
     // Store every source page before changing the mirror. Never overwrite past archives.
     ttAppendRows_(ttSheet_('TimeTreeSourceArchive',['Captured at','Run ID','Calendar ID','Part','Source JSON chunk','Full source digest']),archiveRows);
     Object.keys(digests).forEach(function(id){props.setProperty('TIMETREE_SOURCE_DIGEST_'+id,digests[id]);});
-    var result=timeTreeApply_(events,run);props.setProperty('TIMETREE_LAST_RUN_STATUS','OK: '+events.length+' records; '+result.changed+' changed');return result;
+    var result=timeTreeApply_(events,run);Object.keys(cursors).forEach(function(id){props.setProperty('TT_SOURCE_CURSOR_'+id,cursors[id]);});props.setProperty('TIMETREE_LAST_RUN_STATUS','OK: '+events.length+' records; '+result.changed+' changed');return result;
   }catch(e){props.setProperty('TIMETREE_LAST_RUN_STATUS','ERROR: '+String(e.message||e));throw e;}
   finally{lock.releaseLock();}
 }
@@ -63,3 +65,4 @@ function timeTreeConnectionCheck(){
   catch(error){console.log('Connection check: '+String(error.message||error));throw error;}
   return report;
 }
+

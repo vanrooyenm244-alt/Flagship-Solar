@@ -2,6 +2,8 @@
 function doGet(e){
  var p=e&&e.parameter||{},body={user:p.user,pass:p.pass,action:p.action,company:p.company,id:p.id,from:p.from,to:p.to,bookingId:p.bookingId};
  try{
+  workCalendarPermissions_();
+  if(p.action==='calendar'||p.action==='hiCalendar')return out_(workCalendarRead_(body));
   if(p.action==='attendanceRecords')return out_(tsRecords_(Object.assign({},body,p)));
   if(p.action==='attendanceHistory')return out_(tsHistory_(Object.assign({},body,p)));
   if(p.action==='timesheetPending')return out_({ok:true,entries:tsPendingList_(auth_(body))});
@@ -16,6 +18,10 @@ function doGet(e){
 function doPost(e){
  var body={};try{body=JSON.parse(e&&e.postData&&e.postData.contents||'{}');}catch(ignore){return attendanceLegacyPost_(e);}
  try{
+  workCalendarPermissions_();
+  if(body.action==='calendarCompletionSet')return out_(workCalendarCompletion_(body));
+  if(body.action==='scheduleJob'||body.action==='hiScheduleJob')return out_(workCalendarSave_(body));
+  if(body.action==='calendar'||body.action==='hiCalendar')return out_(workCalendarRead_(body));
   if(body.action==='attendanceManage')return out_(tsManage_(body));
   if(body.action==='timesheetReview')return out_(tsReview_(auth_(body),body));
   if(body.action==='timesheets')return out_(tsStage_(auth_(body),body.rows||[]));
@@ -25,4 +31,5 @@ function doPost(e){
  }catch(error){return out_({ok:false,error:String(error.message||error)});}
  return attendanceLegacyPost_(e);
 }
+
 

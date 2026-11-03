@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v155-performance">
+<meta name="flagship-release" content="flagship-ops-v156-calendar-backup">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -889,7 +889,7 @@ table.page{border-collapse:collapse}
         <div class="jc-field"><label>Start time</label><input id="calStart" type="time"></div>
         <div class="jc-field"><label>End time</label><input id="calEnd" type="time"></div>
         <div class="jc-field"><label>Technician</label><input id="calTech" placeholder="Technician name"></div>
-        <div class="jc-field"><label>Company</label><input id="calCompany" placeholder="Flagship Solar / Hi Service Gas"></div>
+        <div class="jc-field"><label>Job number (optional)</label><input id="calJobNo" placeholder="Leave blank if not assigned"></div>
         <div class="jc-field"><label>Job type</label><input id="calType" placeholder="Installation, repair, inspection..."></div>
       </div>
       <div class="jc-field"><label>Notes</label><textarea id="calNotes" rows="3" placeholder="Job notes"></textarea></div>
@@ -1818,7 +1818,7 @@ document.getElementById('calToggleMode').addEventListener('click',function(){CAL
 document.getElementById('calPrev').addEventListener('click',function(){calShiftMonth_(-1);});
 document.getElementById('calNext').addEventListener('click',function(){calShiftMonth_(1);});
 document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();CAL_DAY=calDateKey_(CAL_DATE);if(CAL_VIEW==='day')CAL_VIEW='agenda';showCalendar();});
-document.getElementById('calSave').addEventListener('click',function(){var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:document.getElementById('calCompany').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job saved on this phone; syncing…';document.getElementById('calForm').classList.add('hidden');calRender_();return api({action:'calendarSave',event:e}).then(function(j){if(!j.id||j.id!==e.id)throw new Error('Invalid calendar acknowledgement.');e.updatedAt=Number(j.updatedAt)||e.updatedAt;e.source='server';return put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled and synced.';calRender_();});}).catch(function(err){document.getElementById('calMsg').textContent='Saved on this phone; calendar sync failed: '+String(err.message||err);});});});
+document.getElementById('calSave').addEventListener('click',function(){if(this.disabled)return;var saveButton=this;saveButton.disabled=true;var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:'Flagship Solar',jobNo:document.getElementById('calJobNo').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';saveButton.disabled=false;return;}if(e.endTime&&(!e.startTime||e.endTime<=e.startTime)){document.getElementById('calMsg').textContent='End time must be after start time.';saveButton.disabled=false;return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job saved on this phone; syncing…';document.getElementById('calForm').classList.add('hidden');calRender_();return api({action:'scheduleJob',event:e}).then(function(j){if(!j.id||j.id!==e.id)throw new Error('Invalid calendar acknowledgement.');e.updatedAt=Number(j.updatedAt)||e.updatedAt;e.source='server';return put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled and synced.';calRender_();});}).catch(function(err){document.getElementById('calMsg').textContent='Saved on this phone; calendar sync failed: '+String(err.message||err);});}).finally(function(){saveButton.disabled=false;});});
 
 /* ============ screens ============ */
 var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenCalendar','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
@@ -1857,7 +1857,7 @@ function show(id){
 var EFFECTIVE_PERMISSIONS=null;
 function hasPermission_(key){if(ME&&Array.isArray(ME.permissions))return ME.permissions.indexOf(key)>=0;return (typeof EFFECTIVE_PERMISSIONS==='undefined'||!EFFECTIVE_PERMISSIONS)||EFFECTIVE_PERMISSIONS.indexOf(key)>=0;}
 var TILE_PERMISSION_={jobs:'inspections.view',jobcards:'job_cards.view',calendar:'calendar.view',stock:'stock.view',time:'timesheets.view_own',prices:'prices.view',quote:'quotes.view',props:'proposals.view',admin:'users.manage'};
-function applyModulePermissions_(){var controls={stSend:'stock.count',stAddItem:'stock.manage',stLoadReport:'stock.report',stPrintReport:'stock.report',prUpdate:'prices.manage',jcSubmit:'job_cards.edit',calSave:'calendar.edit',qbXeroCreate:'quotes.create',prNew:'prices.manage',tsSend:'timesheets.submit',vpPublish:'proposals.send',vpPublish2:'proposals.send'};Object.keys(controls).forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=hasPermission_(controls[id])?'':'none';});document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
+function applyModulePermissions_(){var controls={stSend:'stock.count',stAddItem:'stock.manage',stLoadReport:'stock.report',stPrintReport:'stock.report',prUpdate:'prices.manage',jcSubmit:'job_cards.edit',calNew:'calendar.edit',calSave:'calendar.edit',qbXeroCreate:'quotes.create',prNew:'prices.manage',tsSend:'timesheets.submit',vpPublish:'proposals.send',vpPublish2:'proposals.send'};Object.keys(controls).forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=hasPermission_(controls[id])?'':'none';});document.querySelectorAll('.tile[data-go]').forEach(function(t){var key=TILE_PERMISSION_[t.getAttribute('data-go')];if(key&&!hasPermission_(key))t.classList.add('hidden');});}
 function refreshSupabasePermissions_(){var a=window.FlagshipSupabase;if(!(a&&a.getSession&&a.getSession&&a.getSession()&&a.memberships&&a.permissionsForMembership))return Promise.resolve();return a.memberships().then(function(ms){var m=ms&&ms[0];if(!m)return;var id=m.id||m.membership_id;if(!id)return;return a.permissionsForMembership(id).then(function(p){EFFECTIVE_PERMISSIONS=p;});}).catch(function(){EFFECTIVE_PERMISSIONS=null;});}
 function showHome(){
   resumeClear_();
@@ -6369,7 +6369,8 @@ fsClockRefresh_();
 <script src="./ops-dashboard.js?release=flagship-ops-v151-attendance"></script>
 <script src="./ops-updates-v135.js?release=flagship-ops-v151-attendance"></script>
 
-<script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script></body>
+<script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script><script>setInterval(function(){if(!document.hidden&&document.getElementById('screenCalendar')&&!document.getElementById('screenCalendar').classList.contains('hidden'))showCalendar(true);},300000);</script></body>
 </html>
+
 
 
