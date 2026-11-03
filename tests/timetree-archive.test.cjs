@@ -1,6 +1,12 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),crypto=require('node:crypto');
 const digest=s=>crypto.createHash('sha256').update(String(s)).digest('hex');
 const booking='tt:63108444:event-a';
+test('TimeTree comment object keys become fixed-host image URLs without accepting URLs or traversal',()=>{
+ const h=harness(),key='event_activity_image/2026-02-19/photo.jpg';
+ assert.equal(h.c.ttBackupImageUrl_(key),'https://attachments.timetreeapp.com/'+key);
+ assert.deepEqual(Array.from(h.c.ttBackupMediaLinks_({attachment:{images:[{object_key:key}]}})),['https://attachments.timetreeapp.com/'+key]);
+ for(const key of ['https://evil.test/photo.jpg','//evil.test/../photo','a/../../b','a?token=secret','a%2f..%2fb'])assert.equal(h.c.ttBackupImageUrl_(key),'');
+});
 function harness(events=[]){
  const props=new Map([['TIMETREE_ALLOWED_CALENDAR_IDS','63108444']]),files=new Map(),requests=[];
  const iterator=items=>{let i=0;return {hasNext:()=>i<items.length,next:()=>items[i++]};};
@@ -20,6 +26,12 @@ test('shared-calendar backup advances past historical records outside the new ac
  const h=harness([{id:'tt:96534365:old',sourceCalendarId:'96534365',sourceEventId:'old',raw:{}},{id:booking,sourceCalendarId:'63108444',sourceEventId:'event-a',raw:{}}]);
  h.c.ttSessionCookie_=()=> 'test';const result=h.c.ttBackupActivities_(Date.now()+60000);
  assert.equal(result.events,1);assert.equal(result.skippedOutsideSharedCalendars,1);assert.equal(result.nextRow,4);assert.equal(h.requests.length,1);assert.match(h.requests[0],/63108444/);assert.equal(h.props.get('TT_BACKUP_ACTIVITY_ROW'),'4');
+});
+test('real comment-image structure downloads into Drive without sending the TimeTree session to the CDN',()=>{
+ const h=harness([{id:booking,sourceCalendarId:'63108444',sourceEventId:'event-a',raw:{}}]);
+ h.c.ttSessionCookie_=()=> 'private-session';h.c.ttSessionFetch_=()=>({json:{event_activities:[{type:0,attachment:{images:[{object_key:'event_activity_image_o/2026/photo.jpg'}]}}],chunk:false}});
+ const calls=[];h.c.UrlFetchApp={fetch:(url,opts)=>{calls.push({url,opts});return {getResponseCode:()=>200,getBlob:()=>h.blob([255,216,255,217],'image/jpeg','')};}};
+ h.c.ttBackupActivities_(Date.now()+60000);assert.equal(calls.length,1);assert.equal(calls[0].opts.headers.Cookie,undefined);assert.equal(calls[0].opts.followRedirects,false);assert.equal(h.c.ttBackupCachedPhotos_(booking).downloaded,1);
 });
 test('one archived media file can serve two bookings without TimeTree or duplicate downloads',()=>{
  const h=harness(),name='media-'+digest('same-url');h.folder.createFile(h.blob([255,216,255,217],'image/jpeg',name)).setDescription('TimeTree booking '+booking);

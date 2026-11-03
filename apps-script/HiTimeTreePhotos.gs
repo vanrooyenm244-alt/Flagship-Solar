@@ -45,6 +45,7 @@ function hiTimeTreePhotos_(body) {
   function add(raw){
     if(!raw||typeof raw!=='object')return;
     var fields=[raw.image_url,raw.imageUrl,raw.photo_url,raw.photoUrl,raw.original_url,raw.originalUrl,raw.url,raw.download_url,raw.downloadUrl,raw.src];
+    if(typeof ttBackupImageUrl_==='function'&&typeof raw.object_key==='string')fields.push(ttBackupImageUrl_(raw.object_key));
     if(raw.image&&typeof raw.image==='object')fields.push(raw.image.url,raw.image.original_url);
     if(raw.photo&&typeof raw.photo==='object')fields.push(raw.photo.url,raw.photo.original_url);
     if(raw.attachment&&typeof raw.attachment==='object')fields.push(raw.attachment.url);
@@ -91,7 +92,7 @@ function hiTimeTreePhotos_(body) {
     var file=existing.hasNext()?existing.next():null;
     if(!file){
       try{
-        var res=UrlFetchApp.fetch(url,{headers:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
+        var res=UrlFetchApp.fetch(url,{headers:/^https:\/\/attachments\.timetreeapp\.com\//.test(url)?{}:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
         if(res.getResponseCode()!==200){failures++;return;}
         var headers=res.getAllHeaders(),type=String(headers['Content-Type']||headers['content-type']||'').split(';')[0].trim().toLowerCase();
         if(!/^image\/(?:jpeg|png|webp)$/.test(type)){failures++;return;}
