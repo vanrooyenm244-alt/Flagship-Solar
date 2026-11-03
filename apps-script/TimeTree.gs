@@ -35,6 +35,7 @@ function timeTreeApply_(events,requestId){
   var props=PropertiesService.getScriptProperties(),allowed=(props.getProperty('TIMETREE_ALLOWED_CALENDAR_IDS')||'63108444,96534365').split(',').map(function(x){return x.trim();}),seen={};
   // Preflight the complete batch before opening or writing any sheets.
   var plan=events.map(function(e){var json=ttValidate_(e,allowed);if(seen[e.id])throw Error('Duplicate source identity in batch');seen[e.id]=true;return {e:e,json:json,digest:ttDigest_(json)};});
+  if(!plan.length){props.setProperty('TIMETREE_LAST_IMPORT_AT',new Date().toISOString());return {ok:true,acceptedIds:[],changed:0};}
   var sh=ttSheet_(TT_EVENTS_,['ID','Source updated ms','Digest','Data JSON','Mirrored at']),history=ttSheet_(TT_HISTORY_,['Recorded at','ID','Source updated ms','Digest','Data JSON','Request ID']);
   var rows=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,5).getValues():[],index={};
   rows.forEach(function(r,i){if(index[r[0]])throw Error('Duplicate mirror row; no records overwritten');index[r[0]]={row:i+2,values:r};});

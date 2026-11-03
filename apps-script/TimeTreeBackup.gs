@@ -133,6 +133,16 @@ function ttBackupCachedPhotos_(id){
   if(!photos.length&&(!manifest||!manifest.complete||manifest.imageFormatRevision!==2||unavailable))return null;
   return {ok:true,bookingId:id,photos:photos,downloaded:photos.length,failedDownloads:unavailable,cached:true,archived:true,archiveComplete:!!(manifest&&manifest.complete)};
 }
+function ttBackupActivitiesBatch_(deadline){
+  var p=PropertiesService.getScriptProperties(),lock=LockService.getScriptLock();if(!lock.tryLock(1000))return {busy:true};
+  var token=Utilities.getUuid();
+  try{
+    if(Number(p.getProperty('TT_BACKUP_ACTIVITY_LEASE_UNTIL')||0)>Date.now())return {busy:true};
+    p.setProperty('TT_BACKUP_ACTIVITY_LEASE',token);p.setProperty('TT_BACKUP_ACTIVITY_LEASE_UNTIL',String(deadline+60000));
+  }finally{lock.releaseLock();}
+  try{return ttBackupActivities_(deadline);}
+  finally{if(lock.tryLock(1000))try{if(p.getProperty('TT_BACKUP_ACTIVITY_LEASE')===token){p.deleteProperty('TT_BACKUP_ACTIVITY_LEASE');p.deleteProperty('TT_BACKUP_ACTIVITY_LEASE_UNTIL');}}finally{lock.releaseLock();}}
+}
 function timeTreeBackupTick(){
   var p=PropertiesService.getScriptProperties(),started=Date.now(),status={at:new Date().toISOString(),fullSourceBackup:false};
   // Always preserve existing mirror data, even while TimeTree login is unavailable.
@@ -143,10 +153,7 @@ function timeTreeBackupTick(){
     if(Number(p.getProperty('TIMETREE_AUTH_RETRY_AFTER')||0)>Date.now())status.sync='waiting for sign-in cooldown';
     else try{var sync=timeTreeSyncScheduled();status.sync=sync&&sync.busy?'busy':'ok';if(!sync||!sync.busy)p.setProperty('TT_BACKUP_LAST_SYNC_AT',String(Date.now()));}catch(err){status.syncError=String(err.message||err);}
   }
-  lock=LockService.getScriptLock();if(lock.tryLock(1000)){
-    try{status.activities=ttBackupActivities_(Math.min(started+270000,Date.now()+90000));}catch(err){status.activityError=String(err.message||err);}
-    finally{lock.releaseLock();}
-  }
+  try{status.activities=ttBackupActivitiesBatch_(Math.min(started+270000,Date.now()+90000));}catch(err){status.activityError=String(err.message||err);}
   if(typeof ttBackupAlbumBatch_==='function')try{status.album=ttBackupAlbumBatch_(Math.min(started+270000,Date.now()+90000));}catch(err){status.albumError=String(err.message||err);}
   status.retryAfter=p.getProperty('TIMETREE_AUTH_RETRY_AFTER')||null;
   p.setProperty('TIMETREE_BACKUP_STATUS',JSON.stringify(status));console.log(JSON.stringify(status));return status;
