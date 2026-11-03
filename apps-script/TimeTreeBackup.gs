@@ -37,12 +37,22 @@ function ttBackupMediaLinks_(value){
     if(!v||typeof v!=='object'||depth>8)return;
     if(Array.isArray(v)){v.forEach(function(x){scan(x,depth+1);});return;}
     Object.keys(v).forEach(function(k){var x=v[k];
+      if(k==='object_key'&&typeof x==='string'){
+        var imageUrl=ttBackupImageUrl_(x);if(imageUrl&&!seen[imageUrl]){seen[imageUrl]=true;links.push(imageUrl);}
+      }
       if(typeof x==='string'&&/^(image_url|photo_url|original_url|download_url|url|src|imageUrl|photoUrl|originalUrl|downloadUrl)$/.test(k)){
         var host=/^https:\/\/([^\/?#]+)(?:[\/?#]|$)/i.exec(x);
         if(host&&/^(?:[a-z0-9-]+\.)*(?:timetreeapp\.com|timetree\.com)$/i.test(host[1])&&!seen[x]){seen[x]=true;links.push(x);}
       }else if(x&&typeof x==='object')scan(x,depth+1);
     });
   }scan(value,0);return links;
+}
+function ttBackupImageUrl_(key){
+  // Comment images use object keys, not absolute URLs. Keep the host fixed.
+  if(typeof key!=='string')return '';
+  key=key.replace(/^\/+/, '');
+  if(!/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(key)||key.indexOf('..')>=0)return '';
+  return 'https://attachments.timetreeapp.com/'+key;
 }
 function ttBackupActivities_(deadline){
   var p=PropertiesService.getScriptProperties();
@@ -69,7 +79,7 @@ function ttBackupActivities_(deadline){
       if(Date.now()>deadline){state.mediaIndex=i;p.setProperty(key,JSON.stringify(state));return {events:processed,partial:true};}
       var name='media-'+ttDigest_(links[i]),files=folder.getFilesByName(name);
       if(!files.hasNext()){
-        var response=UrlFetchApp.fetch(links[i],{headers:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
+        var response=UrlFetchApp.fetch(links[i],{headers:/^https:\/\/attachments\.timetreeapp\.com\//.test(links[i])?{}:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
         if(response.getResponseCode()!==200)throw Error('Attachment HTTP '+response.getResponseCode()+'; backup cursor retained');
         var blob=response.getBlob(),mime=String(blob.getContentType()||'').toLowerCase();
         if(!/^(image\/|video\/|application\/pdf)/.test(mime))throw Error('Unsupported attachment type; backup cursor retained');
@@ -94,7 +104,7 @@ function ttBackupRecordMedia_(folder,id,names,complete){
   var manifest=file?JSON.parse(file.getBlob().getDataAsString()):{version:1,bookingId:id,names:[]};
   if(manifest.version!==1||manifest.bookingId!==id||!Array.isArray(manifest.names))throw Error('Unexpected archived media manifest; backup cursor retained');
   names.forEach(function(name){if(manifest.names.indexOf(name)<0)manifest.names.push(name);});
-  manifest.complete=complete===true;manifest.updatedAt=new Date().toISOString();
+  manifest.complete=complete===true;manifest.imageFormatRevision=2;manifest.updatedAt=new Date().toISOString();
   var json=JSON.stringify(manifest);
   if(file)file.setContent(json);else folder.createFile(Utilities.newBlob(json,'application/json',filename));
 }
@@ -120,7 +130,7 @@ function ttBackupCachedPhotos_(id){
     var bytes=file.getBlob().getBytes();if(bytes.length>2000000){unavailable++;continue;}
     photos.push({id:names[i],name:'TimeTree photo '+(photos.length+1),mimeType:mime,dataUrl:'data:'+mime+';base64,'+Utilities.base64Encode(bytes)});
   }
-  if(!photos.length&&(!manifest||!manifest.complete||unavailable))return null;
+  if(!photos.length&&(!manifest||!manifest.complete||manifest.imageFormatRevision!==2||unavailable))return null;
   return {ok:true,bookingId:id,photos:photos,downloaded:photos.length,failedDownloads:unavailable,cached:true,archived:true,archiveComplete:!!(manifest&&manifest.complete)};
 }
 function timeTreeBackupTick(){
