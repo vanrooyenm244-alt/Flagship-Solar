@@ -6,7 +6,7 @@ function ttFetch_(path,cookie,payload){
   var options={method:payload?'put':'get',contentType:'application/json',headers:{'X-Timetreea':'web/2.1.0/en'},muteHttpExceptions:true,followRedirects:false};
   if(cookie)options.headers.Cookie=cookie;if(payload)options.payload=JSON.stringify(payload);
   var r=UrlFetchApp.fetch('https://timetreeapp.com/api/v1'+path,options);
-  if(r.getResponseCode()!==200){var error=Error('TimeTree HTTP '+r.getResponseCode()+'; previous bookings retained');error.httpStatus=r.getResponseCode();throw error;}
+  if(r.getResponseCode()!==200){var text=r.getContentText().toLowerCase(),reason=/too many|try again later|rate.limit|temporarily.block/.test(text)?'rate-limited':/captcha|challenge|cloudflare/.test(text)?'browser-verification':/password|credential|invalid.email|invalid.login/.test(text)?'credentials-rejected':/verif|confirm.*email/.test(text)?'verification-required':'request-rejected';var error=Error('TimeTree HTTP '+r.getResponseCode()+' at '+path.split('?')[0]+' ('+reason+'); previous bookings retained');error.httpStatus=r.getResponseCode();throw error;}
   return {json:JSON.parse(r.getContentText()),headers:r.getAllHeaders()};
 }
 function ttCookie_(headers){var values=[];Object.keys(headers).forEach(function(k){if(k.toLowerCase()==='set-cookie')values=values.concat(headers[k]);});return values.map(function(c){return String(c).split(';')[0];}).join('; ');}
@@ -50,3 +50,16 @@ function installTimeTreeSync(){
   return 'TimeTree sync trigger ready (every 15 minutes). Run timeTreeSyncScheduled once and inspect the result.';
 }
 
+
+/** Safe connection diagnostics: never log credentials, cookies, or response bodies. */
+function timeTreeConnectionCheck(){
+  var p=PropertiesService.getScriptProperties(), session=null;
+  try{session=JSON.parse(p.getProperty('TIMETREE_SESSION_JSON')||'null');}catch(ignore){}
+  var until=Number(p.getProperty('TIMETREE_AUTH_RETRY_AFTER')||0);
+  var report={emailConfigured:!!p.getProperty('TIMETREE_EMAIL'),passwordConfigured:!!p.getProperty('TIMETREE_PASSWORD'),cachedSession:!!(session&&session.cookie),retryAfter:until?new Date(until).toISOString():null,paused:until>Date.now()};
+  console.log(JSON.stringify(report));
+  if(report.paused&&!report.cachedSession){console.log('Waiting for existing sign-in cooldown. No login attempted.');return report;}
+  try{var result=ttSessionFetch_('/calendars?since=0').json;report.connected=Array.isArray(result.calendars);report.calendarCount=report.connected?result.calendars.length:0;console.log(JSON.stringify({connected:report.connected,calendarCount:report.calendarCount}));}
+  catch(error){console.log('Connection check: '+String(error.message||error));throw error;}
+  return report;
+}
