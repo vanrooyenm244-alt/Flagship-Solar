@@ -21,7 +21,12 @@ function hiTimeTreePhotos_(body) {
      !ttTagVisible_(source,'Hi Service',user))
     throw Error('TimeTree booking is unavailable for this Hi Service user');
   var folder=hiTimeTreePhotoFolder_(false),cached=hiTimeTreeCachedPhotos_(folder,id);
-  if(cached&&body.refresh!==true)return cached;
+  if(body.refresh!==true){
+    if(cached)return cached;
+    if(typeof ttBackupCachedPhotos_==='function'){
+      var archived=ttBackupCachedPhotos_(id);if(archived)return archived;
+    }
+  }
   var cookie=ttSessionCookie_();
   var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities';
   var records=[],cursor=null,seen={};
@@ -135,4 +140,5 @@ function hiTimeTreeCachedPhotos_(folder,id){
   }
   return {ok:true,bookingId:id,photos:photos,downloaded:photos.length,failedDownloads:0,cached:true};
 }
+
 
