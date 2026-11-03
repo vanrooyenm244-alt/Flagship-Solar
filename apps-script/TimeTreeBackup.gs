@@ -50,10 +50,13 @@ function ttBackupActivities_(deadline){
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TimeTreeEvents');
   if(!sh||sh.getLastRow()<2)return {events:0};
   var last=sh.getLastRow(),row=Math.max(2,Number(p.getProperty('TT_BACKUP_ACTIVITY_ROW')||2));if(row>last)row=2;
-  var folder=ttBackupFolder_('Activities and attachments'),processed=0;
+  var folder=ttBackupFolder_('Activities and attachments'),processed=0,skipped=0;
+  var allowed=(p.getProperty('TIMETREE_ALLOWED_CALENDAR_IDS')||'63108444,96534365').split(',').map(function(id){return id.trim();});
   // Resume within an event as well as between events. Large albums are never marked complete early.
   while(row<=last&&Date.now()<deadline&&processed<10){
     var e=JSON.parse(sh.getRange(row,4).getValue()),key='TT_BACKUP_ACTIVITY_CURSOR',state=null;
+    // Older mirror records stay intact when the backup account has a narrower calendar share.
+    if(allowed.indexOf(String(e.sourceCalendarId))<0){row++;skipped++;p.setProperty('TT_BACKUP_ACTIVITY_ROW',String(row));continue;}
     try{state=JSON.parse(p.getProperty(key)||'null');}catch(ignore){}
     if(!state||state.id!==e.id)state={id:e.id,cursor:null,seen:[],page:0,mediaIndex:0};
     var path='/calendar/'+encodeURIComponent(e.sourceCalendarId)+'/event/'+encodeURIComponent(e.sourceEventId)+'/activities';
@@ -74,6 +77,7 @@ function ttBackupActivities_(deadline){
       }
       state.mediaIndex=i+1;p.setProperty(key,JSON.stringify(state));
     }
+    ttBackupRecordMedia_(folder,e.id,links.map(function(url){return 'media-'+ttDigest_(url);}),page.chunk!==true);
     if(page.chunk===true){
       if(page.since==null||state.seen.indexOf(String(page.since))>=0)throw Error('TimeTree activity cursor did not advance');
       state.seen.push(String(page.since));state.cursor=page.since;state.page++;state.mediaIndex=0;
@@ -82,7 +86,42 @@ function ttBackupActivities_(deadline){
     }else{row++;processed++;p.setProperty('TT_BACKUP_ACTIVITY_ROW',String(row));p.deleteProperty(key);}
   }
   if(row>last)p.setProperty('TT_BACKUP_ACTIVITY_COMPLETED_AT',new Date().toISOString());
-  return {events:processed,nextRow:row,totalRows:last-1};
+  return {events:processed,skippedOutsideSharedCalendars:skipped,nextRow:row,totalRows:last-1};
+}
+function ttBackupMediaManifestName_(id){return 'jobcard-media-'+ttDigest_(id)+'.json';}
+function ttBackupRecordMedia_(folder,id,names,complete){
+  var filename=ttBackupMediaManifestName_(id),files=folder.getFilesByName(filename),file=files.hasNext()?files.next():null;
+  var manifest=file?JSON.parse(file.getBlob().getDataAsString()):{version:1,bookingId:id,names:[]};
+  if(manifest.version!==1||manifest.bookingId!==id||!Array.isArray(manifest.names))throw Error('Unexpected archived media manifest; backup cursor retained');
+  names.forEach(function(name){if(manifest.names.indexOf(name)<0)manifest.names.push(name);});
+  manifest.complete=complete===true;manifest.updatedAt=new Date().toISOString();
+  var json=JSON.stringify(manifest);
+  if(file)file.setContent(json);else folder.createFile(Utilities.newBlob(json,'application/json',filename));
+}
+/** Read archived job-card images only after the caller has checked booking permissions. */
+function ttBackupCachedPhotos_(id){
+  var root=DriveApp.getFolderById(TT_BACKUP_FOLDER_ID_),folders=root.getFoldersByName('Activities and attachments');
+  if(!folders.hasNext())return null;
+  var folder=folders.next(),files=folder.getFilesByName(ttBackupMediaManifestName_(id)),manifest=null,names=[];
+  if(files.hasNext()){
+    try{manifest=JSON.parse(files.next().getBlob().getDataAsString());}catch(ignore){return null;}
+    if(manifest.version!==1||manifest.bookingId!==id||!Array.isArray(manifest.names))return null;
+    names=manifest.names;
+  }else if(typeof folder.searchFiles==='function'){
+    var old=folder.searchFiles("description contains 'TimeTree booking "+id+"'");
+    while(old.hasNext()&&names.length<12){var file=old.next();if(file.getDescription()==='TimeTree booking '+id)names.push(file.getName());}
+  }
+  var photos=[],unavailable=0;
+  for(var i=0;i<names.length&&photos.length<12;i++){
+    if(!/^media-[a-f0-9]{64}$/.test(String(names[i]))){unavailable++;continue;}
+    var matches=folder.getFilesByName(names[i]);if(!matches.hasNext()){unavailable++;continue;}
+    var file=matches.next(),mime=String(file.getMimeType()||'').toLowerCase();
+    if(!/^image\/(jpeg|png|webp)$/.test(mime))continue;
+    var bytes=file.getBlob().getBytes();if(bytes.length>2000000){unavailable++;continue;}
+    photos.push({id:names[i],name:'TimeTree photo '+(photos.length+1),mimeType:mime,dataUrl:'data:'+mime+';base64,'+Utilities.base64Encode(bytes)});
+  }
+  if(!photos.length&&(!manifest||!manifest.complete||unavailable))return null;
+  return {ok:true,bookingId:id,photos:photos,downloaded:photos.length,failedDownloads:unavailable,cached:true,archived:true,archiveComplete:!!(manifest&&manifest.complete)};
 }
 function timeTreeBackupTick(){
   var p=PropertiesService.getScriptProperties(),started=Date.now(),status={at:new Date().toISOString(),fullSourceBackup:false};
@@ -109,3 +148,4 @@ function installTimeTreeFiveMinuteBackup(){
   console.log('TimeTree backup and sync every 5 minutes. Existing data is backed up during login cooldown.');
   return {ok:true,folderUrl:'https://drive.google.com/drive/folders/'+TT_BACKUP_FOLDER_ID_,minutes:5};
 }
+
