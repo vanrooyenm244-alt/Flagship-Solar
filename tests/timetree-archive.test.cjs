@@ -44,6 +44,15 @@ test('album batches list existing Drive files once rather than searching once pe
  const photos=Array.from({length:25},(_,i)=>({url:'https://album-attachment.timetreeapp.com/images/calendars/63108444/123/photo-'+i+'.jpg'})),h=albumHarness(photos);let listings=0;const list=h.folder.getFiles;h.folder.getFiles=()=>{listings++;return list();};h.folder.getFilesByName=()=>assert.fail('per-image Drive search is unnecessary');
  const result=h.c.ttBackupAlbumBatch_(Date.now()+60000);assert.equal(result.archived,25);assert.equal(listings,1);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),'25');
 });
+test('activity downloads also use a short lease instead of holding the business write lock',()=>{
+ const h=harness();let locked=false;h.c.Utilities.getUuid=()=> 'activity-lease';h.c.LockService={getScriptLock:()=>({tryLock(){locked=true;return true;},releaseLock(){locked=false;}})};h.c.ttBackupActivities_=()=>{assert.equal(locked,false);return {events:10};};
+ assert.equal(h.c.ttBackupActivitiesBatch_(Date.now()+60000).events,10);assert.equal(h.props.has('TT_BACKUP_ACTIVITY_LEASE'),false);
+ h.props.set('TT_BACKUP_ACTIVITY_LEASE_UNTIL',String(Date.now()+100000));assert.equal(h.c.ttBackupActivitiesBatch_(Date.now()+60000).busy,true);
+});
+test('an unchanged source poll updates its timestamp without reading or rewriting historical event JSON',()=>{
+ const h=harness();h.c.SpreadsheetApp.getActiveSpreadsheet=()=>assert.fail('empty delta must not scan the archive');h.props.set('TIMETREE_VIEW_SOURCE_REV','keep-revision');vm.runInContext(fs.readFileSync('apps-script/TimeTree.gs','utf8'),h.c);
+ const result=h.c.timeTreeApply_([],'unchanged');assert.equal(result.changed,0);assert.equal(result.acceptedIds.length,0);assert.ok(h.props.get('TIMETREE_LAST_IMPORT_AT'));assert.equal(h.props.get('TIMETREE_VIEW_SOURCE_REV'),'keep-revision');
+});
 test('album archive rejects other calendars and hosts, and concurrent batches do not duplicate work',()=>{
  for(const url of ['https://example.test/photo.jpg','https://album-attachment.timetreeapp.com/images/calendars/99999/123/photo.jpg','https://album-attachment.timetreeapp.com:443/images/calendars/63108444/123/photo.jpg']){const h=albumHarness([{url}]);assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/Unapproved/);assert.equal(h.downloads.length,0);}
  const h=albumHarness();h.props.set('TT_BACKUP_ALBUM_LEASE_UNTIL',String(Date.now()+100000));assert.equal(h.c.ttBackupAlbumBatch_(Date.now()+60000).busy,true);assert.equal(h.downloads.length,0);
