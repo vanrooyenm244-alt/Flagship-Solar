@@ -11,7 +11,7 @@ function harness(events=[]){
  const props=new Map([['TIMETREE_ALLOWED_CALENDAR_IDS','63108444']]),files=new Map(),requests=[];
  const iterator=items=>{let i=0;return {hasNext:()=>i<items.length,next:()=>items[i++]};};
  const blob=(data,mime,name)=>({getDataAsString:()=>String(data),getBytes:()=>Array.isArray(data)?data:Array.from(Buffer.from(String(data))),getContentType:()=>mime,setName(n){name=n;this.name=n;return this;},name});
- const folder={getFilesByName:n=>iterator(files.has(n)?[files.get(n)]:[]),createFile:b=>{const f={getBlob:()=>b,getMimeType:()=>b.getContentType(),getName:()=>b.name,getDescription:()=>f.description||'',setDescription(d){f.description=d;return f;},setContent(s){b=blob(s,'application/json',b.name);return f;}};files.set(b.name,f);return f;},searchFiles:()=>iterator([...files.values()])};
+ const folder={getFiles:()=>iterator([...files.values()]),getFilesByName:n=>iterator(files.has(n)?[files.get(n)]:[]),createFile:b=>{const f={getBlob:()=>b,getMimeType:()=>b.getContentType(),getName:()=>b.name,getDescription:()=>f.description||'',setDescription(d){f.description=d;return f;},setContent(s){b=blob(s,'application/json',b.name);return f;}};files.set(b.name,f);return f;},searchFiles:()=>iterator([...files.values()])};
  const c={Date,JSON,Math,Error,Array,String,Number,encodeURIComponent,console:{log(){}},ttDigest_:digest,
   PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v),deleteProperty:k=>props.delete(k)})},
   SpreadsheetApp:{getActiveSpreadsheet:()=>({getSheetByName:()=>({getLastRow:()=>events.length+1,getRange:r=>({getValue:()=>JSON.stringify(events[r-2])})})})},
@@ -35,6 +35,14 @@ test('album originals resume from Drive without cookies and deduplicate a refres
 });
 test('expired album links retain the next position and release their lease rather than claiming completion',()=>{
  const h=albumHarness();h.c.UrlFetchApp.fetch=()=>({getResponseCode:()=>403});assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/HTTP 403/);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),undefined);assert.equal(h.props.has('TT_BACKUP_ALBUM_COMPLETED_QUEUE'),false);assert.equal(h.props.has('TT_BACKUP_ALBUM_LEASE'),false);
+});
+test('album cleanup contention preserves durable success and leaves a bounded lease to expire',()=>{
+ const h=albumHarness();let attempts=0;h.c.LockService={getScriptLock:()=>({tryLock:()=>++attempts===1,releaseLock(){}})};
+ const result=h.c.ttBackupAlbumBatch_(Date.now()+60000);assert.equal(result.complete,true);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),'1');assert.ok(Number(h.props.get('TT_BACKUP_ALBUM_LEASE_UNTIL'))>Date.now());
+});
+test('album batches list existing Drive files once rather than searching once per image',()=>{
+ const photos=Array.from({length:25},(_,i)=>({url:'https://album-attachment.timetreeapp.com/images/calendars/63108444/123/photo-'+i+'.jpg'})),h=albumHarness(photos);let listings=0;const list=h.folder.getFiles;h.folder.getFiles=()=>{listings++;return list();};h.folder.getFilesByName=()=>assert.fail('per-image Drive search is unnecessary');
+ const result=h.c.ttBackupAlbumBatch_(Date.now()+60000);assert.equal(result.archived,25);assert.equal(listings,1);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),'25');
 });
 test('album archive rejects other calendars and hosts, and concurrent batches do not duplicate work',()=>{
  for(const url of ['https://example.test/photo.jpg','https://album-attachment.timetreeapp.com/images/calendars/99999/123/photo.jpg','https://album-attachment.timetreeapp.com:443/images/calendars/63108444/123/photo.jpg']){const h=albumHarness([{url}]);assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/Unapproved/);assert.equal(h.downloads.length,0);}
