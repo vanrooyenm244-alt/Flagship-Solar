@@ -39,7 +39,9 @@ function ttBackupAlbumBatch_(deadline){
   }finally{lock.releaseLock();}
   try{return ttBackupAlbum_(deadline);}
   finally{
-    lock.waitLock(5000);try{if(p.getProperty('TT_BACKUP_ALBUM_LEASE')===token){p.deleteProperty('TT_BACKUP_ALBUM_LEASE');p.deleteProperty('TT_BACKUP_ALBUM_LEASE_UNTIL');}}finally{lock.releaseLock();}
+    // A concurrent source import may hold the script lock. Let this lease expire
+    // rather than turning a successful durable batch into a cleanup failure.
+    if(lock.tryLock(1000))try{if(p.getProperty('TT_BACKUP_ALBUM_LEASE')===token){p.deleteProperty('TT_BACKUP_ALBUM_LEASE');p.deleteProperty('TT_BACKUP_ALBUM_LEASE_UNTIL');}}finally{lock.releaseLock();}
   }
 }
 function timeTreeBackupAlbumNow(){

@@ -36,6 +36,10 @@ test('album originals resume from Drive without cookies and deduplicate a refres
 test('expired album links retain the next position and release their lease rather than claiming completion',()=>{
  const h=albumHarness();h.c.UrlFetchApp.fetch=()=>({getResponseCode:()=>403});assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/HTTP 403/);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),undefined);assert.equal(h.props.has('TT_BACKUP_ALBUM_COMPLETED_QUEUE'),false);assert.equal(h.props.has('TT_BACKUP_ALBUM_LEASE'),false);
 });
+test('album cleanup contention preserves durable success and leaves a bounded lease to expire',()=>{
+ const h=albumHarness();let attempts=0;h.c.LockService={getScriptLock:()=>({tryLock:()=>++attempts===1,releaseLock(){}})};
+ const result=h.c.ttBackupAlbumBatch_(Date.now()+60000);assert.equal(result.complete,true);assert.equal(h.props.get('TT_BACKUP_ALBUM_ROW'),'1');assert.ok(Number(h.props.get('TT_BACKUP_ALBUM_LEASE_UNTIL'))>Date.now());
+});
 test('album archive rejects other calendars and hosts, and concurrent batches do not duplicate work',()=>{
  for(const url of ['https://example.test/photo.jpg','https://album-attachment.timetreeapp.com/images/calendars/99999/123/photo.jpg','https://album-attachment.timetreeapp.com:443/images/calendars/63108444/123/photo.jpg']){const h=albumHarness([{url}]);assert.throws(()=>h.c.ttBackupAlbumBatch_(Date.now()+60000),/Unapproved/);assert.equal(h.downloads.length,0);}
  const h=albumHarness();h.props.set('TT_BACKUP_ALBUM_LEASE_UNTIL',String(Date.now()+100000));assert.equal(h.c.ttBackupAlbumBatch_(Date.now()+60000).busy,true);assert.equal(h.downloads.length,0);
