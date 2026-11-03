@@ -50,10 +50,13 @@ function timeTreeApply_(events,requestId){
   ttAppendRows_(history,revisions);
   // Dedicated mirror table only; keep every existing row, including unseen bookings.
   if(changed){if(typeof sh.getMaxRows==='function'&&sh.getMaxRows()<rows.length+1)sh.insertRowsAfter(sh.getMaxRows(),rows.length+1-sh.getMaxRows());sh.getRange(2,1,rows.length,5).setValues(rows);}
+  if(changed)props.setProperty('TIMETREE_VIEW_SOURCE_REV',Utilities.getUuid());
   props.setProperty('TIMETREE_LAST_IMPORT_AT',now.toISOString());
   return {ok:true,acceptedIds:accepted,changed:changed};
 }
-function timeTreeList_(u,company){
+function timeTreeList_(u,company,query){
+  var window=ttCalendarWindow_(query);
+  if(window)return ttWindowList_(u,company,window);
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TT_EVENTS_),events=[];
   if(sh&&sh.getLastRow()>1)sh.getRange(2,1,sh.getLastRow()-1,5).getValues().forEach(function(r){
     var e=JSON.parse(r[3]);if(e.targets.indexOf(company)<0)return;
@@ -63,7 +66,53 @@ function timeTreeList_(u,company){
   });
   return {ok:true,events:events,lastImportAt:PropertiesService.getScriptProperties().getProperty('TIMETREE_LAST_IMPORT_AT')||null};
 }
-function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);var result=timeTreeList_(u,'Hi Service');result.events=jobCompletionOverlay_(result.events,'Hi Service');return result;}
+function hiCalendar_(body){var u=auth_(body,['Admin','Technician','Worker']);var result=timeTreeList_(u,'Hi Service',body);result.events=jobCompletionOverlay_(result.events,'Hi Service');return result;}
+
+function ttCalendarWindow_(query){
+  if(!query||(!query.from&&!query.to&&!query.bookingId))return null;
+  if(query.bookingId){if(!/^tt:\d+:[A-Za-z0-9_-]+$/.test(String(query.bookingId)))throw Error('Invalid booking ID');return {bookingId:String(query.bookingId)};}
+  var from=String(query.from||''),to=String(query.to||'');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||from>to||!isFinite(Date.parse(from))||!isFinite(Date.parse(to))||Date.parse(to)-Date.parse(from)>370*86400000)throw Error('Calendar date range must be valid and at most 371 days');
+  if(new Date(Date.parse(from)).toISOString().slice(0,10)!==from||new Date(Date.parse(to)).toISOString().slice(0,10)!==to)throw Error('Invalid calendar date');
+  return {from:from,to:to,min:Date.parse(from)-86400000,max:Date.parse(to)+2*86400000};
+}
+function ttCalendarIndex_(){
+  var props=PropertiesService.getScriptProperties(),ss=SpreadsheetApp.getActiveSpreadsheet(),rev=props.getProperty('TIMETREE_VIEW_SOURCE_REV')||'initial';
+  var name='TimeTreeCalendarIndex',index=ss.getSheetByName(name);
+  if(index&&props.getProperty('TIMETREE_VIEW_INDEX_REV')===rev)return index;
+  var lock=LockService.getUserLock();lock.waitLock(15000);
+  try{
+    rev=props.getProperty('TIMETREE_VIEW_SOURCE_REV')||'initial';index=ss.getSheetByName(name);
+    if(index&&props.getProperty('TIMETREE_VIEW_INDEX_REV')===rev)return index;
+    var source=ss.getSheetByName(TT_EVENTS_),rows=source&&source.getLastRow()>1?source.getRange(2,1,source.getLastRow()-1,5).getValues():[];
+    var views=rows.filter(function(r){return !!r[0];}).map(function(r){
+      var e=JSON.parse(r[3]);delete e.raw;e.updatedAt=r[4] instanceof Date?r[4].getTime():Number(r[4])||0;
+      return [String(r[0]),Number(e.startAt)||0,Number(e.endAt)||0,!!(e.recurrences&&e.recurrences.length),JSON.stringify(e)];
+    });
+    index=ttSheet_(name,['ID','Start ms','End ms','Recurring','View JSON']);
+    var previous=index.getLastRow()-1;
+    if(views.length){if(index.getMaxRows()<views.length+1)index.insertRowsAfter(index.getMaxRows(),views.length+1-index.getMaxRows());index.getRange(2,1,views.length,5).setValues(views);}
+    if(previous>views.length)index.getRange(views.length+2,1,previous-views.length,5).clearContent();
+    if((props.getProperty('TIMETREE_VIEW_SOURCE_REV')||'initial')!==rev)throw Error('Calendar changed during indexing; retry once');
+    props.setProperty('TIMETREE_VIEW_INDEX_REV',rev);return index;
+  }finally{lock.releaseLock();}
+}
+function ttWindowList_(u,company,window){
+  var sh=ttCalendarIndex_(),n=sh.getLastRow()-1,events=[],selected=[];
+  if(n>0){
+    if(window.bookingId){var found=sh.getRange(2,1,n,1).createTextFinder(window.bookingId).matchEntireCell(true).useRegularExpression(false).findNext();if(found)selected.push(found.getRow());}
+    else sh.getRange(2,1,n,4).getValues().forEach(function(r,i){if(r[0]&&(r[3]===true||String(r[3])==='true'||Number(r[1])<=window.max&&Number(r[2])>=window.min))selected.push(i+2);});
+    // Adjacent matching rows are read together. Unrelated booking JSON stays on the server.
+    for(var i=0;i<selected.length;){var start=selected[i],count=1;while(i+count<selected.length&&selected[i+count]===start+count&&count<200)count++;
+      sh.getRange(start,5,count,1).getValues().forEach(function(r){
+        var e=JSON.parse(r[0]);
+        if(!window.bookingId&&!(e.recurrences&&e.recurrences.length)&&(e.date>window.to||e.endDate<window.from))return;
+        if(e.targets.indexOf(company)>=0&&ttTagVisible_(e,company,u))events.push(e);
+      });i+=count;
+    }
+  }
+  return {ok:true,events:events,lastImportAt:PropertiesService.getScriptProperties().getProperty('TIMETREE_LAST_IMPORT_AT')||null,from:window.from||null,to:window.to||null};
+}
 
 function ttTagKey_(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s*([/\-])\s*/g,'$1').replace(/\s+/g,' ');}
 function ttEventTags_(e){return (Array.isArray(e.tags)&&e.tags.length?e.tags:[e.jobType||'']).map(function(t){return ttTagKey_(typeof t==='object'?t.name:t);});}
@@ -80,3 +129,4 @@ function ttTagVisible_(e,company,user){
   if(company==='Flagship Solar')return matches.some(function(t){return t==='flagship electric'?names.some(function(n){return ['jacobus','frank','ian','sangwani','sangwannyasulu','michael'].indexOf(n)>=0;}):names.indexOf(t)>=0;});
   return matches.some(function(t){return t.split(/[\/\-]/).some(function(n){return names.indexOf(n)>=0||(n==='kai'&&names.indexOf('kia')>=0)||(n==='allaistair'&&names.indexOf('allistair')>=0);});});
 }
+

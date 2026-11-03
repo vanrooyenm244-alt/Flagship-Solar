@@ -595,7 +595,7 @@ function workerTabError_(message) {
 }
 function workerTabKey_(name) { return String(name).trim().toLowerCase(); }
 function reservedWorkerTabs_() {
-  return Object.keys(SHEETS).concat(['Summary', 'Sheet1','UserPermissions','TimeTreeEvents','TimeTreeHistory','TimeTreeSourceArchive',
+  return Object.keys(SHEETS).concat(['Summary', 'Sheet1','UserPermissions','TimeTreeEvents','TimeTreeHistory','TimeTreeSourceArchive','TimeTreeCalendarIndex',
     'Timesheet Audit','Timesheet Approvals','Flagship Clock Events','Hi Clock Events','PurchaseOrders',
     typeof STOCK_SHEET === 'string' ? STOCK_SHEET : 'Stock',
     typeof STOCK_COUNT_SHEET === 'string' ? STOCK_COUNT_SHEET : 'Stock_Counts']).map(workerTabKey_);
@@ -1491,7 +1491,9 @@ function jobCardAssigned_(technicians,name){
 function jobCardsList_(body){
   var u=auth_(body,['Admin','Technician','Worker']);
   var sh=jobCardsSheet_(),n=sh.getLastRow(); if(n<2)return {ok:true,jobCards:[]};
-  var vals=sh.getRange(2,1,n-1,12).getValues(),out=[];
+  var selected=String(body.id||''),vals,out=[];
+  if(selected){var match=sh.getRange(2,1,n-1,1).createTextFinder(selected).matchEntireCell(true).useRegularExpression(false).findNext();vals=match?sh.getRange(match.getRow(),1,1,12).getValues():[];}
+  else vals=sh.getRange(2,1,n-1,12).getValues();
   vals.forEach(function(r){
     if(!r[0])return;
     if(u.role==='Worker' && !jobCardAssigned_(r[5],u.name))return;
@@ -1555,7 +1557,7 @@ function jobCardDeleteLocked_(body){
 }
 
 /* ================= CALENDAR / SCHEDULING ================= */
-function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar'):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:jobCompletionOverlay_(mirror.events,'Flagship Solar'),lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:jobCompletionOverlay_(out.concat(mirror.events),'Flagship Solar'),lastImportAt:mirror.lastImportAt};}
+function calendarList_(body){var u=auth_(body,['Admin','Technician','Worker']),sh=sheet_('Calendar'),n=sh.getLastRow();var mirror=typeof timeTreeList_==='function'?timeTreeList_(u,'Flagship Solar',body):{events:[],lastImportAt:null};if(n<2)return {ok:true,events:jobCompletionOverlay_(mirror.events,'Flagship Solar'),lastImportAt:mirror.lastImportAt};var out=[];sh.getRange(2,1,n-1,12).getValues().forEach(function(r){if(!r[0])return;if(u.role==='Worker'&&!jobCardAssigned_(r[6],u.name))return;out.push({id:String(r[0]),customer:String(r[1]),site:String(r[2]),date:dateStr_(r[3]),startTime:String(r[4]||''),endTime:String(r[5]||''),technician:String(r[6]||''),company:String(r[7]||''),jobType:String(r[8]||''),notes:String(r[9]||''),status:String(r[10]||'SCHEDULED'),updatedAt:r[11] instanceof Date?r[11].getTime():Number(r[11])||0});});return {ok:true,events:jobCompletionOverlay_(out.concat(mirror.events),'Flagship Solar'),lastImportAt:mirror.lastImportAt};}
 /* Completion tracking is separate from TimeTree and the Quote Job List.
  * Every change is append-only, authenticated, and scoped to one event and date. */
 var JOB_COMPLETION_SPREADSHEET_ID_='1Kz4shFHxg5XzCGqsj68TEFEszbVooemi5AEhfklvVPs';
@@ -1725,7 +1727,7 @@ function attendanceLegacyGet_(e) {
     if (p.action === 'proposalView') return proposalPublicHtml_(p.token||'');
     if (p.action === 'proposalAccept') { var pa=proposalAccept_(p.token||'',p.name||''); return HtmlService.createHtmlOutput('<h2>'+ (pa.ok?'Proposal accepted':'Acceptance failed') +'</h2><p>'+escXeroHtml_(pa.ok?'Your acceptance has been recorded. Flagship Solar will now process the accepted proposal.':(pa.error||'Unknown error'))+'</p>'); }
 
-    var body = { user:p.user,pass:p.pass,action:p.action,company:p.company };
+    var body = { user:p.user,pass:p.pass,action:p.action,company:p.company,id:p.id,from:p.from,to:p.to,bookingId:p.bookingId };
     var access=permissionGet_(p,body);if(access)return access;
 
     if (p.action === 'me') {
@@ -1819,7 +1821,7 @@ function attendanceLegacyGet_(e) {
     if (p.action === 'xeroCreateContact') return out_(xeroCreateContact_(body));
     if (p.action === 'jobCards') { return out_(jobCardsList_(body)); }
     if (p.action === 'hiCalendar') { if(typeof hiCalendar_!=='function')throw Error('Deploy TimeTree.gs to enable the calendar');return out_(hiCalendar_(body)); }
-    if (p.action === 'hiTimeTreePhotos') { if(typeof hiTimeTreePhotos_!=='function')throw Error('Deploy HiTimeTreePhotos.gs first');body.bookingId=p.bookingId;return out_(hiTimeTreePhotos_(body)); }
+    if (p.action === 'hiTimeTreePhotos') { if(typeof hiTimeTreePhotos_!=='function')throw Error('Deploy HiTimeTreePhotos.gs first');body.bookingId=p.bookingId;body.refresh=p.refresh==='true';return out_(hiTimeTreePhotos_(body)); }
     if (p.action === 'calendar') { return out_(calendarList_(body)); }
 
 
@@ -2203,3 +2205,4 @@ function testPrices() {
   Logger.log("PRICE COUNT: " + rows.length);
   Logger.log(JSON.stringify(rows.slice(0, 3)));
 }
+

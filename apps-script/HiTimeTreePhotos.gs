@@ -12,26 +12,21 @@ function hiTimeTreePhotos_(body) {
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('TimeTreeEvents');
   if(!sh||sh.getLastRow()<2)throw Error('No mirrored bookings');
   var source=null;
-  sh.getRange(2,1,sh.getLastRow()-1,5).getValues().some(function(row){
-    if(String(row[0])!==id)return false;
-    source=JSON.parse(String(row[3]||'{}'));return true;
-  });
+  var found=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(id).matchEntireCell(true).useRegularExpression(false).findNext();
+  if(found)source=JSON.parse(String(sh.getRange(found.getRow(),4).getValue()||'{}'));
   if(!source||String(source.sourceCalendarId)!==m[1]||
      String(source.sourceEventId)!==m[2]||
      source.status==='ARCHIVED'||
      !Array.isArray(source.targets)||source.targets.indexOf('Hi Service')<0||
      !ttTagVisible_(source,'Hi Service',user))
     throw Error('TimeTree booking is unavailable for this Hi Service user');
-  var props=PropertiesService.getScriptProperties();
-  var email=props.getProperty('TIMETREE_EMAIL'),password=props.getProperty('TIMETREE_PASSWORD');
-  if(!email||!password)throw Error('TimeTree read credentials are not configured');
-  var login;try{login=ttFetch_('/auth/email/signin','',{uid:email,password:password,uuid:Utilities.getUuid().replace(/-/g,'')});}catch(err){throw Error('TimeTree sign-in failed: '+String(err.message||err));}
-  var cookie=ttCookie_(login.headers);
-  if(!cookie)throw Error('TimeTree did not issue a session');
+  var folder=hiTimeTreePhotoFolder_(false),cached=hiTimeTreeCachedPhotos_(folder,id);
+  if(cached&&body.refresh!==true)return cached;
+  var cookie=ttSessionCookie_();
   var endpoint='/calendar/'+encodeURIComponent(m[1])+'/event/'+encodeURIComponent(m[2])+'/activities';
   var records=[],cursor=null,seen={};
   for(var page=0;page<5;page++){
-    var response;try{response=ttFetch_(endpoint+(cursor===null?'':'?since='+encodeURIComponent(cursor)),cookie).json;}catch(err){throw Error('TimeTree activity request failed: '+String(err.message||err));}
+    var response;try{response=ttSessionFetch_(endpoint+(cursor===null?'':'?since='+encodeURIComponent(cursor))).json;}catch(err){throw Error('TimeTree activity request failed: '+String(err.message||err));}
     var feed=response&&(Array.isArray(response.event_activities)?response.event_activities:response.activities);
     if(!Array.isArray(feed))throw Error('TimeTree activity response schema changed');
     records=records.concat(feed);
@@ -40,6 +35,7 @@ function hiTimeTreePhotos_(body) {
     if(response.since==null||seen[String(response.since)])throw Error('TimeTree activity cursor invalid');
     seen[String(response.since)]=true;cursor=response.since;
   }
+  if(response&&response.chunk===true)throw Error('TimeTree activity page limit reached; no partial photo archive saved');
   var links=[],used={};
   function add(raw){
     if(!raw||typeof raw!=='object')return;
@@ -82,9 +78,8 @@ function hiTimeTreePhotos_(body) {
   });
   // Cache source images in a restricted Drive folder so revisiting a job card
   // works even if TimeTree changes an attachment's temporary URL.
-  var folderName='HiServiceTimeTreeJobCardPhotos',root=DriveApp.getRootFolder();
-  var folders=root.getFoldersByName(folderName);
-  var folder=folders.hasNext()?folders.next():root.createFolder(folderName);
+  folder=folder||hiTimeTreePhotoFolder_(true);
+  cookie=ttSessionCookie_();
   var photos=[],failures=0;
   links.slice(0,12).forEach(function(url,i){
     var hash=ttDigest_(id+'|'+url),existing=folder.getFilesByName(hash);
@@ -104,6 +99,40 @@ function hiTimeTreePhotos_(body) {
     if(bytes.length>2000000||!/^image\/(?:jpeg|png|webp)$/.test(mime)){failures++;return;}
     photos.push({id:hash,name:'TimeTree photo '+(i+1),mimeType:mime,dataUrl:'data:'+mime+';base64,'+Utilities.base64Encode(bytes)});
   });
+  if(photos.length&&failures===0)hiTimeTreeSaveManifest_(folder,id,photos.map(function(p){return p.id;}));
   return {ok:true,bookingId:id,photos:photos,activityCount:records.length,discoveredUrls:links.length,downloaded:photos.length,failedDownloads:failures,
     note:links.length===0?'No supported image attachment URLs were found in TimeTree activities. Verify source format.':''};
 }
+function hiTimeTreePhotoFolder_(create){
+  var root=DriveApp.getRootFolder(),folders=root.getFoldersByName('HiServiceTimeTreeJobCardPhotos');
+  return folders.hasNext()?folders.next():(create?root.createFolder('HiServiceTimeTreeJobCardPhotos'):null);
+}
+function hiTimeTreeManifestName_(id){return 'booking-'+ttDigest_(id)+'.json';}
+function hiTimeTreeSaveManifest_(folder,id,ids){
+  var name=hiTimeTreeManifestName_(id),data=JSON.stringify({version:1,bookingId:id,ids:ids}),files=folder.getFilesByName(name);
+  if(files.hasNext())files.next().setContent(data);
+  else folder.createFile(Utilities.newBlob(data,'application/json',name));
+}
+function hiTimeTreeCachedPhotos_(folder,id){
+  if(!folder)return null;
+  var files=folder.getFilesByName(hiTimeTreeManifestName_(id)),ids=null,photos=[];
+  if(files.hasNext()){
+    try{var manifest=JSON.parse(files.next().getBlob().getDataAsString());if(manifest.version===1&&manifest.bookingId===id&&Array.isArray(manifest.ids))ids=manifest.ids;}catch(ignore){return null;}
+  }else if(typeof folder.searchFiles==='function'){
+    // Recover photos cached before manifests existed, without a TimeTree login.
+    var old=folder.searchFiles("description contains 'Hi Service booking "+id+"'");ids=[];
+    while(old.hasNext()&&ids.length<12){var f=old.next();if(f.getDescription()==='Hi Service booking '+id&&/^[a-f0-9]{64}$/.test(f.getName()))ids.push(f.getName());}
+    if(!ids.length)return null;
+    hiTimeTreeSaveManifest_(folder,id,ids);
+  }
+  if(!ids||!ids.length)return null;
+  for(var i=0;i<Math.min(ids.length,12);i++){
+    if(!/^[a-f0-9]{64}$/.test(String(ids[i])))return null;
+    var matches=folder.getFilesByName(ids[i]);if(!matches.hasNext())return null;
+    var file=matches.next(),mime=String(file.getMimeType()||'').toLowerCase(),bytes=file.getBlob().getBytes();
+    if(!/^image\/(?:jpeg|png|webp)$/.test(mime)||bytes.length>2000000)return null;
+    photos.push({id:ids[i],name:'TimeTree photo '+(i+1),mimeType:mime,dataUrl:'data:'+mime+';base64,'+Utilities.base64Encode(bytes)});
+  }
+  return {ok:true,bookingId:id,photos:photos,downloaded:photos.length,failedDownloads:0,cached:true};
+}
+

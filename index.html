@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v154-completion">
+<meta name="flagship-release" content="flagship-ops-v155-performance">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -1678,6 +1678,7 @@ var CAL_DATE=new Date(), CAL_ALL=false, CAL_MODE_INIT=false;
 function calPad_(n){return String(n).padStart(2,'0');}
 function calDateKey_(d){return d.getFullYear()+'-'+calPad_(d.getMonth()+1)+'-'+calPad_(d.getDate());}
 function calEsc_(x){return esc(x||'');}
+function calWindow_(){return {from:calDateKey_(new Date(CAL_DATE.getFullYear(),CAL_DATE.getMonth(),-6)),to:calDateKey_(new Date(CAL_DATE.getFullYear(),CAL_DATE.getMonth()+1,7))};}
 function flagshipHomeToday_(){
  var box=document.getElementById('fsTodayBookings');if(!box||!ME)return;
  box.textContent='Checking your schedule…';
@@ -1747,12 +1748,12 @@ function showCalendar(force){
   if(!hasPermission_('calendar.view')){showHome();return;}
   if(!CAL_MODE_INIT){CAL_ALL=ME&&ME.role!=='Worker';CAL_MODE_INIT=true;}
   backTo='screenHome';show('screenCalendar');calRender_();
-  var who=calOwner_();
+  var who=calOwner_(),window=calWindow_(),requestKey=who+'|'+window.from+'|'+window.to;
   if(!CFG.url){document.getElementById('calSyncStatus').textContent='Showing bookings saved on this phone.';return;}
-  if(force!==true&&CAL_SYNC_OWNER===who&&Date.now()-CAL_SYNC_AT<60000)return;
-  if(CAL_SYNC&&CAL_SYNC.owner===who)return CAL_SYNC.promise;
+  if(force!==true&&CAL_SYNC_OWNER===requestKey&&Date.now()-CAL_SYNC_AT<60000)return;
+  if(CAL_SYNC&&CAL_SYNC.owner===requestKey)return CAL_SYNC.promise;
   document.getElementById('calSyncStatus').textContent='Showing saved bookings · Updating…';
-  var request=apiGet({action:'calendar'}).then(function(j){
+  var request=apiGet({action:'calendar',from:window.from,to:window.to}).then(function(j){
     if(who!==calOwner_()||!hasPermission_('calendar.view'))return;
     if(!Array.isArray(j.events))throw Error('Invalid calendar response');
     CAL_LIVE_EVENTS=j.events;CAL_LIVE_OWNER=who;
@@ -1762,7 +1763,7 @@ function showCalendar(force){
       console.warn('Calendar offline cache unavailable',error);
       document.getElementById('calSyncStatus').textContent='Showing live bookings · Offline cache unavailable.';
     }).then(function(){if(who!==calOwner_())return;
-      CAL_SYNC_OWNER=who;CAL_SYNC_AT=Date.now();
+      CAL_SYNC_OWNER=requestKey;CAL_SYNC_AT=Date.now();
       if(document.getElementById('calSyncStatus').textContent.indexOf('Offline cache unavailable')<0){
         document.getElementById('calSyncStatus').textContent=j.lastImportAt?'TimeTree updated '+new Date(j.lastImportAt).toLocaleString():'No TimeTree import yet.';
       }
@@ -1770,7 +1771,7 @@ function showCalendar(force){
     });
   }).catch(function(err){if(who===calOwner_())document.getElementById('calSyncStatus').textContent='Showing saved bookings · Update failed: '+err.message;
   }).finally(function(){if(CAL_SYNC&&CAL_SYNC.promise===request)CAL_SYNC=null;});
-  CAL_SYNC={owner:who,promise:request};return request;
+  CAL_SYNC={owner:requestKey,promise:request};return request;
 }
 function calRender_(){
   var render=++CAL_RENDER;
@@ -1810,13 +1811,13 @@ function calOpen_(id){
   var type=JC_TYPES.find(function(t){return t.id===e.jobType||t.name===e.jobType;});card.types=type?[type.id]:[];card.calendarEventId=e.id;
   return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id,false,'screenCalendar');});
 }).catch(function(e){alert('Could not open calendar job: '+e.message);}).finally(function(){delete calOpening_[id];});}
-function calShiftMonth_(delta){CAL_DATE.setDate(1);CAL_DATE.setMonth(CAL_DATE.getMonth()+delta);if(CAL_VIEW==='day')CAL_VIEW='agenda';calRender_();}
+function calShiftMonth_(delta){CAL_DATE.setDate(1);CAL_DATE.setMonth(CAL_DATE.getMonth()+delta);if(CAL_VIEW==='day')CAL_VIEW='agenda';showCalendar();}
 document.getElementById('calNew').addEventListener('click',function(){document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);});
 document.getElementById('calCancel').addEventListener('click',function(){document.getElementById('calForm').classList.add('hidden');});
 document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
 document.getElementById('calPrev').addEventListener('click',function(){calShiftMonth_(-1);});
 document.getElementById('calNext').addEventListener('click',function(){calShiftMonth_(1);});
-document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();CAL_DAY=calDateKey_(CAL_DATE);if(CAL_VIEW==='day')CAL_VIEW='agenda';calRender_();});
+document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();CAL_DAY=calDateKey_(CAL_DATE);if(CAL_VIEW==='day')CAL_VIEW='agenda';showCalendar();});
 document.getElementById('calSave').addEventListener('click',function(){var e={id:'cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:document.getElementById('calTech').value.trim(),company:document.getElementById('calCompany').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job saved on this phone; syncing…';document.getElementById('calForm').classList.add('hidden');calRender_();return api({action:'calendarSave',event:e}).then(function(j){if(!j.id||j.id!==e.id)throw new Error('Invalid calendar acknowledgement.');e.updatedAt=Number(j.updatedAt)||e.updatedAt;e.source='server';return put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled and synced.';calRender_();});}).catch(function(err){document.getElementById('calMsg').textContent='Saved on this phone; calendar sync failed: '+String(err.message||err);});});});
 
 /* ============ screens ============ */
@@ -6370,4 +6371,5 @@ fsClockRefresh_();
 
 <script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script></body>
 </html>
+
 
