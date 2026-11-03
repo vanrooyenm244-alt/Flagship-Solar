@@ -86,3 +86,8 @@ function timeTreeRetryConnectionOnce(){
   p.setProperty('TIMETREE_AUTH_RETRY_AFTER','0');
   return timeTreeConnectionCheck();
 }
+
+function timeTreeCredentialShapeCheck(){
+  var p=PropertiesService.getScriptProperties(),email=String(p.getProperty('TIMETREE_EMAIL')||''),password=String(p.getProperty('TIMETREE_PASSWORD')||'');
+  console.log(JSON.stringify({matchesOpenAccount:email.trim().toLowerCase()==='info@hiservice.co.za',emailHasOuterWhitespace:email!==email.trim(),passwordAtLeastEightCharacters:password.length>=8,passwordHasOuterWhitespace:password!==password.trim()}));
+}
