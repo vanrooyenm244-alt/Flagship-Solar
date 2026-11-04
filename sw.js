@@ -1,5 +1,5 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v158-calendar-team-notifications';
+const CACHE = 'flagship-ops-v159-login-parse-fix';
 const SHELL = [
   "./",
   "./index.html",
