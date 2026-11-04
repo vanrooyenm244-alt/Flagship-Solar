@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v157-calendar-team-notifications-nav">
+<meta name="flagship-release" content="flagship-ops-v158-calendar-team-notifications-nav">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -5559,7 +5559,7 @@ document.getElementById('stPrintReport').onclick=function(){if(!STOCK_DAILY_REPO
   function updatePermissionStatus_(){var b=$('calEnableNotifications'),s=$('calNotificationStatus');if(!b||!s)return;if(!('Notification'in window)){b.disabled=true;s.textContent='Notifications are not supported on this browser.';return;}var p=Notification.permission;b.textContent=p==='granted'?'Notifications enabled':p==='denied'?'Notifications blocked':'Enable notifications';s.textContent=p==='granted'?'Job and appointment alerts are on.':p==='denied'?'Allow notifications in browser settings.':'Enable this once to receive job and appointment alerts.';}
   async function enableNotifications_(){if(!('Notification'in window)){updatePermissionStatus_();return;}try{await Notification.requestPermission();updatePermissionStatus_();pollCalendarNotifications_();}catch(e){$('calNotificationStatus').textContent='Could not enable notifications.';}}
   function showNotification_(n){if(!('Notification'in window)||Notification.permission!=='granted')return Promise.resolve(false);var options={body:n.body||'',tag:n.id,data:{url:location.origin+location.pathname+'#screen-screenCalendar'},icon:'./icon-192.png',badge:'./icon-192.png'};if('serviceWorker'in navigator)return navigator.serviceWorker.ready.then(function(reg){return reg.showNotification(n.title||'Appointment',options);}).then(function(){return true;});new Notification(n.title||'Appointment',options);return Promise.resolve(true);}
-  async function pollCalendarNotifications_(){if(!window.ME||document.hidden||!('Notification'in window)||Notification.permission!=='granted'||!window.hasPermission_||!hasPermission_('calendar.view'))return;try{var r=await api({action:'calendarNotifications',company:'Flagship Solar'}),items=Array.isArray(r.notifications)?r.notifications:[],done=[];for(var i=0;i<items.length;i++)if(await showNotification_(items[i]))done.push(items[i].id);if(done.length)await api({action:'calendarNotificationsAck',company:'Flagship Solar',notificationIds:done});}catch(e){}}
+  async function pollCalendarNotifications_(){if(!window.ME||!('Notification'in window)||Notification.permission!=='granted'||!window.hasPermission_||!hasPermission_('calendar.view'))return;try{var r=await api({action:'calendarNotifications',company:'Flagship Solar'}),items=Array.isArray(r.notifications)?r.notifications:[],done=[];for(var i=0;i<items.length;i++)if(await showNotification_(items[i]))done.push(items[i].id);if(done.length)await api({action:'calendarNotificationsAck',company:'Flagship Solar',notificationIds:done});}catch(e){}}
   $('calEnableNotifications').addEventListener('click',enableNotifications_);
   updatePermissionStatus_();pollCalendarNotifications_();setInterval(pollCalendarNotifications_,30000);
   var nav=$('fsBottomNav');
