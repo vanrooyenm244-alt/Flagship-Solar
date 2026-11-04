@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v161-quote-job-links">
+<meta name="flagship-release" content="flagship-ops-v162-calendar-search">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -772,7 +772,7 @@ table.page{border-collapse:collapse}
   <script src="./supabase-config.js?release=flagship-ops-v151-attendance"></script>
   <script src="./supabase-client.js?release=flagship-ops-v151-attendance"></script>
   <script src="./timesheet-sync.js?release=flagship-ops-v151-attendance"></script>
-<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance"></script><link rel="stylesheet" href="calendar-ui.364cf824c602.css?release=flagship-ops-v151-attendance"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style><link rel="stylesheet" href="./ops-theme.css?release=20261104-bottom-nav"><script defer src="./ops-theme.js?release=20261029"></script></head>
+<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance"></script><link rel="stylesheet" href="calendar-ui.3af45a53ee89.css?release=flagship-ops-v151-attendance"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style><link rel="stylesheet" href="./ops-theme.css?release=20261104-bottom-nav"><script defer src="./ops-theme.js?release=20261029"></script></head>
 <body>
 
 
@@ -879,7 +879,7 @@ table.page{border-collapse:collapse}
       <button class="btn ghost" id="calToggleMode" type="button">All jobs</button><button class="btn" id="calNew" type="button">+ Schedule job</button><button class="btn ghost" id="calEnableNotifications" type="button">Enable notifications</button><span id="calNotificationStatus" class="hint" role="status"></span>
     </div>
     <div class="cal-toolbar"><h3 id="calTitle"></h3><a href="https://timetreeapp.com/calendars/tWArSY8T3wtt" target="_blank" rel="noopener noreferrer">Open TimeTree ↗</a><button class="btn ghost" id="calRefresh" type="button">Refresh</button><div class="cal-switch"><button id="calAgenda" aria-pressed="true">Agenda</button><button id="calMonth" aria-pressed="false">Month</button></div></div>
-    <p id="calSyncStatus" style="font-size:12px" role="status"></p><div id="calGrid"></div><div id="calTTDetails" class="cal-details hidden"><pre id="calTTText" style="white-space:pre-wrap;font:inherit"></pre><a id="calTTSource" target="_blank" rel="noopener noreferrer">Open booking in TimeTree</a><button class="btn ghost" type="button" onclick="document.getElementById('calTTDetails').classList.add('hidden')">Close</button></div>
+    <div class="cal-search-wrap"><input id="calSearch" class="cal-search" type="search" placeholder="Search customer name or address" aria-label="Search calendar by customer name or address" autocomplete="off"></div><p id="calSyncStatus" style="font-size:12px" role="status"></p><div id="calGrid"></div><div id="calTTDetails" class="cal-details hidden"><pre id="calTTText" style="white-space:pre-wrap;font:inherit"></pre><a id="calTTSource" target="_blank" rel="noopener noreferrer">Open booking in TimeTree</a><button class="btn ghost" type="button" onclick="document.getElementById('calTTDetails').classList.add('hidden')">Close</button></div>
     <div id="calForm" class="hidden" style="margin-top:15px;border-top:1px solid #ddd;padding-top:15px">
       <h3>Schedule Job</h3>
       <div id="jcDetailsPane"><div class="jc-grid2">
@@ -1782,12 +1782,14 @@ function calRender_(){
       CAL_LIVE_EVENTS.forEach(function(e){combined.set(e.id,e);});
       items=Array.from(combined.values());
     }
-    items=items.filter(calIsMine_);
+    var query=(document.getElementById('calSearch').value||'').trim().toLocaleLowerCase();
+    items=items.filter(calIsMine_).filter(function(e){return !query||[e.customer,e.title,e.name,e.site,e.address].filter(Boolean).join(' ').toLocaleLowerCase().indexOf(query)!==-1;});
     document.getElementById('calTitle').textContent=CAL_DATE.toLocaleString(undefined,{month:'long',year:'numeric'});
     document.getElementById('calModeTag').textContent=CAL_ALL?'All jobs':'My jobs';
     document.getElementById('calToggleMode').textContent=CAL_ALL?'My jobs':'All jobs';
     document.getElementById('calAgenda').setAttribute('aria-pressed',String(CAL_VIEW==='agenda'));
     document.getElementById('calMonth').setAttribute('aria-pressed',String(CAL_VIEW==='month'));
+    if(query&&!items.length){document.getElementById('calGrid').textContent='No bookings match your search.';return;}
     var view=TimeTreeCalendar.layout(items,CAL_DATE,CAL_VIEW,'data-cal-open',CAL_DAY);
     if(view.errors.length)document.getElementById('calSyncStatus').textContent='Some recurring bookings need review: '+view.errors.join('; ');
     document.getElementById('calGrid').innerHTML=view.html;
@@ -1797,6 +1799,7 @@ function calRender_(){
   });
 }
 document.getElementById('calRefresh').onclick=function(){showCalendar(true);};
+document.getElementById('calSearch').addEventListener('input',function(){calRender_();});
 document.getElementById('calAgenda').onclick=function(){CAL_VIEW='agenda';calRender_();};
 document.getElementById('calMonth').onclick=function(){CAL_VIEW='month';calRender_();};
 var calOpening_=Object.create(null);

@@ -1,7 +1,8 @@
 {
-  "version": "flagship-ops-v159-login-parse-fix",
-  "date": "2026-11-04",
+  "version": "flagship-ops-v162-calendar-search",
+  "date": "2026-11-05",
   "changes": [
+    "Calendar search now finds bookings by part of a customer name or site address.",
     "Flagship adds a persistent mobile bottom navigation bar for Home, Calendar, Estimates, Stock and Settings.",
     "Calendar scheduling assigns one or more active technicians by user account and sends job-created, 30-minute and 5-minute appointment notifications to their app.",
     "Load calendar date ranges and individual job cards without transferring the full history.",
