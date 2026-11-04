@@ -1,7 +1,9 @@
 {
-  "version": "flagship-ops-v155-performance",
-  "date": "2026-11-03",
+  "version": "flagship-ops-v156-calendar-team-notifications-nav",
+  "date": "2026-11-04",
   "changes": [
+    "Flagship adds a persistent mobile bottom navigation bar for Home, Calendar, Estimates, Stock and Settings.",
+    "Calendar scheduling assigns one or more active technicians by user account and sends job-created, 30-minute and 5-minute appointment notifications to their app.",
     "Load calendar date ranges and individual job cards without transferring the full history.",
     "Reuse server TimeTree sessions, pause failed sign-ins, and read archived photos without reconnecting to TimeTree.",
     "Technicians can mark today's booking as completed or reopened, with central audit history and recurring-date scope.",
