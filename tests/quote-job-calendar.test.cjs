@@ -37,7 +37,7 @@ test('forged source and booking ID fail before writing; company edits invalidate
 });
 function browser(hash,identity=''){
  const listeners={},status=[],fills=[],reads=[],location={hash,pathname:'/Hi-Service/',search:''};
- const w={location,history:{state:{},replaceState(state,title,url){location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},addEventListener:(name,fn)=>listeners[name]=fn};
+ const w={location,history:{state:{},replaceState(state,title,url){location.hash=url.includes('#')?'#'+url.split('#')[1]:'';location.search=url.includes('?')?'?'+url.split('?')[1].split('#')[0]:'';}},addEventListener:(name,fn)=>listeners[name]=fn};
  vm.runInNewContext(fs.readFileSync('quote-job-calendar.js','utf8'),{window:w,URLSearchParams});
  let who=identity,resolve;const a={company:'hi',identity:()=>who,allowed:()=>true,calendar(){},status:(...x)=>status.push(x),read:no=>{reads.push(no);return new Promise(r=>resolve=r);},fill:(...x)=>fills.push(x)};
  w.QuoteJobCalendar.init(a);return {w,a,status,fills,reads,listeners,setWho:x=>who=x,respond:r=>resolve(r)};
@@ -60,3 +60,6 @@ test('inline HTML scripts and changed server scripts parse',()=>{
  const html=fs.readFileSync('index.html','utf8');for(const m of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi))if(m[1].trim())new vm.Script(m[1]);
  assert.equal((html.match(/src="\.\/quote-job-calendar\.js/g)||[]).length,1);
 });
+
+test('query booking survives the existing app navigation replacing the hash',async()=>{const x=browser('#ops-home');x.w.location.search='?book-job=300&company=hi';x.setWho('manager');x.listeners['app-session-ready']();assert.deepEqual(x.reads,['300']);x.w.location.hash='#ops-calendar';x.respond({ok:true,job:{jobNo:'300'}});await tick();assert.equal(x.fills.length,1);x.w.QuoteJobCalendar.clear();assert.equal(x.w.location.search,'');assert.equal(x.w.location.hash,'#ops-calendar');});
+test('opening the existing New Job form cannot clear the pending booking during prefill',async()=>{const x=browser('#book-job=300&company=hi','manager');x.a.fill=()=>x.w.QuoteJobCalendar.clear();x.respond({ok:true,job:{jobNo:'300'}});await tick();assert.equal(x.w.location.hash,'#book-job=300&company=hi');});

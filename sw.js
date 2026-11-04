@@ -1,7 +1,7 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v160-quote-job-calendar';
+const CACHE = 'flagship-ops-v161-quote-job-links';
 const SHELL = [
-  "./quote-job-calendar.js?release=20261104-step1",
+  "./quote-job-calendar.js?release=20261104-step1-query",
   "./",
   "./index.html",
   "./ops-theme.css?release=20261104-bottom-nav",

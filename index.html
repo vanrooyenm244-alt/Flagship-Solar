@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v160-quote-job-calendar">
+<meta name="flagship-release" content="flagship-ops-v161-quote-job-links">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -6409,14 +6409,14 @@ fsClockRefresh_();
   <button type="button" data-screen="screenStock" data-permission="stock.view" aria-label="Stock"><span aria-hidden="true">▣</span><small>Stock</small></button>
   <button type="button" data-screen="screenSettings" aria-label="Settings"><span aria-hidden="true">⚙</span><small>Settings</small></button>
 </nav>
-<script src="./quote-job-calendar.js?release=20261104-step1"></script><script>
+<script src="./quote-job-calendar.js?release=20261104-step1-query"></script><script>
 QuoteJobCalendar.init({
  company:'fs',identity:function(){return ME&&ME.username?JSON.stringify([ME.username,ME.pass,CFG.url]):'';},
  allowed:function(){return ME&&ME.role!=='Worker'&&hasPermission_('calendar.view')&&hasPermission_('calendar.edit');},
  calendar:function(){showCalendar();},read:function(no){return api({action:'quoteJob',company:'Flagship Solar',jobNo:no});},
  status:function(message,retry){var box=document.getElementById('quoteJobLinkStatus');if(!box){box=document.createElement('p');box.id='quoteJobLinkStatus';box.className='hint';box.setAttribute('role','status');document.getElementById('calForm').before(box);}box.textContent=message;if(retry){var b=document.createElement('button');b.type='button';b.textContent='Retry loading job';b.onclick=retry;box.append(b);}},
  fill:function(job,booking){
-  var fragment=location.hash;document.getElementById('calNew').click();history.replaceState(history.state,'',location.pathname+location.search+fragment);
+  document.getElementById('calNew').click();
   CAL_JOB_LINK={job:job,booking:booking};CAL_REQUEST_ID=job.bookingId;
   var fields={calCustomer:job.customer,calSite:job.site,calJobNo:job.jobNo,calType:'Site Visit',calNotes:booking?booking.notes:job.notes};
   if(booking){fields.calDate=booking.date;fields.calStart=booking.startTime;fields.calEnd=booking.endTime;CAL_DATE=new Date(booking.date+'T12:00:00');showCalendar();}
