@@ -3,6 +3,21 @@
  * booking. Never exposes TimeTree credentials or downloads arbitrary URLs.
  * TimeTree's web interface is unofficial: unknown schemas fail closed.
  */
+function hiTimeTreePhotoFetch_(url,cookie){
+  var options={headers:/^https:\/\/attachments\.timetreeapp\.com\//.test(url)?{}:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true};
+  for(var attempt=0;attempt<2;attempt++){
+    var response;
+    try{response=UrlFetchApp.fetch(url,options);}
+    catch(err){
+      if(attempt||!/(?:read request|timed?\s*out|connection reset|temporarily unavailable)/i.test(String(err.message||err)))throw err;
+      Utilities.sleep(500);continue;
+    }
+    var status=response.getResponseCode();
+    if((status===429||status>=500)&&attempt===0){Utilities.sleep(500);continue;}
+    return response;
+  }
+  throw Error('TimeTree photo read failed after retry');
+}
 function hiTimeTreePhotos_(body) {
   var user=auth_(body,['Admin','Technician','Worker']);
   if(String(body.company||'')!=='Hi Service')throw Error('Hi Service company is required');
@@ -92,7 +107,7 @@ function hiTimeTreePhotos_(body) {
     var file=existing.hasNext()?existing.next():null;
     if(!file){
       try{
-        var res=UrlFetchApp.fetch(url,{headers:/^https:\/\/attachments\.timetreeapp\.com\//.test(url)?{}:{Cookie:cookie},followRedirects:false,muteHttpExceptions:true});
+        var res=hiTimeTreePhotoFetch_(url,cookie);
         if(res.getResponseCode()!==200){failures++;return;}
         var headers=res.getAllHeaders(),type=String(headers['Content-Type']||headers['content-type']||'').split(';')[0].trim().toLowerCase();
         if(!/^image\/(?:jpeg|png|webp)$/.test(type)){failures++;return;}
