@@ -23,7 +23,7 @@ function workCalendarEligibleUsers_(){
   if(n<2)return users;
   sh.getRange(2,1,n-1,4).getValues().forEach(function(r){
     var username=String(r[0]||'').trim(),name=String(r[1]||'').trim(),role=String(r[2]||'').trim(),status=String(r[3]||'').trim().toLowerCase();
-    if(username&&name&&status==='active'&&['Technician','Worker'].indexOf(role)>=0)
+    if(username&&name&&status==='active'&&['Admin','Technician','Worker'].indexOf(role)>=0)
       users.push({username:username,name:name,role:role});
   });
   return users;
