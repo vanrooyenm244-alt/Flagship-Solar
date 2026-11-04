@@ -13,6 +13,8 @@ on:
       - 'apps-script/HiService.gs'
       - 'tests/performance-contract.test.cjs'
       - 'apps-script/Code.gs'
+      - 'apps-script/AttendanceRoutes.gs'
+      - 'apps-script/WorkCalendar.gs'
       - 'tests/hi-timetree-photos.test.cjs'
       - '.github/workflows/hi-service-photo-checks.yml'
   push:
@@ -27,6 +29,10 @@ on:
       - 'apps-script/TimeTreeSync.gs'
       - 'apps-script/HiService.gs'
       - 'tests/performance-contract.test.cjs'
+      - 'apps-script/Code.gs'
+      - 'apps-script/AttendanceRoutes.gs'
+      - 'apps-script/WorkCalendar.gs'
+      - '.github/workflows/hi-service-photo-checks.yml'
       - 'tests/hi-timetree-photos.test.cjs'
 
 permissions:
@@ -44,5 +50,5 @@ jobs:
       - name: Test photo access, download, storage, and restricted hosts
         run: node --test tests/hi-timetree-photos.test.cjs tests/timetree.test.cjs tests/performance-contract.test.cjs tests/timetree-archive.test.cjs
       - name: Check backend source syntax
-        run: node -e "const fs=require('fs'),vm=require('vm');for(const p of ['apps-script/Code.gs','apps-script/TimeTree.gs','apps-script/TimeTreeSync.gs','apps-script/HiTimeTreePhotos.gs','apps-script/TimeTreeSession.gs','apps-script/HiService.gs','apps-script/TimeTreeBackup.gs','apps-script/TimeTreeAlbumBackup.gs'])new vm.Script(fs.readFileSync(p,'utf8'),{filename:p});"
+        run: node -e "const fs=require('fs'),vm=require('vm');for(const p of ['apps-script/Code.gs','apps-script/AttendanceRoutes.gs','apps-script/WorkCalendar.gs','apps-script/TimeTree.gs','apps-script/TimeTreeSync.gs','apps-script/HiTimeTreePhotos.gs','apps-script/TimeTreeSession.gs','apps-script/HiService.gs','apps-script/TimeTreeBackup.gs','apps-script/TimeTreeAlbumBackup.gs'])new vm.Script(fs.readFileSync(p,'utf8'),{filename:p});"
 
