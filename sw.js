@@ -9,7 +9,7 @@ const SHELL = [
   "./ops-dashboard.js?release=flagship-ops-v151-attendance",
   "./ops-updates-v135.js?release=flagship-ops-v151-attendance",
   "./release-notes.json",
-  "./calendar-ui.3af45a53ee89.css?release=flagship-ops-v151-attendance",
+  "./calendar-ui.6f647da4d4a8.css?release=flagship-ops-v151-attendance",
   "./vendor/rrule.min.js?release=flagship-ops-v151-attendance",
   "./timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance",
   "./stock-count.js?release=flagship-ops-v151-attendance",
