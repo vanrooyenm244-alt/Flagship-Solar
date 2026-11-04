@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v158-calendar-team-notifications-nav">
+<meta name="flagship-release" content="flagship-ops-v159-login-parse-fix">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -5532,44 +5532,7 @@ document.getElementById('stSend').addEventListener('click',async function(){
 var STOCK_DAILY_REPORT=null;
 document.getElementById('stReportDate').value=new Date().toLocaleDateString('en-CA');
 document.getElementById('stLoadReport').onclick=function(){var el=document.getElementById('stReport'),company=ST.company,owner=ME;STOCK_DAILY_REPORT=null;el.textContent='Loading…';apiGet({action:ST.company==='Hi Service'?'hiStockReport':'stockReport',date:document.getElementById('stReportDate').value}).then(function(j){if(ST.company!==company||ME!==owner)return;STOCK_DAILY_REPORT=j.report;var r=j.report;el.innerHTML='<h3>'+esc(ST.company)+' · '+esc(r.date)+'</h3><table><tr><th>Time</th><th>User</th><th>Place</th><th>Item</th><th>Count</th><th>Old</th><th>Movement</th></tr>'+(r.counts||[]).map(function(x){return '<tr><td>'+esc(x.timestamp)+'</td><td>'+esc(x.user)+'</td><td>'+esc(x.location)+'</td><td>'+esc(x.description)+'</td><td>'+x.count+'</td><td>'+esc(x.old==null?'—':x.old)+'</td><td>'+esc(x.delta==null?'—':x.delta)+'</td></tr>';}).join('')+'</table>';}).catch(function(e){el.textContent='Report failed: '+e.message;});};
-document.getElementById('stPrintReport').onclick=function(){if(!STOCK_DAILY_REPORT)return;var w=window.open('','_blank');if(!w){alert('Allow pop-ups for PDF printing.');return;}w.document.write('<html><head><title>Stock Report</title><style>body{font:12px Arial}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ddd}@page{size:A4 landscape}</style></head><body>'+document.getElementById('stReport').innerHTML+'<nav id="fsBottomNav" class="fs-bottom-nav hidden" aria-label="Primary navigation">
-  <button type="button" data-screen="screenHome" aria-label="Home"><span aria-hidden="true">⌂</span><small>Home</small></button>
-  <button type="button" data-screen="screenCalendar" data-permission="calendar.view" aria-label="Calendar"><span aria-hidden="true">▦</span><small>Calendar</small></button>
-  <button type="button" data-screen="screenProps" data-permission="proposals.view" aria-label="Estimates"><span aria-hidden="true">▤</span><small>Estimate</small></button>
-  <button type="button" data-screen="screenStock" data-permission="stock.view" aria-label="Stock"><span aria-hidden="true">▣</span><small>Stock</small></button>
-  <button type="button" data-screen="screenSettings" aria-label="Settings"><span aria-hidden="true">⚙</span><small>Settings</small></button>
-</nav>
-<script>
-(function(){
-  'use strict';
-  function $(id){return document.getElementById(id);}
-  function selectedTechnicians_(){return Array.from(document.querySelectorAll('#calTechOptions input:checked'));}
-  function renderTechSummary_(){var picked=selectedTechnicians_().map(function(x){return x.dataset.name;});$('calTechSummary').textContent=picked.length?picked.join(', '):'Choose technicians';}
-  window.loadCalendarTechnicians_=function(){
-    api({action:'calendarTechnicians',company:'Flagship Solar'}).then(function(r){
-      var box=$('calTechOptions');box.replaceChildren();var list=Array.isArray(r.technicians)?r.technicians:[];
-      if(!list.length){box.textContent='No active technicians are available.';return;}
-      list.forEach(function(person){var label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:8px;font-weight:500';
-        var input=document.createElement('input');input.type='checkbox';input.value=person.username;input.dataset.name=person.name;
-        var name=document.createElement('span');name.textContent=person.name+(person.role==='Worker'?' · Worker':'');
-        label.append(input,name);box.append(label);input.addEventListener('change',renderTechSummary_);
-      });renderTechSummary_();
-    }).catch(function(e){$('calTechOptions').textContent='Could not load users: '+String(e.message||e);});
-  };
-  function updatePermissionStatus_(){var b=$('calEnableNotifications'),s=$('calNotificationStatus');if(!b||!s)return;if(!('Notification'in window)){b.disabled=true;s.textContent='Notifications are not supported on this browser.';return;}var p=Notification.permission;b.textContent=p==='granted'?'Notifications enabled':p==='denied'?'Notifications blocked':'Enable notifications';s.textContent=p==='granted'?'Job and appointment alerts are on.':p==='denied'?'Allow notifications in browser settings.':'Enable this once to receive job and appointment alerts.';}
-  async function enableNotifications_(){if(!('Notification'in window)){updatePermissionStatus_();return;}try{await Notification.requestPermission();updatePermissionStatus_();pollCalendarNotifications_();}catch(e){$('calNotificationStatus').textContent='Could not enable notifications.';}}
-  function showNotification_(n){if(!('Notification'in window)||Notification.permission!=='granted')return Promise.resolve(false);var options={body:n.body||'',tag:n.id,data:{url:location.origin+location.pathname+'#screen-screenCalendar'},icon:'./icon-192.png',badge:'./icon-192.png'};if('serviceWorker'in navigator)return navigator.serviceWorker.ready.then(function(reg){return reg.showNotification(n.title||'Appointment',options);}).then(function(){return true;});new Notification(n.title||'Appointment',options);return Promise.resolve(true);}
-  async function pollCalendarNotifications_(){if(!window.ME||!('Notification'in window)||Notification.permission!=='granted'||!window.hasPermission_||!hasPermission_('calendar.view'))return;try{var r=await api({action:'calendarNotifications',company:'Flagship Solar'}),items=Array.isArray(r.notifications)?r.notifications:[],done=[];for(var i=0;i<items.length;i++)if(await showNotification_(items[i]))done.push(items[i].id);if(done.length)await api({action:'calendarNotificationsAck',company:'Flagship Solar',notificationIds:done});}catch(e){}}
-  $('calEnableNotifications').addEventListener('click',enableNotifications_);
-  updatePermissionStatus_();pollCalendarNotifications_();setInterval(pollCalendarNotifications_,30000);
-  var nav=$('fsBottomNav');
-  function syncNav_(id){if(!nav)return;var auth=id==='screenAuth'||!window.ME;nav.classList.toggle('hidden',auth);nav.querySelectorAll('button').forEach(function(b){var target=b.dataset.screen,permission=b.dataset.permission;b.classList.toggle('active',target===id);b.hidden=!!(permission&&window.hasPermission_&&!hasPermission_(permission));});}
-  var previousShow=window.show;if(typeof previousShow==='function')window.show=function(id){previousShow(id);syncNav_(id);pollCalendarNotifications_();updatePermissionStatus_();};
-  nav.querySelectorAll('[data-screen]').forEach(function(b){b.addEventListener('click',function(){if(b.dataset.screen==='screenHome'&&typeof window.showHome==='function')window.showHome();else window.show(b.dataset.screen);});});
-  window.addEventListener('load',function(){var active=document.querySelector('[id^="screen"]:not(.hidden)');syncNav_(active?active.id:'screenAuth');});
-})();
-</script>
-</body></html>');w.document.close();setTimeout(function(){w.print();},300);};
+document.getElementById('stPrintReport').onclick=function(){if(!STOCK_DAILY_REPORT)return;var w=window.open('','_blank');if(!w){alert('Allow pop-ups for PDF printing.');return;}w.document.write('<html><head><title>Stock Report</title><style>body{font:12px Arial}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ddd}@page{size:A4 landscape}</style></head><body>'+document.getElementById('stReport').innerHTML+'</body></html>');w.document.close();setTimeout(function(){w.print();},300);};
 
 /* ============ admin ============ */
 function showAdmin(){if(!hasPermission_('users.manage')){showHome();return;}
@@ -6398,6 +6361,36 @@ document.getElementById('fsClockRefresh').addEventListener('click',fsClockRefres
 document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('[data-screen="time"],[data-target="screenTime"]'))setTimeout(fsClockRefresh_,200);});
 fsClockRefresh_();
 
+(function(){
+  'use strict';
+  function $(id){return document.getElementById(id);}
+  function selectedTechnicians_(){return Array.from(document.querySelectorAll('#calTechOptions input:checked'));}
+  function renderTechSummary_(){var picked=selectedTechnicians_().map(function(x){return x.dataset.name;});$('calTechSummary').textContent=picked.length?picked.join(', '):'Choose technicians';}
+  window.loadCalendarTechnicians_=function(){
+    api({action:'calendarTechnicians',company:'Flagship Solar'}).then(function(r){
+      var box=$('calTechOptions');box.replaceChildren();var list=Array.isArray(r.technicians)?r.technicians:[];
+      if(!list.length){box.textContent='No active technicians are available.';return;}
+      list.forEach(function(person){var label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:8px;font-weight:500';
+        var input=document.createElement('input');input.type='checkbox';input.value=person.username;input.dataset.name=person.name;
+        var name=document.createElement('span');name.textContent=person.name+(person.role==='Worker'?' · Worker':'');
+        label.append(input,name);box.append(label);input.addEventListener('change',renderTechSummary_);
+      });renderTechSummary_();
+    }).catch(function(e){$('calTechOptions').textContent='Could not load users: '+String(e.message||e);});
+  };
+  function updatePermissionStatus_(){var b=$('calEnableNotifications'),s=$('calNotificationStatus');if(!b||!s)return;if(!('Notification'in window)){b.disabled=true;s.textContent='Notifications are not supported on this browser.';return;}var p=Notification.permission;b.textContent=p==='granted'?'Notifications enabled':p==='denied'?'Notifications blocked':'Enable notifications';s.textContent=p==='granted'?'Job and appointment alerts are on.':p==='denied'?'Allow notifications in browser settings.':'Enable this once to receive job and appointment alerts.';}
+  async function enableNotifications_(){if(!('Notification'in window)){updatePermissionStatus_();return;}try{await Notification.requestPermission();updatePermissionStatus_();pollCalendarNotifications_();}catch(e){$('calNotificationStatus').textContent='Could not enable notifications.';}}
+  function showNotification_(n){if(!('Notification'in window)||Notification.permission!=='granted')return Promise.resolve(false);var options={body:n.body||'',tag:n.id,data:{url:location.origin+location.pathname+'#screen-screenCalendar'},icon:'./icon-192.png',badge:'./icon-192.png'};if('serviceWorker'in navigator)return navigator.serviceWorker.ready.then(function(reg){return reg.showNotification(n.title||'Appointment',options);}).then(function(){return true;});new Notification(n.title||'Appointment',options);return Promise.resolve(true);}
+  async function pollCalendarNotifications_(){if(!ME||!('Notification'in window)||Notification.permission!=='granted'||!hasPermission_('calendar.view'))return;try{var r=await api({action:'calendarNotifications',company:'Flagship Solar'}),items=Array.isArray(r.notifications)?r.notifications:[],done=[];for(var i=0;i<items.length;i++)if(await showNotification_(items[i]))done.push(items[i].id);if(done.length)await api({action:'calendarNotificationsAck',company:'Flagship Solar',notificationIds:done});}catch(e){}}
+  $('calEnableNotifications').addEventListener('click',enableNotifications_);
+  updatePermissionStatus_();pollCalendarNotifications_();setInterval(pollCalendarNotifications_,30000);
+  function navElement_(){return $('fsBottomNav');}
+  function syncNav_(id){var nav=navElement_();if(!nav)return;var auth=id==='screenAuth'||!ME;nav.classList.toggle('hidden',auth);nav.querySelectorAll('button').forEach(function(b){var target=b.dataset.screen,permission=b.dataset.permission;b.classList.toggle('active',target===id);b.hidden=!!(permission&&!hasPermission_(permission));});}
+  window.FlagshipBottomNavSync_=syncNav_;
+  window.FlagshipBottomNavGo_=function(id){if(id==='screenHome')showHome();else show(id);};
+  function bindNav_(){var nav=navElement_();if(!nav)return;nav.querySelectorAll('[data-screen]').forEach(function(b){b.addEventListener('click',function(){window.FlagshipBottomNavGo_(b.dataset.screen);});});}
+  document.addEventListener('DOMContentLoaded',bindNav_);
+  window.addEventListener('load',function(){var active=SCREENS.find(function(id){var el=$(id);return el&&!el.classList.contains('hidden');});syncNav_(active||'screenAuth');});
+})();
 })();
 </script>
 <script src="./xero-customer.js?release=flagship-ops-v151-attendance"></script>
@@ -6406,7 +6399,14 @@ fsClockRefresh_();
 <script src="./ops-dashboard.js?release=flagship-ops-v151-attendance"></script>
 <script src="./ops-updates-v135.js?release=flagship-ops-v151-attendance"></script>
 
-<script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script><script>setInterval(function(){if(!document.hidden&&document.getElementById('screenCalendar')&&!document.getElementById('screenCalendar').classList.contains('hidden'))showCalendar(true);},300000);</script></body>
+<script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script><script>setInterval(function(){if(!document.hidden&&document.getElementById('screenCalendar')&&!document.getElementById('screenCalendar').classList.contains('hidden'))showCalendar(true);},300000);</script><nav id="fsBottomNav" class="fs-bottom-nav hidden" aria-label="Primary navigation">
+  <button type="button" data-screen="screenHome" aria-label="Home"><span aria-hidden="true">⌂</span><small>Home</small></button>
+  <button type="button" data-screen="screenCalendar" data-permission="calendar.view" aria-label="Calendar"><span aria-hidden="true">▦</span><small>Calendar</small></button>
+  <button type="button" data-screen="screenProps" data-permission="proposals.view" aria-label="Estimates"><span aria-hidden="true">▤</span><small>Estimate</small></button>
+  <button type="button" data-screen="screenStock" data-permission="stock.view" aria-label="Stock"><span aria-hidden="true">▣</span><small>Stock</small></button>
+  <button type="button" data-screen="screenSettings" aria-label="Settings"><span aria-hidden="true">⚙</span><small>Settings</small></button>
+</nav>
+</body>
 </html>
 
 
