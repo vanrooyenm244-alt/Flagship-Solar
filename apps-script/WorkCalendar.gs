@@ -4,6 +4,8 @@ function workCalendarPermissions_(){
     APP_PERMISSION_CATALOG_['Hi Service'].push({key:'calendar.edit',label:'Calendar — schedule / change jobs'});
   APP_PERMISSION_ACTIONS_.hiScheduleJob='calendar.edit';
   APP_PERMISSION_ACTIONS_.scheduleJob='calendar.edit';
+  APP_PERMISSION_ACTIONS_.quoteJob='calendar.edit';
+  APP_PERMISSION_ACTIONS_.hiQuoteJob='calendar.edit';
   APP_PERMISSION_ACTIONS_.hiCalendarTechnicians='calendar.edit';
   APP_PERMISSION_ACTIONS_.calendarTechnicians='calendar.edit';
   APP_PERMISSION_ACTIONS_.hiCalendarNotifications='calendar.view';
@@ -35,8 +37,8 @@ function workCalendarEvent_(input,company){
   var e=input||{},date=String(e.date||''),start=String(e.startTime||''),end=String(e.endTime||'');
   if(!/^[a-zA-Z0-9_-]{8,100}$/.test(String(e.id||'')))throw Error('Invalid scheduling request ID');
   if(!String(e.customer||'').trim())throw Error('Customer is required');
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)throw Error('Valid booking date required');
-  [start,end].forEach(function(t){if(t&&!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(t))throw Error('Use 24-hour time HH:mm');});
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)throw Error('Valid booking date required');
+  [start,end].forEach(function(t){if(t&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(t))throw Error('Use 24-hour time HH:mm');});
   if(end&&!start||start&&end&&end<=start)throw Error('End time must be after start time');
   var ids=Array.isArray(e.assignedUsernames)?e.assignedUsernames.map(function(x){return String(x||'').trim();}).filter(Boolean):[];
   ids=ids.filter(function(x,i){return ids.indexOf(x)===i;});
@@ -49,6 +51,7 @@ function workCalendarEvent_(input,company){
   });
   var out={id:String(e.id),source:'app',company:company,date:date,endDate:date,startTime:start,endTime:end,status:'SCHEDULED',timeZone:'Africa/Johannesburg',recurrences:[],assignedUsernames:selected.map(function(x){return x.username;})};
   ['customer','site','jobType','notes','jobNo'].forEach(function(k){out[k]=String(e[k]||'').trim();if(out[k].length>(k==='notes'?10000:500))throw Error('Booking '+k+' is too long');});
+  if(e.jobListId)out.jobListId=e.jobListId;
   out.technician=selected.map(function(x){return x.name;}).join(', ');
   return out;
 }
@@ -73,7 +76,8 @@ function workCalendarAppointmentStart_(event){
 function workCalendarSave_(body){
   workCalendarPermissions_();var company=workCalendarCompany_(body),u=auth_(body,['Admin','Technician']);
   if(!permissionAllowed_(u,company,'calendar.edit'))throw Error('Calendar scheduling permission required');
-  var event=workCalendarEvent_(body.event,company),lock=LockService.getScriptLock();lock.waitLock(15000);
+  var input=quoteJobBindBooking_(body.event||{},company);
+  var event=workCalendarEvent_(input,company),lock=LockService.getScriptLock();lock.waitLock(15000);
   try{
     var sh=ttSheet_('ScheduledJobs',['ID','Company','Date','Start','End','Technician','Data JSON','Updated','Created By']);
     var found=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(event.id).matchEntireCell(true).useRegularExpression(false).findNext():null;
@@ -162,3 +166,4 @@ function workCalendarCompletion_(body){
   finally{lock.releaseLock();}
   return {ok:true,eventId:id,completed:body.completed,completedBy:String(u.name||u.username)};
 }
+

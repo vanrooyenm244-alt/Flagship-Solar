@@ -2,7 +2,7 @@ name: Deploy Apps Script backend
 
 on:
   workflow_run:
-    workflows: ["Flagship completion checks", "Hi Service photo checks"]
+    workflows: ["Flagship completion checks", "Hi Service photo checks", "Quote job calendar checks"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -64,7 +64,8 @@ jobs:
           && github.event.workflow_run.head_branch == 'main'
           && github.event.workflow_run.event == 'push'
           && (github.event.workflow_run.name == 'Flagship completion checks'
-          || github.event.workflow_run.name == 'Hi Service photo checks')) }}
+          || github.event.workflow_run.name == 'Hi Service photo checks'
+          || github.event.workflow_run.name == 'Quote job calendar checks')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -161,3 +162,4 @@ jobs:
       - name: Delete local OAuth credentials
         if: always()
         run: rm -f "$HOME/.clasprc.json"
+

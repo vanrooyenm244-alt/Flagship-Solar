@@ -1,6 +1,7 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v159-login-parse-fix';
+const CACHE = 'flagship-ops-v160-quote-job-calendar';
 const SHELL = [
+  "./quote-job-calendar.js?release=20261104-step1",
   "./",
   "./index.html",
   "./ops-theme.css?release=20261104-bottom-nav",
@@ -80,4 +81,5 @@ self.addEventListener('fetch',event=>{
   return fetch(event.request,{cache:'no-store'});
  })());
 });
+
 

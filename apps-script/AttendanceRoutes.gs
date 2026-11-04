@@ -1,8 +1,9 @@
 /* New attendance routes delegate every unrelated action to the preserved live router. */
 function doGet(e){
- var p=e&&e.parameter||{},body={user:p.user,pass:p.pass,action:p.action,company:p.company,id:p.id,from:p.from,to:p.to,bookingId:p.bookingId};
+ var p=e&&e.parameter||{},body={user:p.user,pass:p.pass,action:p.action,company:p.company,id:p.id,from:p.from,to:p.to,bookingId:p.bookingId,jobNo:p.jobNo};
  try{
   workCalendarPermissions_();
+  if(p.action==='quoteJob'||p.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(p.action==='calendar'||p.action==='hiCalendar')return out_(workCalendarRead_(body));
   if(p.action==='attendanceRecords')return out_(tsRecords_(Object.assign({},body,p)));
   if(p.action==='attendanceHistory')return out_(tsHistory_(Object.assign({},body,p)));
@@ -19,6 +20,7 @@ function doPost(e){
  var body={};try{body=JSON.parse(e&&e.postData&&e.postData.contents||'{}');}catch(ignore){return attendanceLegacyPost_(e);}
  try{
   workCalendarPermissions_();
+  if(body.action==='quoteJob'||body.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(body.action==='calendarCompletionSet')return out_(workCalendarCompletion_(body));
   if(body.action==='calendarTechnicians'||body.action==='hiCalendarTechnicians')return out_(workCalendarTechnicians_(body));
   if(body.action==='calendarNotifications'||body.action==='hiCalendarNotifications')return out_(workCalendarNotifications_(body));
@@ -34,5 +36,6 @@ function doPost(e){
  }catch(error){return out_({ok:false,error:String(error.message||error)});}
  return attendanceLegacyPost_(e);
 }
+
 
 
