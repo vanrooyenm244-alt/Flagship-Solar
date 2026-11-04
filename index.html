@@ -1852,6 +1852,7 @@ function show(id){
   document.getElementById('qbbar')?.classList.add('hidden');
   document.getElementById('btnBack').classList[(id==='screenHome'||id==='screenAuth')?'add':'remove']('hidden');
   window.scrollTo(0,0);
+  if(window.FlagshipBottomNavSync_)window.FlagshipBottomNavSync_(id);
 }
 
 var EFFECTIVE_PERMISSIONS=null;
