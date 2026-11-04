@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v163-global-search">
+<meta name="flagship-release" content="flagship-ops-v164-manual-updates">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -6351,9 +6351,7 @@ if(stAddBtn){
   stAddBtn.addEventListener('click',function(){ stockForm_(); });
 }
 
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(function(){}) });
-}
+// Service worker registration and updates are manual: Settings → App Updates → Update.
 // Standalone start/end attendance for the signed-in Flagship account.
 var fsClockBusy_=false;
 var fsClockTimeout_=null;
