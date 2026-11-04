@@ -1,7 +1,8 @@
 {
-  "version": "flagship-ops-v164-manual-updates",
+  "version": "flagship-ops-v165-manual-updates",
   "date": "2026-11-05",
   "changes": [
+    "Manual update controls use a fresh cached updater so older installed app caches can reach the Update button.",
     "App updates are manual only. New releases install and reload only after the user taps Update in Settings.",
     "Calendar search scans all archived TimeTree and app bookings, across dates, by customer name or site address.",
     "Calendar search now finds bookings by part of a customer name or site address.",
