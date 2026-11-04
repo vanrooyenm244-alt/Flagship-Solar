@@ -26,9 +26,17 @@ function ttSessionCookie_(){
     }
   }finally{lock.releaseLock();}
 }
+function ttSessionTransientReadError_(err){
+  return err&&err.httpStatus!==401&&/(?:read request|timed?\s*out|connection reset|temporarily unavailable)/i.test(String(err.message||err));
+}
 function ttSessionFetch_(path){
   var cookie=ttSessionCookie_();
   try{return ttFetch_(path,cookie);}catch(err){
+    // Retry only transient read failures. GETs are safe to repeat with the same session.
+    if(err.httpStatus!==401&&ttSessionTransientReadError_(err)){
+      Utilities.sleep(700);
+      try{return ttFetch_(path,cookie);}catch(retryReadError){err=retryReadError;}
+    }
     // A bad request or a permission error is not proof of an expired session.
     if(err.httpStatus!==401)throw err;
     var props=PropertiesService.getScriptProperties();
