@@ -1,7 +1,8 @@
 {
-  "version": "flagship-ops-v162-calendar-search",
+  "version": "flagship-ops-v163-global-search",
   "date": "2026-11-05",
   "changes": [
+    "Calendar search scans all archived TimeTree and app bookings, across dates, by customer name or site address.",
     "Calendar search now finds bookings by part of a customer name or site address.",
     "Flagship adds a persistent mobile bottom navigation bar for Home, Calendar, Estimates, Stock and Settings.",
     "Calendar scheduling assigns one or more active technicians by user account and sends job-created, 30-minute and 5-minute appointment notifications to their app.",

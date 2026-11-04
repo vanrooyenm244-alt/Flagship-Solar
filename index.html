@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v162-calendar-search">
+<meta name="flagship-release" content="flagship-ops-v163-global-search">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -1730,6 +1730,26 @@ window.addEventListener('load',function(){
 function calIsMine_(e){if(e.source==='timetree')return TimeTreeCalendar.visible(e,'Flagship Solar',ME);if(CAL_ALL)return true;var n=ME&&ME.name?String(ME.name).toLowerCase():'';return !!n&&String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
 var CAL_DAY=null,CAL_VIEW='agenda',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
 var CAL_LIVE_EVENTS=null,CAL_LIVE_OWNER='';
+var CAL_SEARCH_EVENTS=null,CAL_SEARCH_OWNER='',CAL_SEARCH_AT=0,CAL_SEARCH_REQUEST=null;
+function calSearchQuery_(){return (document.getElementById('calSearch').value||'').trim().toLocaleLowerCase();}
+function calSearchMatches_(e,q){return !q||[e.customer,e.title,e.name,e.site,e.address].filter(Boolean).join(' ').toLocaleLowerCase().indexOf(q)!==-1;}
+function calSearchRender_(events,q){
+ var grid=document.getElementById('calGrid'),matches=events.filter(calIsMine_).filter(function(e){return calSearchMatches_(e,q);}).sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
+ grid.replaceChildren();if(!matches.length){grid.textContent='No bookings match your search.';return;}
+ var list=document.createElement('div');list.className='cal-agenda';
+ matches.forEach(function(e){var row=document.createElement('div');row.className='cal-booking';var button=document.createElement('button');button.type='button';button.className='cal-event';
+ var date=document.createElement('small');date.textContent=[e.date,e.startTime||e.time].filter(Boolean).join(' · ');
+ var name=document.createElement('strong');name.textContent=e.customer||e.title||e.name||e.jobType||'Booking';
+ var address=document.createElement('small');address.textContent=[e.jobType,e.technician,e.site||e.address].filter(Boolean).join(' · ');
+ button.append(date,name,address);button.addEventListener('click',function(){calOpen_(e.id);});row.appendChild(button);list.appendChild(row);});grid.appendChild(list);
+}
+function calSearchAll_(){
+ var owner=calOwner_();if(CAL_SEARCH_OWNER===owner&&Date.now()-CAL_SEARCH_AT<120000)return;
+ if(CAL_SEARCH_REQUEST&&CAL_SEARCH_REQUEST.owner===owner)return CAL_SEARCH_REQUEST.promise;
+ document.getElementById('calGrid').textContent='Searching all bookings…';
+ var request=apiGet({action:'calendar'}).then(function(j){if(owner!==calOwner_()||!hasPermission_('calendar.view'))return;if(!Array.isArray(j.events))throw Error('Invalid calendar response');CAL_SEARCH_EVENTS=j.events;CAL_SEARCH_OWNER=owner;CAL_SEARCH_AT=Date.now();var q=calSearchQuery_();if(q)calSearchRender_(j.events,q);else calRender_();}).catch(function(error){if(owner===calOwner_()&&calSearchQuery_())document.getElementById('calGrid').textContent='Could not search all bookings: '+error.message;}).finally(function(){if(CAL_SEARCH_REQUEST&&CAL_SEARCH_REQUEST.promise===request)CAL_SEARCH_REQUEST=null;});
+ CAL_SEARCH_REQUEST={owner:owner,promise:request};return request;
+}
 function calOwner_(){return JSON.stringify([CFG.url,ME&&ME.username,ME&&ME.pass]);}
 function calMerge_(incoming,owner){
   return getAll('calendar').then(function(saved){
@@ -1782,14 +1802,14 @@ function calRender_(){
       CAL_LIVE_EVENTS.forEach(function(e){combined.set(e.id,e);});
       items=Array.from(combined.values());
     }
-    var query=(document.getElementById('calSearch').value||'').trim().toLocaleLowerCase();
-    items=items.filter(calIsMine_).filter(function(e){return !query||[e.customer,e.title,e.name,e.site,e.address].filter(Boolean).join(' ').toLocaleLowerCase().indexOf(query)!==-1;});
+    var query=calSearchQuery_();
+    if(query){document.getElementById('calTitle').textContent='Search results';if(CAL_SEARCH_OWNER===calOwner_()&&Date.now()-CAL_SEARCH_AT<120000){calSearchRender_(CAL_SEARCH_EVENTS,query);return;}calSearchAll_();return;}
+    items=items.filter(calIsMine_);
     document.getElementById('calTitle').textContent=CAL_DATE.toLocaleString(undefined,{month:'long',year:'numeric'});
     document.getElementById('calModeTag').textContent=CAL_ALL?'All jobs':'My jobs';
     document.getElementById('calToggleMode').textContent=CAL_ALL?'My jobs':'All jobs';
     document.getElementById('calAgenda').setAttribute('aria-pressed',String(CAL_VIEW==='agenda'));
     document.getElementById('calMonth').setAttribute('aria-pressed',String(CAL_VIEW==='month'));
-    if(query&&!items.length){document.getElementById('calGrid').textContent='No bookings match your search.';return;}
     var view=TimeTreeCalendar.layout(items,CAL_DATE,CAL_VIEW,'data-cal-open',CAL_DAY);
     if(view.errors.length)document.getElementById('calSyncStatus').textContent='Some recurring bookings need review: '+view.errors.join('; ');
     document.getElementById('calGrid').innerHTML=view.html;
@@ -1798,7 +1818,7 @@ function calRender_(){
     document.querySelectorAll('[data-cal-open]').forEach(function(el){el.onclick=function(){calOpen_(el.getAttribute('data-cal-open'));};});
   });
 }
-document.getElementById('calRefresh').onclick=function(){showCalendar(true);};
+document.getElementById('calRefresh').onclick=function(){CAL_SEARCH_OWNER='';CAL_SEARCH_EVENTS=null;CAL_SEARCH_AT=0;showCalendar(true);};
 document.getElementById('calSearch').addEventListener('input',function(){calRender_();});
 document.getElementById('calAgenda').onclick=function(){CAL_VIEW='agenda';calRender_();};
 document.getElementById('calMonth').onclick=function(){CAL_VIEW='month';calRender_();};
@@ -1806,6 +1826,7 @@ var calOpening_=Object.create(null);
 function calOpen_(id){
   if(calOpening_[id])return calOpening_[id];
   return calOpening_[id]=get1('calendar',id).then(function(e){
+  if(!e&&CAL_SEARCH_OWNER===calOwner_()&&Array.isArray(CAL_SEARCH_EVENTS))e=CAL_SEARCH_EVENTS.find(function(x){return x.id===id;});
   if(!e)return;
   if(e.source==='timetree'){document.getElementById('calTTText').textContent=TimeTreeCalendar.details(e);document.getElementById('calTTSource').href=e.sourceUrl;document.getElementById('calTTDetails').classList.remove('hidden');return;}
   if(!confirm('Open Job Card for '+(e.customer||'')+' at '+(e.site||'')+'?'))return;
