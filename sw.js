@@ -1,9 +1,9 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v156-calendar-backup';
+const CACHE = 'flagship-ops-v157-calendar-team-notifications';
 const SHELL = [
   "./",
   "./index.html",
-  "./ops-theme.css?release=20261029",
+  "./ops-theme.css?release=20261104-bottom-nav",
   "./ops-theme.js?release=20261029",
   "./ops-dashboard.js?release=flagship-ops-v151-attendance",
   "./ops-updates-v135.js?release=flagship-ops-v151-attendance",
@@ -55,6 +55,15 @@ self.addEventListener('activate',event=>{
 self.addEventListener('message',event=>{
  if(event.data&&event.data.type==='GET_VERSION'&&event.ports&&event.ports[0])event.ports[0].postMessage({version:CACHE});
 });
+
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();
+ event.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(async clients=>{
+  for(const client of clients){if(new URL(client.url).origin===self.location.origin){await client.focus();return;}}
+  return self.clients.openWindow(self.registration.scope);
+ }));
+});
+
 self.addEventListener('fetch',event=>{
  if(event.request.method!=='GET')return;
  const url=new URL(event.request.url);
