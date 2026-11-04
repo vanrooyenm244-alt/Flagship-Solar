@@ -5,3 +5,14 @@
 [data-ops-theme="dark"] input,[data-ops-theme="dark"] select,[data-ops-theme="dark"] textarea{background:#263441;color:#e6ebf3;border-color:#526274}
 [data-ops-theme="dark"] .tile span,[data-ops-theme="dark"] .tile strong{color:#e6ebf3}
 .ops-theme-toggle{position:fixed;right:15px;bottom:calc(15px + env(safe-area-inset-bottom,0px));z-index:9999;border:1px solid #315f91;border-radius:20px;padding:10px 15px;background:#1F4E79;color:#fff;font-weight:700;box-shadow:0 3px 12px #0004;cursor:pointer}
+
+/* Persistent mobile navigation, matching the Hi Service bottom-bar layout. */
+.fs-bottom-nav{position:fixed;z-index:999;left:50%;transform:translateX(-50%);bottom:0;width:min(100%,900px);display:flex;justify-content:space-around;gap:2px;padding:9px 9px calc(9px + env(safe-area-inset-bottom,0px));background:var(--slate,#111820);border-top:1px solid var(--edge,#465366);box-shadow:0 -6px 20px #0004}
+.fs-bottom-nav button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 1px;border:0;background:transparent;color:#9aa8b6;font-size:21px;cursor:pointer}
+.fs-bottom-nav button small{font-size:10px;font-weight:650}
+.fs-bottom-nav button.active,.fs-bottom-nav button:focus-visible{color:#76a9dc}
+.fs-bottom-nav button[hidden]{display:none!important}
+.fs-bottom-nav button:focus-visible{outline:2px solid #76a9dc;outline-offset:-2px;border-radius:7px}
+body{padding-bottom:calc(95px + env(safe-area-inset-bottom,0px))}
+[data-ops-theme="dark"] .fs-bottom-nav{background:#202b38;border-color:#465366}
+@media(min-width:900px){.fs-bottom-nav{border-radius:16px 16px 0 0}}
