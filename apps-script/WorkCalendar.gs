@@ -4,22 +4,71 @@ function workCalendarPermissions_(){
     APP_PERMISSION_CATALOG_['Hi Service'].push({key:'calendar.edit',label:'Calendar — schedule / change jobs'});
   APP_PERMISSION_ACTIONS_.hiScheduleJob='calendar.edit';
   APP_PERMISSION_ACTIONS_.scheduleJob='calendar.edit';
+  APP_PERMISSION_ACTIONS_.hiCalendarTechnicians='calendar.edit';
+  APP_PERMISSION_ACTIONS_.calendarTechnicians='calendar.edit';
+  APP_PERMISSION_ACTIONS_.hiCalendarNotifications='calendar.view';
+  APP_PERMISSION_ACTIONS_.calendarNotifications='calendar.view';
+  APP_PERMISSION_ACTIONS_.hiCalendarNotificationsAck='calendar.view';
+  APP_PERMISSION_ACTIONS_.calendarNotificationsAck='calendar.view';
 }
 function workCalendarCompany_(body){
-  var company=body.action==='hiScheduleJob'||body.action==='hiCalendar'?'Hi Service':'Flagship Solar';
+  var action=String(body.action||''),company=/^hi[A-Z]/.test(action)?'Hi Service':'Flagship Solar';
   if(body.company&&body.company!==company)throw Error('Calendar company mismatch');
   return company;
+}
+function workCalendarEligibleUsers_(){
+  var sh=sheet_('Users'),n=sh.getLastRow(),users=[];
+  if(n<2)return users;
+  sh.getRange(2,1,n-1,4).getValues().forEach(function(r){
+    var username=String(r[0]||'').trim(),name=String(r[1]||'').trim(),role=String(r[2]||'').trim(),status=String(r[3]||'').trim().toLowerCase();
+    if(username&&name&&status==='active'&&['Technician','Worker'].indexOf(role)>=0)
+      users.push({username:username,name:name,role:role});
+  });
+  return users;
+}
+function workCalendarTechnicians_(body){
+  workCalendarPermissions_();var company=workCalendarCompany_(body),u=auth_(body,['Admin','Technician']);
+  if(!permissionAllowed_(u,company,'calendar.edit'))throw Error('Calendar scheduling permission required');
+  return {ok:true,technicians:workCalendarEligibleUsers_().map(function(x){return {username:x.username,name:x.name,role:x.role};})};
 }
 function workCalendarEvent_(input,company){
   var e=input||{},date=String(e.date||''),start=String(e.startTime||''),end=String(e.endTime||'');
   if(!/^[a-zA-Z0-9_-]{8,100}$/.test(String(e.id||'')))throw Error('Invalid scheduling request ID');
   if(!String(e.customer||'').trim())throw Error('Customer is required');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)throw Error('Valid booking date required');
-  [start,end].forEach(function(t){if(t&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(t))throw Error('Use 24-hour time HH:mm');});
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||!isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)throw Error('Valid booking date required');
+  [start,end].forEach(function(t){if(t&&!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(t))throw Error('Use 24-hour time HH:mm');});
   if(end&&!start||start&&end&&end<=start)throw Error('End time must be after start time');
-  var out={id:String(e.id),source:'app',company:company,date:date,endDate:date,startTime:start,endTime:end,status:'SCHEDULED',timeZone:'Africa/Johannesburg',recurrences:[]};
-  ['customer','site','technician','jobType','notes','jobNo'].forEach(function(k){out[k]=String(e[k]||'').trim();if(out[k].length>(k==='notes'?10000:500))throw Error('Booking '+k+' is too long');});
+  var ids=Array.isArray(e.assignedUsernames)?e.assignedUsernames.map(function(x){return String(x||'').trim();}).filter(Boolean):[];
+  ids=ids.filter(function(x,i){return ids.indexOf(x)===i;});
+  if(!ids.length)throw Error('Select at least one technician');
+  if(ids.length>15)throw Error('Select no more than 15 technicians');
+  var eligible=workCalendarEligibleUsers_(),selected=ids.map(function(id){
+    var found=eligible.find(function(x){return x.username.toLowerCase()===id.toLowerCase();});
+    if(!found)throw Error('One selected technician is no longer active');
+    return found;
+  });
+  var out={id:String(e.id),source:'app',company:company,date:date,endDate:date,startTime:start,endTime:end,status:'SCHEDULED',timeZone:'Africa/Johannesburg',recurrences:[],assignedUsernames:selected.map(function(x){return x.username;})};
+  ['customer','site','jobType','notes','jobNo'].forEach(function(k){out[k]=String(e[k]||'').trim();if(out[k].length>(k==='notes'?10000:500))throw Error('Booking '+k+' is too long');});
+  out.technician=selected.map(function(x){return x.name;}).join(', ');
   return out;
+}
+function workCalendarNotificationSheet_(){
+  return ttSheet_('CalendarNotifications',['ID','Company','Username','Type','Event ID','Title','Body','Run At','Start At','Status','Created At','Delivered At']);
+}
+function workCalendarQueueNotification_(sh,event,username,type,runAt,startAt){
+  var title=type==='job_created'?'New job assigned':type==='reminder_30'?'Appointment in 30 minutes':'Appointment in 5 minutes';
+  var when=event.startTime?event.startTime:'';
+  var body=[event.customer,when,event.site,event.jobNo?'Job '+event.jobNo:''].filter(Boolean).join(' · ');
+  sh.appendRow([Utilities.getUuid(),event.company,username,type,event.id,title,body,runAt,startAt,'PENDING',Date.now(),'']);
+}
+function workCalendarCancelPending_(sh,eventId){
+  var n=sh.getLastRow();if(n<2)return;
+  var rows=sh.getRange(2,1,n-1,12).getValues();
+  rows.forEach(function(r,i){if(String(r[4])===String(eventId)&&String(r[9])==='PENDING')sh.getRange(i+2,10).setValue('CANCELLED');});
+}
+function workCalendarAppointmentStart_(event){
+  if(!event.date||!event.startTime)return 0;
+  try{return Utilities.parseDate(event.date+' '+event.startTime,'Africa/Johannesburg','yyyy-MM-dd HH:mm').getTime();}catch(e){return 0;}
 }
 function workCalendarSave_(body){
   workCalendarPermissions_();var company=workCalendarCompany_(body),u=auth_(body,['Admin','Technician']);
@@ -30,13 +79,56 @@ function workCalendarSave_(body){
     var found=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(event.id).matchEntireCell(true).useRegularExpression(false).findNext():null;
     var row=found?found.getRow():0;
     if(row&&String(sh.getRange(row,2).getValue())!==company)throw Error('Booking belongs to another company');
+    var previous=row?JSON.parse(String(sh.getRange(row,7).getValue()||'{}')):null;
     var now=new Date();event.updatedAt=now.getTime();event.createdBy=row?String(sh.getRange(row,9).getValue()):u.username;
     var values=[event.id,company,event.date,event.startTime,event.endTime,event.technician,JSON.stringify(event),now,event.createdBy];
     if(row)sh.getRange(row,1,1,values.length).setValues([values]);else{sh.appendRow(values);row=sh.getLastRow();}
     sh.getRange(row,8).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+    var ns=workCalendarNotificationSheet_();workCalendarCancelPending_(ns,event.id);
+    var oldAssigned=previous&&Array.isArray(previous.assignedUsernames)?previous.assignedUsernames.map(String):[];
+    var newlyAssigned=event.assignedUsernames.filter(function(id){return !oldAssigned.some(function(old){return old.toLowerCase()===id.toLowerCase();});});
+    var startAt=workCalendarAppointmentStart_(event),current=Date.now();
+    newlyAssigned.forEach(function(id){workCalendarQueueNotification_(ns,event,id,'job_created',current,startAt);});
+    if(startAt>current){
+      event.assignedUsernames.forEach(function(id){
+        var r30=startAt-30*60*1000,r5=startAt-5*60*1000;
+        if(r30>current)workCalendarQueueNotification_(ns,event,id,'reminder_30',r30,startAt);
+        if(r5>current)workCalendarQueueNotification_(ns,event,id,'reminder_5',r5,startAt);
+      });
+    }
     log_(u.username,'scheduleJob',event.id,company,event.customer);
     return {ok:true,id:event.id,updatedAt:event.updatedAt,event:event};
   }finally{lock.releaseLock();}
+}
+function workCalendarNotifications_(body){
+  workCalendarPermissions_();var company=workCalendarCompany_(body),u=auth_(body,['Admin','Technician','Worker']);
+  if(!permissionAllowed_(u,company,'calendar.view'))throw Error('Calendar view permission required');
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CalendarNotifications'),items=[],now=Date.now();
+  if(!sh||sh.getLastRow()<2)return {ok:true,notifications:[]};
+  sh.getRange(2,1,sh.getLastRow()-1,12).getValues().forEach(function(r,i){
+    if(String(r[1])!==company||String(r[2]).toLowerCase()!==u.username.toLowerCase()||String(r[9])!=='PENDING')return;
+    var runAt=Number(r[7])||0,startAt=Number(r[8])||0;
+    if(runAt>now)return;
+    if(startAt&&now>=startAt&&String(r[3])!=='job_created'){sh.getRange(i+2,10).setValue('EXPIRED');return;}
+    items.push({id:String(r[0]),type:String(r[3]),eventId:String(r[4]),title:String(r[5]),body:String(r[6]),runAt:runAt});
+  });
+  return {ok:true,notifications:items.slice(0,50)};
+}
+function workCalendarNotificationsAck_(body){
+  workCalendarPermissions_();var company=workCalendarCompany_(body),u=auth_(body,['Admin','Technician','Worker']);
+  if(!permissionAllowed_(u,company,'calendar.view'))throw Error('Calendar view permission required');
+  var ids=Array.isArray(body.notificationIds)?body.notificationIds.map(String):[];
+  if(!ids.length)return {ok:true,acknowledged:0};
+  if(ids.length>100)throw Error('Too many notification IDs');
+  var wanted={};ids.forEach(function(id){wanted[id]=true;});
+  var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CalendarNotifications'),count=0;
+  if(!sh||sh.getLastRow()<2)return {ok:true,acknowledged:0};
+  sh.getRange(2,1,sh.getLastRow()-1,12).getValues().forEach(function(r,i){
+    if(wanted[String(r[0])]&&String(r[1])===company&&String(r[2]).toLowerCase()===u.username.toLowerCase()&&String(r[9])==='PENDING'){
+      sh.getRange(i+2,10,1,2).setValues([['DELIVERED',new Date()]]);count++;
+    }
+  });
+  return {ok:true,acknowledged:count};
 }
 function workCalendarList_(u,company,body){
   var sh=SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ScheduledJobs'),events=[];
