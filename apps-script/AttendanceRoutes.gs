@@ -20,6 +20,9 @@ function doPost(e){
  try{
   workCalendarPermissions_();
   if(body.action==='calendarCompletionSet')return out_(workCalendarCompletion_(body));
+  if(body.action==='calendarTechnicians'||body.action==='hiCalendarTechnicians')return out_(workCalendarTechnicians_(body));
+  if(body.action==='calendarNotifications'||body.action==='hiCalendarNotifications')return out_(workCalendarNotifications_(body));
+  if(body.action==='calendarNotificationsAck'||body.action==='hiCalendarNotificationsAck')return out_(workCalendarNotificationsAck_(body));
   if(body.action==='scheduleJob'||body.action==='hiScheduleJob')return out_(workCalendarSave_(body));
   if(body.action==='calendar'||body.action==='hiCalendar')return out_(workCalendarRead_(body));
   if(body.action==='attendanceManage')return out_(tsManage_(body));
