@@ -1,5 +1,5 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v165-manual-updates';
+const CACHE = 'flagship-ops-v166-tech-groups';
 const SHELL = [
   "./quote-job-calendar.js?release=20261104-step1-query",
   "./",
@@ -7,7 +7,7 @@ const SHELL = [
   "./ops-theme.css?release=20261104-bottom-nav",
   "./ops-theme.js?release=20261029",
   "./ops-dashboard.js?release=flagship-ops-v151-attendance",
-  "./ops-updates-v135.js?release=flagship-ops-v165-manual-updates",
+  "./ops-updates-v135.js?release=flagship-ops-v166-tech-groups",
   "./release-notes.json",
   "./calendar-ui.6f647da4d4a8.css?release=flagship-ops-v151-attendance",
   "./vendor/rrule.min.js?release=flagship-ops-v151-attendance",

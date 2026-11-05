@@ -1,7 +1,8 @@
 {
-  "version": "flagship-ops-v165-manual-updates",
+  "version": "flagship-ops-v166-tech-groups",
   "date": "2026-11-05",
   "changes": [
+    "Calendar technician selection is grouped into Hi Service and Flagship columns, with the requested staff order.",
     "Manual update controls use a fresh cached updater so older installed app caches can reach the Update button.",
     "App updates are manual only. New releases install and reload only after the user taps Update in Settings.",
     "Calendar search scans all archived TimeTree and app bookings, across dates, by customer name or site address.",
