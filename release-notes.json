@@ -1,7 +1,8 @@
 {
-  "version": "flagship-ops-v167-tech-groups",
+  "version": "flagship-ops-v168-tech-groups",
   "date": "2026-11-05",
   "changes": [
+    "The displayed app version now matches the active service worker release.",
     "Corrects technician name matching in the Hi Service and Flagship calendar groups.",
     "Calendar technician selection is grouped into Hi Service and Flagship columns, with the requested staff order.",
     "Manual update controls use a fresh cached updater so older installed app caches can reach the Update button.",
