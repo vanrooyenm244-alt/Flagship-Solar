@@ -45,7 +45,7 @@ function tsManage_(body){
   var data=body.entry||{},next=null;
   if(action==='correct'){
    var date=String(data.date||''),parsed=new Date(date+'T12:00:00Z');
-   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||isNaN(parsed)||parsed.toISOString().slice(0,10)!==date||date>hiClockToday_())throw Error('Enter a valid date, not a future date');
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isNaN(parsed)||parsed.toISOString().slice(0,10)!==date||date>hiClockToday_())throw Error('Enter a valid date, not a future date');
    if(data.lunch==null||String(data.lunch).trim()==='')throw Error('Enter break minutes explicitly (0 is valid)');
    next={worker:old.worker,date:date,timeIn:String(data.timeIn||''),timeOut:String(data.timeOut||''),lunch:Number(data.lunch),job:String(data.job||''),note:String(data.note||'')};
    if(!calc_(next.date,next.timeIn,next.timeOut,next.lunch))throw Error(shiftReviewReason_(next.date,next.timeIn,next.timeOut,next.lunch));
