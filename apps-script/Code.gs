@@ -718,8 +718,8 @@ function sortWorkerTab_(sh) {
 }
 
 function rebuildSummary() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var src = sheet_('Timesheets');
+  var ss = timesheetSpreadsheet_();
+  var src = ss.getSheetByName('Timesheets');
   var sh = ss.getSheetByName('Summary') || ss.insertSheet('Summary');
   sh.clear();
 
@@ -800,7 +800,7 @@ function rebuildWorkerTabs(requestedWorkers) {
 /* Approval inbox: submissions stay outside Timesheets until admin approval. */
 /* Separate server-confirmed clock in/out events for Hi Service. */
 function hiClockSheet_(){
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Hi Clock Events');
+  var ss=timesheetSpreadsheet_('Hi Service'),sh=ss.getSheetByName('Hi Clock Events');
   if(!sh){sh=ss.insertSheet('Hi Clock Events');sh.appendRow(['ID','Account','Worker','Date','Time In','Time Out','Status','Recorded In','Recorded Out','Approval']);}
   return sh;
 }
@@ -840,7 +840,7 @@ function hiClockAction_(body){
   }finally{lock.releaseLock();}
 }
 function flagshipClockSheet_(){
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Flagship Clock Events');
+  var ss=timesheetSpreadsheet_('Flagship Solar'),sh=ss.getSheetByName('Flagship Clock Events');
   if(!sh){sh=ss.insertSheet('Flagship Clock Events');sh.appendRow(['ID','Account','Worker','Date','Time In','Time Out','Status','Recorded In','Recorded Out','Approval']);}
   return sh;
 }
