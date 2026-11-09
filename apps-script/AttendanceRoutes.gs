@@ -7,7 +7,7 @@ function doGet(e){
   if(p.action==='quoteJob'||p.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(p.action==='calendar'||p.action==='hiCalendar')return out_(workCalendarRead_(body));
   if(p.action==='timesheetAll'||p.action==='entries')return withTimesheetContext_(body.company||'Flagship Solar',function(){return attendanceLegacyGet_(e);});
-  if(p.action==='attendanceRecords')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsRecords_(Object.assign({},body,p)));});
+  if(p.action==='attendanceRecords')return withTimesheetContext_(body.company||'Flagship Solar',function(){var result=tsRecords_(Object.assign({},body,p));if(result.admin)syncMonthlyOvertimeSafely_();return out_(result);});
   if(p.action==='attendanceHistory')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsHistory_(Object.assign({},body,p)));});
   if(p.action==='timesheetPending')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_({ok:true,entries:tsPendingList_(auth_(body))});});
   if(p.action==='flagshipClockStatus')return out_(flagshipClockStatus_(body));
