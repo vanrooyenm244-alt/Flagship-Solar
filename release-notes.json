@@ -1,5 +1,5 @@
 {
-  "version": "flagship-ops-v170-calendar-contrast",
+  "version": "flagship-ops-v171-calendar-verified",
   "date": "2026-11-09",
   "changes": [
     "Calendar opens with the month view; Google Calendar bookings are stored centrally under mjflagship@gmail.com and read back with updates and cancellation.",
@@ -18,7 +18,7 @@
     "Reuse server TimeTree sessions, pause failed sign-ins, and read archived photos without reconnecting to TimeTree.",
     "Technicians can mark today's booking as completed or reopened, with central audit history and recurring-date scope.",
     "Flagship calendar falls back to direct server data when Android local storage is unavailable.",
-    "Today\u2019s bookings now use the same TimeTree date and recurring-appointment handling as the calendar.",
+    "Today’s bookings now use the same TimeTree date and recurring-appointment handling as the calendar.",
     "New mobile dashboard styling and optional light/dark theme.",
     "Attendance review: correct/cancel pending and approved shifts with mandatory reason and retained original.",
     "Submitted by and Approved by with timestamps; yellow overtime rows.",
