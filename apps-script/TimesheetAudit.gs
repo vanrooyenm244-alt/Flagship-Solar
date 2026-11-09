@@ -63,6 +63,7 @@ function tsManage_(body){
    else if(!next)sh.appendRow([Utilities.getUuid(),old.worker,old.date,JSON.stringify(old),old.submittedBy,old.submittedAt,'Cancelled',u.username,new Date(),reason]);
    rebuildWorkerTabs([old.worker]);
   }
+  syncMonthlyOvertimeSafely_();
   return {ok:true,status:next?'Corrected':'Cancelled'};
  }finally{lock.releaseLock();}
 }
