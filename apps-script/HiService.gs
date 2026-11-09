@@ -143,7 +143,8 @@ function hiTime_(u,row){
   var result=writeEntry_(u,Object.assign({},row,{worker:worker,date:d}));
   if(result.skipped)throw new Error(result.reason||'Invalid timesheet');
   if(result.added||result.updated)rebuildWorkerTabs([worker]);
-  return {saved:true,unchanged:!!result.unchanged,normalHours:c.normal,overtimeHours:c.overtime,totalHours:c.total};
+  syncMonthlyOvertimeSafely_();
+   return {saved:true,unchanged:!!result.unchanged,normalHours:c.normal,overtimeHours:c.overtime,totalHours:c.total};
 }
 function hiDailyStockReport_(dateText){
   var ss=hiTargetSpreadsheet_(HI_COUNT_SHEET),tz=ss.getSpreadsheetTimeZone()||Session.getScriptTimeZone();
