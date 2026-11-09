@@ -6,7 +6,6 @@ var HI_MIGRATION_TARGETS_ = {
   Timesheets: '1sbNYYAA2kXA7net9MEeduOGNOtk3hjyBIoJfeVbDovU'
 };
 function hiTargetSpreadsheet_(name) {
-  if(name===HI_TIME_SHEET)return SpreadsheetApp.getActiveSpreadsheet(); // Timesheet migration separate
   var id=HI_MIGRATION_TARGETS_[name];
   if(!id) throw new Error('Missing explicit Hi Service Sheet route: '+name);
   return SpreadsheetApp.openById(id);
@@ -177,6 +176,6 @@ function hiServicePostLocked_(body){
   if(a==='hiStockTransfer')return out_({ok:true,result:hiMove_(u,body.from,body.to,body.lines,'transfer',body.reason,'',body.requestId)});
   if(a==='hiStockAdjust')return out_({ok:true,result:hiMove_(u,body.place,'',body.lines,'adjust',body.reason,'',body.requestId)});
   if(a==='hiStockReceive')return out_({ok:true,result:hiMove_(u,'',body.place,body.lines,'receive','Invoice',body.reference,body.requestId)});
-  if(a==='hiTimesheet')return out_({ok:true,result:hiTime_(u,body.row||{})});
+  if(a==='hiTimesheet')return withTimesheetContext_('Hi Service',function(){return out_({ok:true,result:hiTime_(u,body.row||{})});});
 }
 
