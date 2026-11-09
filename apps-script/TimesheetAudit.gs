@@ -28,19 +28,24 @@ function tsManage_(body){
  var u=auth_(body);if(u.role!=='Admin')throw Error('Only Admin may correct or cancel timesheets');
  var reason=String(body.reason||'').trim();if(reason.length<3)throw Error('Enter a reason for this change');
  var action=String(body.operation||'');if(['correct','cancel','approve','reject'].indexOf(action)<0)throw Error('Invalid timesheet operation');
+
+ // Route approval/rejection through the single approval lock; never nest ScriptLock.
+ if(action==='approve'||action==='reject'){
+  var pending=tsRecords_(body).entries.find(function(r){return r.version===body.version;});
+  if(!pending)throw Error('This row changed. Refresh before editing it.');
+  if(pending.status!=='Pending')throw Error('Only pending submissions can be reviewed');
+  return tsReview_(u,{id:pending.id,decision:action,reason:reason,user:body.user,pass:body.pass,company:body.company,expectedVersion:pending.version});
+ }
+
  var lock=LockService.getScriptLock();lock.waitLock(20000);
  try{
   var records=tsRecords_(body).entries,old=records.find(function(r){return r.version===body.version;});
   if(!old)throw Error('This row changed. Refresh before editing it.');
   if(['Approved','Pending'].indexOf(old.status)<0)throw Error('This record has already been closed');
-  if(action==='approve'||action==='reject'){
-   if(old.status!=='Pending')throw Error('Only pending submissions can be reviewed');
-   return tsReview_(u,{id:old.id,decision:action,reason:reason});
-  }
   var data=body.entry||{},next=null;
   if(action==='correct'){
    var date=String(data.date||''),parsed=new Date(date+'T12:00:00Z');
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||isNaN(parsed)||parsed.toISOString().slice(0,10)!==date||date>hiClockToday_())throw Error('Enter a valid date, not a future date');
+   if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||isNaN(parsed)||parsed.toISOString().slice(0,10)!==date||date>hiClockToday_())throw Error('Enter a valid date, not a future date');
    if(data.lunch==null||String(data.lunch).trim()==='')throw Error('Enter break minutes explicitly (0 is valid)');
    next={worker:old.worker,date:date,timeIn:String(data.timeIn||''),timeOut:String(data.timeOut||''),lunch:Number(data.lunch),job:String(data.job||''),note:String(data.note||'')};
    if(!calc_(next.date,next.timeIn,next.timeOut,next.lunch))throw Error(shiftReviewReason_(next.date,next.timeIn,next.timeOut,next.lunch));
@@ -49,7 +54,6 @@ function tsManage_(body){
   var sh=tsApprovalSheet_(),values=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,10).getValues():[],at=values.findIndex(function(r){return old.id?String(r[0])===old.id:r[6]==='Approved'&&String(r[1])===old.worker&&dateStr_(r[2])===old.date;});
   var master=old.status==='Approved'?findEntry_(old.worker,old.date):null;
   if(master)preflightWorkerTabs_([old.worker],true);
-  // Preserve the exact original and proposed replacement BEFORE touching payroll.
   tsAudit_(u,action,old.worker,old.date,reason,old,next);
   if(old.status==='Pending'){
    if(at<0)throw Error('Submission no longer exists');
@@ -61,9 +65,7 @@ function tsManage_(body){
    if(!next||next.date!==old.date)sheet_('Timesheets').deleteRow(master);
    if(at>=0){if(next)sh.getRange(at+2,3,1,2).setValues([[next.date,JSON.stringify(next)]]);sh.getRange(at+2,7,1,4).setValues([[next?'Approved':'Cancelled',u.username,new Date(),reason]]);}
    else if(!next)sh.appendRow([Utilities.getUuid(),old.worker,old.date,JSON.stringify(old),old.submittedBy,old.submittedAt,'Cancelled',u.username,new Date(),reason]);
-   rebuildWorkerTabs([old.worker]);
   }
-  syncMonthlyOvertimeSafely_();
   return {ok:true,status:next?'Corrected':'Cancelled'};
  }finally{lock.releaseLock();}
 }
