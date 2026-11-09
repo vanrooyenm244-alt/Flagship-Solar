@@ -49,3 +49,31 @@ test('day opens its own occurrences and links directly to the original TimeTree 
 });
 
 
+
+test('periodic full reconciliation recovers bookings omitted by a successful empty incremental response',()=>{
+ const b=nativeBackend(),props=b.c.PropertiesService.getScriptProperties();
+ props.setProperty('TIMETREE_ALLOWED_CALENDAR_IDS','63108444');
+ assert.equal(b.c.timeTreeSyncScheduled().fullRefresh,true);
+ const fetch=b.c.UrlFetchApp.fetch,urls=[];
+ b.c.UrlFetchApp.fetch=(url,options)=>{
+  if(!url.includes('/events/sync'))return fetch(url,options);
+  urls.push(url);
+  const full=url.endsWith('since=0');
+  const json={events:full?[event().raw,event({uuid:'missed',title:'Recovered booking',updated_at:200}).raw]:[],chunk:false,since:1};
+  return {getResponseCode:()=>200,getContentText:()=>JSON.stringify(json),getAllHeaders:()=>({})};
+ };
+ assert.equal(b.c.timeTreeSyncScheduled().sourceRecords,0);
+ assert.ok(!b.sheets.get('TimeTreeEvents').rows.slice(1).some(r=>JSON.parse(r[3]).customer==='Recovered booking'));
+ props.setProperty('TT_LAST_FULL_RECONCILE_AT',String(Date.now()-31*60000));
+ const recovered=b.c.timeTreeSyncScheduled();
+ assert.equal(recovered.fullRefresh,true);assert.equal(recovered.changed,1);
+ assert.ok(b.sheets.get('TimeTreeEvents').rows.slice(1).some(r=>JSON.parse(r[3]).customer==='Recovered booking'));
+ assert.ok(urls[0].endsWith('since=1'));assert.ok(urls[1].endsWith('since=0'));
+});
+
+test('failed reconciliation does not postpone the next full recovery attempt',()=>{
+ const b=nativeBackend(true),props=b.c.PropertiesService.getScriptProperties();
+ props.setProperty('TT_LAST_FULL_RECONCILE_AT','1');
+ assert.throws(()=>b.c.timeTreeSyncScheduled(),/HTTP 503/);
+ assert.equal(props.getProperty('TT_LAST_FULL_RECONCILE_AT'),'1');
+});
