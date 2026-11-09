@@ -6135,7 +6135,7 @@ document.getElementById('tsSend').addEventListener('click',async function(){
 async function loadTsApprovals_(){
   var box=document.getElementById('tsApprovals');if(!box)return;
   if(!ME||ME.role!=='Admin'||!CFG.url){box.innerHTML='';return;}
-  var u=CFG.url+'?action=timesheetPending&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass);
+  var u=CFG.url+'?action=timesheetPending&company=Flagship%20Solar&user='+encodeURIComponent(ME.username)+'&pass='+encodeURIComponent(ME.pass);
   var response=await fetch(u);if(!response.ok)throw Error('Approval inbox unavailable');
   var data=await response.json();if(!data.ok)throw Error(data.error||'Approval inbox unavailable');
   var entries=data.entries||[];
@@ -6180,7 +6180,7 @@ async function loadTsApprovals_(){
     var reason=decision==='reject'?prompt('Reason for rejection:','Incorrect times / date'):'';
     if(reason===null)return;
     var response=await fetch(CFG.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'timesheetReview',user:ME.username,pass:ME.pass,id:x.id,decision:decision,reason:reason||''})});
+      body:JSON.stringify({action:'timesheetReview',company:'Flagship Solar',user:ME.username,pass:ME.pass,id:x.id,decision:decision,reason:reason||''})});
     if(!response.ok)throw Error('Review request failed');
     var result=await response.json();if(!result.ok)throw Error(result.error||'Review not saved');
     await loadTsApprovals_();await fetchTimesheetAll();
