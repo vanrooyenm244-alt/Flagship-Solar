@@ -7,6 +7,8 @@ on:
       - 'apps-script/WorkCalendar.gs'
       - 'apps-script/AttendanceRoutes.gs'
       - 'apps-script/GoogleCalendar.gs'
+      - 'apps-script/TimeTreeSync.gs'
+      - 'tests/timetree.test.cjs'
       - 'tests/google-calendar.test.cjs'
       - 'quote-job-calendar.js'
       - 'tests/quote-job-calendar.test.cjs'
@@ -24,4 +26,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify job lookup, company boundaries, repeat saves, login links and syntax
-        run: node --test tests/quote-job-calendar.test.cjs tests/google-calendar.test.cjs tests/calendar*.test.cjs
+        run: node --test tests/quote-job-calendar.test.cjs tests/google-calendar.test.cjs tests/calendar*.test.cjs tests/timetree.test.cjs
