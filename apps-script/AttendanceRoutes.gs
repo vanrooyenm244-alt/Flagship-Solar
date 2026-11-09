@@ -6,9 +6,9 @@ function doGet(e){
   if(p.action==='googleCalendarStatus')return out_(workGoogleStatus_(body));
   if(p.action==='quoteJob'||p.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(p.action==='calendar'||p.action==='hiCalendar')return out_(workCalendarRead_(body));
-  if(p.action==='attendanceRecords')return out_(tsRecords_(Object.assign({},body,p)));
-  if(p.action==='attendanceHistory')return out_(tsHistory_(Object.assign({},body,p)));
-  if(p.action==='timesheetPending')return out_({ok:true,entries:tsPendingList_(auth_(body))});
+  if(p.action==='attendanceRecords')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsRecords_(Object.assign({},body,p)));});
+  if(p.action==='attendanceHistory')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsHistory_(Object.assign({},body,p)));});
+  if(p.action==='timesheetPending')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_({ok:true,entries:tsPendingList_(auth_(body))});});
   if(p.action==='flagshipClockStatus')return out_(flagshipClockStatus_(body));
   if(p.action==='hiClockStatus')return out_(hiClockStatus_(body));
   if(p.action==='poRecent')return out_(poRecent_(body));
@@ -30,11 +30,11 @@ function doPost(e){
   if(body.action==='calendarNotificationsAck'||body.action==='hiCalendarNotificationsAck')return out_(workCalendarNotificationsAck_(body));
   if(body.action==='scheduleJob'||body.action==='hiScheduleJob')return out_(workCalendarSave_(body));
   if(body.action==='calendar'||body.action==='hiCalendar')return out_(workCalendarRead_(body));
-  if(body.action==='attendanceManage')return out_(tsManage_(body));
-  if(body.action==='timesheetReview')return out_(tsReview_(auth_(body),body));
-  if(body.action==='timesheets')return out_(tsStage_(auth_(body),body.rows||[]));
-  if(body.action==='flagshipClockAction')return out_(flagshipClockAction_(body));
-  if(body.action==='hiClockAction')return out_(hiClockAction_(body));
+  if(body.action==='attendanceManage')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsManage_(body));});
+  if(body.action==='timesheetReview')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsReview_(auth_(body),body));});
+  if(body.action==='timesheets')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsStage_(auth_(body),body.rows||[]));});
+  if(body.action==='flagshipClockAction')return withTimesheetContext_('Flagship Solar',function(){return out_(flagshipClockAction_(body));});
+  if(body.action==='hiClockAction')return withTimesheetContext_('Hi Service',function(){return out_(hiClockAction_(body));});
   if(body.action==='timesheetDelete'){auth_(body);return out_({ok:false,error:'Use Attendance review to cancel an incorrect entry with a reason.'});}
  }catch(error){return out_({ok:false,error:String(error.message||error)});}
  return attendanceLegacyPost_(e);
