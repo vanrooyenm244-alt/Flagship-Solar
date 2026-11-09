@@ -22,15 +22,15 @@
    if(event.googleEventId&&bridge.allowed()){
      button(event.seriesAppId&&event.id.indexOf('gcal:')===0?'Edit this occurrence':'Edit booking',function(){detail.hidden=true;bridge.edit(event);});
      button('Cancel booking',async function(){
-       if(!confirm('Cancel '+(event.customer||'this booking')+' in Google Calendar?'))return;
-       var b=this;b.disabled=true;status.textContent='Cancelling booking…';
+       var b=this;if(b.dataset.confirm!=='yes'){b.dataset.confirm='yes';b.textContent='Confirm cancellation';status.textContent='Cancel '+(event.customer||'this booking')+'? Tap Confirm cancellation to continue.';return;}
+       b.disabled=true;status.textContent='Cancelling booking…';
        try{var r=await bridge.request({action:bridge.company==='Hi Service'?'hiCalendarCancel':'calendarCancel',company:bridge.company,eventId:event.id,googleEventId:event.googleEventId,googleEtag:event.googleEtag});if(r.ok===false)throw Error(r.error||'Not cancelled');detail.hidden=true;await bridge.refresh();status.textContent='Booking cancelled in Google Calendar.';}
        catch(e){status.textContent=String(e.message||e);}finally{b.disabled=false;}
      });
    }
    if(bridge.openCard)button('Create / Open Job Card',function(){bridge.openCard(event);});
    if(/^https:\/\/(?:www\.)?(?:google\.com|calendar\.google\.com|timetreeapp\.com)\//.test(event.sourceUrl||'')){
-     var source=document.createElement('a');source.href=event.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';source.textContent=event.source==='google'?'Open in Google Calendar ↗':'Open original TimeTree booking ↗';actions.append(source);
+     var source=document.createElement('a');source.href=event.sourceUrl;source.target='_blank';source.rel='noopener noreferrer';source.textContent=event.googleEventId?'Open in Google Calendar ↗':'Open original TimeTree booking ↗';actions.append(source);
    }
    button('Close',function(){detail.hidden=true;});detail.scrollIntoView({behavior:'smooth',block:'nearest'});
  }};
