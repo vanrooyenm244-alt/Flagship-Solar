@@ -913,7 +913,8 @@ function tsStage_(user,rows,alreadyLocked){
       // 'added' confirms receipt into the approval inbox, NOT into Timesheets.
       results.push({index:i,worker:worker,date:ds,status:status==='pending'?'added':status,reason:reason});
     });
-    return {ok:true,results:results,pendingApproval:results.filter(function(r){return r.status==='added';}).length};
+    syncMonthlyOvertimeSafely_();
+     return {ok:true,results:results,pendingApproval:results.filter(function(r){return r.status==='added';}).length};
   }finally{if(lock)lock.releaseLock();}
 }
 function tsReview_(user,body){
@@ -935,7 +936,8 @@ function tsReview_(user,body){
     tsAudit_(user,action,String(row[1]),dateStr_(row[2]),String(body.reason||''),row,{decision:action,reviewer:user.username});
     sh.getRange(at+2,7,1,4).setValues([[action==='approve'?'Approved':'Rejected',user.username,new Date(),String(body.reason||'')]]);
     log_(user.username,'timesheet '+action,String(row[1])+' '+dateStr_(row[2]),'Pending',String(body.reason||''));
-    return {ok:true,status:action==='approve'?'Approved':'Rejected'};
+    syncMonthlyOvertimeSafely_();
+     return {ok:true,status:action==='approve'?'Approved':'Rejected'};
   }finally{lock.releaseLock();}
 }
 
