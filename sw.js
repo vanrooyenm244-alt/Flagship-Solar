@@ -1,5 +1,5 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v172-calendar-confirm';
+const CACHE = 'flagship-ops-v173-timesheet-approval-speed';
 const SHELL = [
   "./app-calendar-tools.js?release=calendar-google-20261109-confirm",
   "./quote-job-calendar.js?release=20261104-step1-query",
@@ -27,7 +27,7 @@ const SHELL = [
   "./purchase-orders.js?release=flagship-ops-v151-attendance",
   "./po-inventory.js?release=flagship-ops-v151-attendance"
 ];
-SHELL.push("./attendance-review.js?release=flagship-ops-v151-attendance");
+SHELL.push("./attendance-review.js?release=timesheet-approval-speed-20261109");
 const REQUIRED = SHELL.filter(p=>/\.(?:js|css)(?:\?|$)/.test(p)||p==='./index.html'||p==='./');
 const MANUAL_GRANT_CACHE='manual-update-approval-flagship';
 async function requireManualUpdateApproval(){
