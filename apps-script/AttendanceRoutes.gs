@@ -3,6 +3,7 @@ function doGet(e){
  var p=e&&e.parameter||{},body={user:p.user,pass:p.pass,action:p.action,company:p.company,id:p.id,from:p.from,to:p.to,bookingId:p.bookingId,jobNo:p.jobNo};
  try{
   workCalendarPermissions_();
+  if(p.action==='googleCalendarStatus')return out_(workGoogleStatus_(body));
   if(p.action==='quoteJob'||p.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(p.action==='calendar'||p.action==='hiCalendar')return out_(workCalendarRead_(body));
   if(p.action==='attendanceRecords')return out_(tsRecords_(Object.assign({},body,p)));
@@ -20,6 +21,8 @@ function doPost(e){
  var body={};try{body=JSON.parse(e&&e.postData&&e.postData.contents||'{}');}catch(ignore){return attendanceLegacyPost_(e);}
  try{
   workCalendarPermissions_();
+  if(body.action==='googleCalendarStatus')return out_(workGoogleStatus_(body));
+  if(body.action==='calendarCancel'||body.action==='hiCalendarCancel')return out_(workGoogleCancel_(body));
   if(body.action==='quoteJob'||body.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(body.action==='calendarCompletionSet')return out_(workCalendarCompletion_(body));
   if(body.action==='calendarTechnicians'||body.action==='hiCalendarTechnicians')return out_(workCalendarTechnicians_(body));

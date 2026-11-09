@@ -1,17 +1,18 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v168-tech-groups';
+const CACHE = 'flagship-ops-v169-google-calendar';
 const SHELL = [
+  "./app-calendar-tools.js?release=calendar-google-20261109",
   "./quote-job-calendar.js?release=20261104-step1-query",
   "./",
   "./index.html",
   "./ops-theme.css?release=20261104-bottom-nav",
   "./ops-theme.js?release=20261029",
   "./ops-dashboard.js?release=flagship-ops-v151-attendance",
-  "./ops-updates-v135.js?release=flagship-ops-v168-tech-groups",
+  "./ops-updates-v135.js?release=flagship-ops-v169-google-calendar",
   "./release-notes.json",
-  "./calendar-ui.6f647da4d4a8.css?release=flagship-ops-v151-attendance",
+  "./calendar-ui.6f647da4d4a8.css",
   "./vendor/rrule.min.js?release=flagship-ops-v151-attendance",
-  "./timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance",
+  "./timetree-calendar.8f9594366230.js",
   "./stock-count.js?release=flagship-ops-v151-attendance",
   "./user-privileges.js?release=flagship-ops-v151-attendance",
   "./supabase-client.js?release=flagship-ops-v151-attendance",

@@ -35,11 +35,19 @@ function workCalendarTechnicians_(body){
 }
 function workCalendarEvent_(input,company){
   var e=input||{},date=String(e.date||''),start=String(e.startTime||''),end=String(e.endTime||'');
-  if(!/^[a-zA-Z0-9_-]{8,100}$/.test(String(e.id||'')))throw Error('Invalid scheduling request ID');
+  if(!/^(?:gcal:)?[a-zA-Z0-9_-]{8,150}$/.test(String(e.id||'')))throw Error('Invalid scheduling request ID');
   if(!String(e.customer||'').trim())throw Error('Customer is required');
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date)throw Error('Valid booking date required');
   [start,end].forEach(function(t){if(t&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(t))throw Error('Use 24-hour time HH:mm');});
-  if(end&&!start||start&&end&&end<=start)throw Error('End time must be after start time');
+  var endDate=String(e.endDate||date);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(endDate)||!isFinite(Date.parse(endDate))||new Date(endDate).toISOString().slice(0,10)!==endDate||endDate<date)throw Error('Valid end date required');
+  if(end&&!start||start&&end&&endDate===date&&end<=start)throw Error('End time must be after start time');
+  var recurrence=Array.isArray(e.recurrences)?e.recurrences:[];
+  if(e.repeat&&e.repeat!=='none'){
+    if(['DAILY','WEEKLY','MONTHLY','YEARLY'].indexOf(e.repeat)<0)throw Error('Invalid repeat interval');
+    recurrence=['RRULE:FREQ='+e.repeat];
+  }
+  if(recurrence.length>5||recurrence.some(function(r){return typeof r!=='string'||r.length>500||!/^RRULE:|^EXDATE:|^RDATE:/.test(r);}))throw Error('Invalid repeating booking');
   var ids=Array.isArray(e.assignedUsernames)?e.assignedUsernames.map(function(x){return String(x||'').trim();}).filter(Boolean):[];
   ids=ids.filter(function(x,i){return ids.indexOf(x)===i;});
   if(!ids.length)throw Error('Select at least one technician');
@@ -49,7 +57,7 @@ function workCalendarEvent_(input,company){
     if(!found)throw Error('One selected technician is no longer active');
     return found;
   });
-  var out={id:String(e.id),source:'app',company:company,date:date,endDate:date,startTime:start,endTime:end,status:'SCHEDULED',timeZone:'Africa/Johannesburg',recurrences:[],assignedUsernames:selected.map(function(x){return x.username;})};
+  var out={id:String(e.id),source:'app',company:company,date:date,endDate:endDate,startTime:start,endTime:end,allDay:e.allDay===true||e.allDay==='on'||!start,status:'SCHEDULED',timeZone:'Africa/Johannesburg',recurrences:recurrence,assignedUsernames:selected.map(function(x){return x.username;})};
   ['customer','site','jobType','notes','jobNo'].forEach(function(k){out[k]=String(e[k]||'').trim();if(out[k].length>(k==='notes'?10000:500))throw Error('Booking '+k+' is too long');});
   if(e.jobListId)out.jobListId=e.jobListId;
   out.technician=selected.map(function(x){return x.name;}).join(', ');
@@ -84,6 +92,10 @@ function workCalendarSave_(body){
     var row=found?found.getRow():0;
     if(row&&String(sh.getRange(row,2).getValue())!==company)throw Error('Booking belongs to another company');
     var previous=row?JSON.parse(String(sh.getRange(row,7).getValue()||'{}')):null;
+    if(typeof workGoogleSave_==='function'){
+      var google=workGoogleSave_(event,input);
+      Object.assign(event,{source:'google',googleEventId:google.googleEventId,googleEtag:google.googleEtag,sourceUrl:google.sourceUrl,startAt:google.startAt,endAt:google.endAt});
+    }
     var now=new Date();event.updatedAt=now.getTime();event.createdBy=row?String(sh.getRange(row,9).getValue()):u.username;
     var values=[event.id,company,event.date,event.startTime,event.endTime,event.technician,JSON.stringify(event),now,event.createdBy];
     if(row)sh.getRange(row,1,1,values.length).setValues([values]);else{sh.appendRow(values);row=sh.getLastRow();}
@@ -141,16 +153,26 @@ function workCalendarList_(u,company,body){
   sh.getRange(2,1,sh.getLastRow()-1,9).getValues().forEach(function(row){
     if(row[1]!==company)return;
     if(window&&window.bookingId&&row[0]!==window.bookingId)return;
-    if(window&&!window.bookingId&&(row[2]<window.from||row[2]>window.to))return;
     var e=JSON.parse(row[6]);
+    if(window&&!window.bookingId&&!(e.recurrences||[]).length&&((e.endDate||e.date)<window.from||e.date>window.to))return;
     if(u.role==='Worker'&&!jobCardAssigned_(e.technician,u.name))return;
     events.push(e);
   });return events;
 }
 function workCalendarRead_(body){
   workCalendarPermissions_();var company=workCalendarCompany_(body),u=auth_(body,['Admin','Technician','Worker']);
-  var result=body.bookingId&&String(body.bookingId).indexOf('tt:')!==0?{ok:true,events:[]}:company==='Hi Service'?hiCalendar_(body):calendarList_(body);
-  result.events=result.events.concat(jobCompletionOverlay_(workCalendarList_(u,company,body),company));
+  if(!permissionAllowed_(u,company,'calendar.view'))throw Error('Calendar view permission required');
+  if(typeof ttCalendarWindow_==='function')ttCalendarWindow_(body); // Validate caller input before the archive fallback can catch provider errors.
+  var result={ok:true,events:[]};
+  try{result=body.bookingId&&String(body.bookingId).indexOf('tt:')!==0?result:company==='Hi Service'?hiCalendar_(body):calendarList_(body);}
+  catch(error){result.archiveWarning='TimeTree archive unavailable: '+String(error.message||error);}
+  var local=workCalendarList_(u,company,body),remote=[];
+  if(typeof workGoogleList_==='function'){
+    try{remote=workGoogleList_(u,company,body);local=local.filter(function(e){return !e.googleEventId;});result.googleCalendar={connected:true,calendarId:WORK_GOOGLE_CALENDAR_ID_};}
+    catch(error){result.googleCalendar={connected:false,error:String(error.message||error)};}
+  }
+  var records={};result.events.concat(local,remote).forEach(function(e){records[e.id]=e;});
+  result.events=jobCompletionOverlay_(Object.keys(records).map(function(id){return records[id];}).filter(function(e){return e.status!=='ARCHIVED'||e.source==='timetree';}),company);
   result.backupStatus=PropertiesService.getScriptProperties().getProperty('TIMETREE_BACKUP_STATUS')||'Not started';
   return result;
 }
@@ -159,8 +181,10 @@ function workCalendarCompletion_(body){
   var u=auth_(body,['Admin','Technician','Worker']),company=body.company==='Hi Service'?'Hi Service':'Flagship Solar';
   var date=String(body.occurrenceDate||''),id=String(body.eventId||'');
   var visible=workCalendarList_(u,company,{bookingId:id});
+  if(!visible.length&&typeof workGoogleFind_==='function'){var google=workGoogleFind_(u,company,id);if(google)visible=[google];}
   if(!visible.length)return calendarCompletionSet_(body);
-  if(typeof body.completed!=='boolean'||date!==visible[0].date)throw Error('Invalid completion date or status');
+  if(!permissionAllowed_(u,company,'calendar.view'))throw Error('Calendar view permission required');
+  if(typeof body.completed!=='boolean'||date<visible[0].date||date>(visible[0].endDate||visible[0].date))throw Error('Invalid completion date or status');
   var lock=LockService.getScriptLock();lock.waitLock(15000);
   try{var now=new Date();jobCompletionSheet_().appendRow([id,company,visible[0].jobNo,String(u.name||u.username),now,body.completed?'COMPLETED':'REOPENED','',u.username,now,date]);}
   finally{lock.releaseLock();}

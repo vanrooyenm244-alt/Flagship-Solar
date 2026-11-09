@@ -137,6 +137,11 @@ jobs:
           test -f "$STAGING_DIR/Code.gs" || { echo "::error::Code.gs not found"; exit 1; }
           test -f "$STAGING_DIR/appsscript.json" || { echo "::error::Existing Apps Script manifest not found; stopped to avoid changing deployment settings"; exit 1; }
 
+      - name: Retain existing manifest and include the authorised Calendar scope
+        working-directory: ${{ env.STAGING_DIR }}
+        run: |
+          node -e 'const fs=require("fs"),p="appsscript.json",m=JSON.parse(fs.readFileSync(p));if(Array.isArray(m.oauthScopes)&&!m.oauthScopes.includes("https://www.googleapis.com/auth/calendar")){m.oauthScopes.push("https://www.googleapis.com/auth/calendar");fs.writeFileSync(p,JSON.stringify(m,null,2));}'
+
       - name: Verify Apps Script API before changes
         working-directory: ${{ env.STAGING_DIR }}
         shell: bash

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="flagship-release" content="flagship-ops-v168-tech-groups">
+<meta name="flagship-release" content="flagship-ops-v169-google-calendar">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F4E79">
@@ -772,7 +772,7 @@ table.page{border-collapse:collapse}
   <script src="./supabase-config.js?release=flagship-ops-v151-attendance"></script>
   <script src="./supabase-client.js?release=flagship-ops-v151-attendance"></script>
   <script src="./timesheet-sync.js?release=flagship-ops-v151-attendance"></script>
-<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.071000ecf91b.js?release=flagship-ops-v151-attendance"></script><link rel="stylesheet" href="calendar-ui.6f647da4d4a8.css?release=flagship-ops-v151-attendance"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style><link rel="stylesheet" href="./ops-theme.css?release=20261104-bottom-nav"><script defer src="./ops-theme.js?release=20261029"></script></head>
+<script src="vendor/rrule.min.js?release=flagship-ops-v151-attendance"></script><script src="timetree-calendar.8f9594366230.js"></script><link rel="stylesheet" href="calendar-ui.6f647da4d4a8.css"><style>.dy.has-overtime,.dy.has-overtime .fl{background:#fff3a0!important;color:#172433!important}.dy.has-overtime input{background:#fffdf0;color:#172433}</style><link rel="stylesheet" href="./ops-theme.css?release=20261104-bottom-nav"><script defer src="./ops-theme.js?release=20261029"></script></head>
 <body>
 
 
@@ -892,7 +892,7 @@ table.page{border-collapse:collapse}
         <div class="jc-field"><label>Job number (optional)</label><input id="calJobNo" placeholder="Leave blank if not assigned"></div>
         <div class="jc-field"><label>Job type</label><input id="calType" placeholder="Installation, repair, inspection..."></div>
       </div>
-      <div class="jc-field"><label>Notes</label><textarea id="calNotes" rows="3" placeholder="Job notes"></textarea></div>
+      <div class="jc-grid2"><label>End date (optional)<input type="date" id="calEndDate"></label><label><input type="checkbox" id="calAllDay"> All day</label><label>Repeat<select id="calRepeat"><option value="none">Does not repeat</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option><option value="keep">Keep existing repeat rule</option></select></label></div><div class="jc-field"><label>Notes</label><textarea id="calNotes" rows="3" placeholder="Job notes"></textarea></div>
       <div class="jc-row-actions"><button class="btn" id="calSave" type="button">Save job</button><button class="btn ghost" id="calCancel" type="button">Cancel</button></div>
       <div id="calMsg" class="hint"></div>
     </div>
@@ -1728,7 +1728,7 @@ window.addEventListener('load',function(){
  var home=document.getElementById('screenHome');if(home&&window.MutationObserver){new MutationObserver(function(){if(!home.classList.contains('hidden'))flagshipHomeToday_();}).observe(home,{attributes:true,attributeFilter:['class']});}
 });
 function calIsMine_(e){if(e.source==='timetree')return TimeTreeCalendar.visible(e,'Flagship Solar',ME);if(CAL_ALL)return true;var n=ME&&ME.name?String(ME.name).toLowerCase():'';return !!n&&String(e.technician||'').toLowerCase().split(/[,;\n]+/).some(function(name){return name.trim()===n.trim();});}
-var CAL_DAY=null,CAL_VIEW='agenda',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
+var CAL_DAY=null,CAL_VIEW='month',CAL_SYNC=null,CAL_SYNC_AT=0,CAL_SYNC_OWNER='',CAL_RENDER=0;
 var CAL_LIVE_EVENTS=null,CAL_LIVE_OWNER='';
 var CAL_SEARCH_EVENTS=null,CAL_SEARCH_OWNER='',CAL_SEARCH_AT=0,CAL_SEARCH_REQUEST=null;
 function calSearchQuery_(){return (document.getElementById('calSearch').value||'').trim().toLocaleLowerCase();}
@@ -1785,7 +1785,7 @@ function showCalendar(force){
     }).then(function(){if(who!==calOwner_())return;
       CAL_SYNC_OWNER=requestKey;CAL_SYNC_AT=Date.now();
       if(document.getElementById('calSyncStatus').textContent.indexOf('Offline cache unavailable')<0){
-        document.getElementById('calSyncStatus').textContent=j.lastImportAt?'TimeTree updated '+new Date(j.lastImportAt).toLocaleString():'No TimeTree import yet.';
+        document.getElementById('calSyncStatus').textContent=calendarConnectionText_(j);
       }
       return calRender_();
     });
@@ -1798,7 +1798,7 @@ function calRender_(){
   return getAll('calendar').catch(function(){return []}).then(function(items){
     if(render!==CAL_RENDER)return;
     if(CAL_LIVE_OWNER===calOwner_()&&Array.isArray(CAL_LIVE_EVENTS)){
-      var combined=new Map(items.map(function(e){return [e.id,e]}));
+      var combined=new Map(items.filter(function(e){return e.source==='manual';}).map(function(e){return [e.id,e]}));
       CAL_LIVE_EVENTS.forEach(function(e){combined.set(e.id,e);});
       items=Array.from(combined.values());
     }
@@ -1823,11 +1823,13 @@ document.getElementById('calSearch').addEventListener('input',function(){calRend
 document.getElementById('calAgenda').onclick=function(){CAL_VIEW='agenda';calRender_();};
 document.getElementById('calMonth').onclick=function(){CAL_VIEW='month';calRender_();};
 var calOpening_=Object.create(null);
-function calOpen_(id){
+function calOpen_(id,openCard){
   if(calOpening_[id])return calOpening_[id];
   return calOpening_[id]=get1('calendar',id).then(function(e){
+  if(typeof CAL_LIVE_OWNER!=='undefined'&&CAL_LIVE_OWNER===calOwner_()&&Array.isArray(CAL_LIVE_EVENTS))e=CAL_LIVE_EVENTS.find(function(x){return x.id===id;})||e;
   if(!e&&CAL_SEARCH_OWNER===calOwner_()&&Array.isArray(CAL_SEARCH_EVENTS))e=CAL_SEARCH_EVENTS.find(function(x){return x.id===id;});
   if(!e)return;
+  if(!openCard&&typeof window!=='undefined'&&window.AppCalendarTools){AppCalendarTools.open(e);return;}
   if(e.source==='timetree'){document.getElementById('calTTText').textContent=TimeTreeCalendar.details(e);document.getElementById('calTTSource').href=e.sourceUrl;document.getElementById('calTTDetails').classList.remove('hidden');return;}
   if(!confirm('Open Job Card for '+(e.customer||'')+' at '+(e.site||'')+'?'))return;
   if(e.jobCardId)return jcOpen_(e.jobCardId,false,'screenCalendar');
@@ -1836,14 +1838,14 @@ function calOpen_(id){
   return jcSaveLocal_(card,true).then(function(saved){if(!saved)throw new Error('Could not save the linked Job Card.');e.jobCardId=card.id;return put('calendar',e);}).then(function(){return jcOpen_(card.id,false,'screenCalendar');});
 }).catch(function(e){alert('Could not open calendar job: '+e.message);}).finally(function(){delete calOpening_[id];});}
 function calShiftMonth_(delta){CAL_DATE.setDate(1);CAL_DATE.setMonth(CAL_DATE.getMonth()+delta);if(CAL_VIEW==='day')CAL_VIEW='agenda';showCalendar();}
-var CAL_JOB_LINK=null,CAL_REQUEST_ID='';
-document.getElementById('calNew').addEventListener('click',function(){CAL_JOB_LINK=null;CAL_REQUEST_ID='cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);if(window.QuoteJobCalendar)QuoteJobCalendar.clear();['calCustomer','calSite','calJobNo','calType','calNotes','calStart','calEnd'].forEach(function(id){document.getElementById(id).value='';document.getElementById(id).readOnly=false;});document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);document.getElementById('calTechOptions').textContent='Loading active technicians…';document.getElementById('calTechSummary').textContent='Choose technicians';loadCalendarTechnicians_();});
+var CAL_JOB_LINK=null,CAL_REQUEST_ID='',CAL_EDIT=null;
+document.getElementById('calNew').addEventListener('click',function(){CAL_JOB_LINK=null;CAL_EDIT=null;CAL_REQUEST_ID='cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,9);if(window.QuoteJobCalendar)QuoteJobCalendar.clear();['calCustomer','calSite','calJobNo','calType','calNotes','calStart','calEnd','calEndDate'].forEach(function(id){document.getElementById(id).value='';document.getElementById(id).readOnly=false;});document.getElementById('calRepeat').value='none';document.getElementById('calAllDay').checked=false;document.getElementById('calForm').classList.remove('hidden');document.getElementById('calDate').value=calDateKey_(CAL_DATE);document.getElementById('calTechOptions').textContent='Loading active technicians…';document.getElementById('calTechSummary').textContent='Choose technicians';loadCalendarTechnicians_();});
 document.getElementById('calCancel').addEventListener('click',function(){CAL_JOB_LINK=null;if(window.QuoteJobCalendar)QuoteJobCalendar.clear();document.getElementById('calForm').classList.add('hidden');});
 document.getElementById('calToggleMode').addEventListener('click',function(){CAL_ALL=!CAL_ALL;calRender_();});
 document.getElementById('calPrev').addEventListener('click',function(){calShiftMonth_(-1);});
 document.getElementById('calNext').addEventListener('click',function(){calShiftMonth_(1);});
 document.getElementById('calToday').addEventListener('click',function(){CAL_DATE=new Date();CAL_DAY=calDateKey_(CAL_DATE);if(CAL_VIEW==='day')CAL_VIEW='agenda';showCalendar();});
-document.getElementById('calSave').addEventListener('click',function(){if(this.disabled)return;var saveButton=this;saveButton.disabled=true;var e={id:CAL_REQUEST_ID||(CAL_REQUEST_ID='cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)),jobListId:CAL_JOB_LINK?CAL_JOB_LINK.job.jobListId:'',customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:Array.from(document.querySelectorAll('#calTechOptions input:checked')).map(function(x){return x.dataset.name;}).join(', '),assignedUsernames:Array.from(document.querySelectorAll('#calTechOptions input:checked')).map(function(x){return x.value;}),company:'Flagship Solar',jobNo:document.getElementById('calJobNo').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(!e.assignedUsernames.length){document.getElementById('calMsg').textContent='Select at least one technician.';saveButton.disabled=false;return;}if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';saveButton.disabled=false;return;}if(e.endTime&&(!e.startTime||e.endTime<=e.startTime)){document.getElementById('calMsg').textContent='End time must be after start time.';saveButton.disabled=false;return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job saved on this phone; syncing…';calRender_();return api({action:'scheduleJob',event:e}).then(function(j){if(!j.id||j.id!==e.id)throw new Error('Invalid calendar acknowledgement.');Object.assign(e,j.event||{});e.updatedAt=Number(j.updatedAt)||e.updatedAt;e.source='server';document.getElementById('calForm').classList.add('hidden');CAL_JOB_LINK=null;if(window.QuoteJobCalendar)QuoteJobCalendar.clear();return put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled and synced.';calRender_();});}).catch(function(err){document.getElementById('calMsg').textContent='Saved on this phone; server sync failed. Retry Save job: '+String(err.message||err);});}).finally(function(){saveButton.disabled=false;});});
+document.getElementById('calSave').addEventListener('click',function(){if(this.disabled)return;var saveButton=this;saveButton.disabled=true;var e={id:CAL_REQUEST_ID||(CAL_REQUEST_ID='cal-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)),jobListId:CAL_JOB_LINK?CAL_JOB_LINK.job.jobListId:'',customer:document.getElementById('calCustomer').value.trim(),site:document.getElementById('calSite').value.trim(),date:document.getElementById('calDate').value,endDate:document.getElementById('calEndDate').value||document.getElementById('calDate').value,allDay:document.getElementById('calAllDay').checked,repeat:document.getElementById('calRepeat').value,startTime:document.getElementById('calStart').value,endTime:document.getElementById('calEnd').value,technician:Array.from(document.querySelectorAll('#calTechOptions input:checked')).map(function(x){return x.dataset.name;}).join(', '),assignedUsernames:Array.from(document.querySelectorAll('#calTechOptions input:checked')).map(function(x){return x.value;}),company:'Flagship Solar',jobNo:document.getElementById('calJobNo').value.trim(),jobType:document.getElementById('calType').value.trim(),notes:document.getElementById('calNotes').value.trim(),status:'SCHEDULED',approvalStatus:'APPROVED',source:'manual',createdAt:Date.now(),updatedAt:Date.now()};if(CAL_EDIT){e.googleEventId=CAL_EDIT.googleEventId;e.googleEtag=CAL_EDIT.googleEtag;if(e.repeat==='keep'){delete e.repeat;e.recurrences=CAL_EDIT.recurrences||[];}}if(!e.assignedUsernames.length){document.getElementById('calMsg').textContent='Select at least one technician.';saveButton.disabled=false;return;}if(!e.customer||!e.date){document.getElementById('calMsg').textContent='Customer and date are required.';saveButton.disabled=false;return;}if(!e.allDay&&e.endTime&&(!e.startTime||e.endDate===e.date&&e.endTime<=e.startTime)){document.getElementById('calMsg').textContent='End time must be after start time.';saveButton.disabled=false;return;}put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job saved on this phone; syncing…';calRender_();if(e.allDay){e.startTime='';e.endTime='';}return api({action:'scheduleJob',event:e}).then(function(j){if(!j.id||j.id!==e.id)throw new Error('Invalid calendar acknowledgement.');Object.assign(e,j.event||{});e.updatedAt=Number(j.updatedAt)||e.updatedAt;e.source='server';document.getElementById('calForm').classList.add('hidden');CAL_JOB_LINK=null;if(window.QuoteJobCalendar)QuoteJobCalendar.clear();return put('calendar',e).then(function(){document.getElementById('calMsg').textContent='Job scheduled and synced.';calRender_();});}).catch(function(err){document.getElementById('calMsg').textContent='Saved on this phone; server sync failed. Retry Save job: '+String(err.message||err);});}).finally(function(){saveButton.disabled=false;});});
 
 /* ============ screens ============ */
 var SCREENS=['screenAuth','screenHome','screenJobs','screenJobCards','screenJobCard','screenCalendar','screenTime','screenSettings','screenAdmin','screenPrices','screenReport','screenProps','screenQuote','screenProp','screenStock'];
@@ -6392,7 +6394,7 @@ fsClockRefresh_();
   function selectedTechnicians_(){return Array.from(document.querySelectorAll('#calTechOptions input:checked'));}
   function renderTechSummary_(){var picked=selectedTechnicians_().map(function(x){return x.dataset.name;});$('calTechSummary').textContent=picked.length?picked.join(', '):'Choose technicians';}
   window.loadCalendarTechnicians_=function(){
-    api({action:'calendarTechnicians',company:'Flagship Solar'}).then(function(r){
+    return api({action:'calendarTechnicians',company:'Flagship Solar'}).then(function(r){
       var box=$('calTechOptions');box.replaceChildren();box.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:10px 4px';var list=Array.isArray(r.technicians)?r.technicians:[];
       var teams=[{company:'Hi Service',names:['Andre','Kai','Freddie','Allistair','Jeanie','Garth']},{company:'Flagship',names:['Michael','Jacobus','Frank','Ian','Sangwani']}];
       teams.forEach(function(team){var section=document.createElement('section');section.style.cssText='min-width:0;border:1px solid #dfe6e2;border-radius:10px;padding:10px;background:#fff';var heading=document.createElement('h4');heading.textContent=team.company;heading.style.cssText='margin:0 0 8px;font-size:14px;color:#263b31';section.append(heading);team.names.forEach(function(displayName){var wanted=displayName.toLowerCase();if(wanted==='allistair')wanted='alistair';var person=list.find(function(p){var first=String(p.name||'').trim().split(/\s+/)[0].toLowerCase();if(first==='allistair')first='alistair';return first===wanted;});var label=document.createElement('label');label.style.cssText='display:flex;align-items:center;gap:7px;width:100%;min-width:0;font-weight:500;font-size:14px;padding:4px 0;color:'+(person?'#33433b':'#929a95');var input=document.createElement('input');input.type='checkbox';input.style.cssText='width:18px;height:18px;flex:0 0 18px;padding:0;margin:0';input.disabled=!person;input.title=person?'':'No active calendar account';if(person){input.value=person.username;input.dataset.name=person.name;input.checked=(CAL_JOB_LINK&&CAL_JOB_LINK.booking&&CAL_JOB_LINK.booking.assignedUsernames||[]).some(function(id){return id.toLowerCase()===person.username.toLowerCase();});}var name=document.createElement('span');name.textContent=displayName;name.style.cssText='flex:1;min-width:0;text-align:left;overflow-wrap:anywhere';label.append(input,name);section.append(label);if(person)input.addEventListener('change',renderTechSummary_);});box.append(section);});renderTechSummary_();
@@ -6407,28 +6409,23 @@ fsClockRefresh_();
   function navElement_(){return $('fsBottomNav');}
   function syncNav_(id){var nav=navElement_();if(!nav)return;var auth=id==='screenAuth'||!ME;nav.classList.toggle('hidden',auth);nav.querySelectorAll('button').forEach(function(b){var target=b.dataset.screen,permission=b.dataset.permission;b.classList.toggle('active',target===id);b.hidden=!!(permission&&!hasPermission_(permission));});}
   window.FlagshipBottomNavSync_=syncNav_;
-  window.FlagshipBottomNavGo_=function(id){if(id==='screenHome')showHome();else show(id);};
+  window.FlagshipBottomNavGo_=function(id){if(id==='screenHome')showHome();else if(id==='screenCalendar')showCalendar();else if(id==='screenProps')showProps();else if(id==='screenStock')showStock();else show(id);};
   function bindNav_(){var nav=navElement_();if(!nav)return;nav.querySelectorAll('[data-screen]').forEach(function(b){b.addEventListener('click',function(){window.FlagshipBottomNavGo_(b.dataset.screen);});});}
   document.addEventListener('DOMContentLoaded',bindNav_);
   window.addEventListener('load',function(){var active=SCREENS.find(function(id){var el=$(id);return el&&!el.classList.contains('hidden');});syncNav_(active||'screenAuth');});
 })();
-})();
-</script>
-<script src="./xero-customer.js?release=flagship-ops-v151-attendance"></script>
-<script src="./po-inventory.js?release=flagship-ops-v151-attendance"></script>
-<script src="./purchase-orders.js?release=flagship-ops-v151-attendance"></script>
-<script src="./ops-dashboard.js?release=flagship-ops-v151-attendance"></script>
-<script src="./ops-updates-v135.js?release=flagship-ops-v168-tech-groups"></script>
 
-<script>window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};</script><script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script><script>setInterval(function(){if(!document.hidden&&document.getElementById('screenCalendar')&&!document.getElementById('screenCalendar').classList.contains('hidden'))showCalendar(true);},300000);</script><nav id="fsBottomNav" class="fs-bottom-nav hidden" aria-label="Primary navigation">
-  <button type="button" data-screen="screenHome" aria-label="Home"><span aria-hidden="true">⌂</span><small>Home</small></button>
-  <button type="button" data-screen="screenCalendar" data-permission="calendar.view" aria-label="Calendar"><span aria-hidden="true">▦</span><small>Calendar</small></button>
-  <button type="button" data-screen="screenProps" data-permission="proposals.view" aria-label="Estimates"><span aria-hidden="true">▤</span><small>Estimate</small></button>
-  <button type="button" data-screen="screenStock" data-permission="stock.view" aria-label="Stock"><span aria-hidden="true">▣</span><small>Stock</small></button>
-  <button type="button" data-screen="screenSettings" aria-label="Settings"><span aria-hidden="true">⚙</span><small>Settings</small></button>
-</nav>
-<script src="./quote-job-calendar.js?release=20261104-step1-query"></script><script>
-QuoteJobCalendar.init({
+function calendarConnectionText_(j){return (j.googleCalendar?(j.googleCalendar.connected?'Google Calendar connected · mjflagship@gmail.com':'Google Calendar unavailable: '+j.googleCalendar.error):'Google Calendar backend update required')+(j.lastImportAt?' · TimeTree archive '+new Date(j.lastImportAt).toLocaleString():'')+(j.archiveWarning?' · '+j.archiveWarning:'');}
+window.FlagshipCalendarBridge={company:'Flagship Solar',host:'screenCalendar',read:apiGet,request:api,refresh:function(){CAL_SEARCH_OWNER='';return showCalendar(true);},allowed:function(){return ME&&ME.role!=='Worker'&&hasPermission_('calendar.edit');},
+ edit:function(e){document.getElementById('calNew').click();CAL_EDIT=e;CAL_REQUEST_ID=e.id;CAL_JOB_LINK=e.jobListId?{job:{jobListId:e.jobListId}}:null;
+ var fields={calCustomer:e.customer,calSite:e.site,calDate:e.date,calEndDate:e.endDate||e.date,calStart:e.startTime,calEnd:e.endTime,calType:e.jobType,calNotes:e.notes,calJobNo:e.jobNo};
+ Object.keys(fields).forEach(function(id){document.getElementById(id).value=fields[id]||'';});document.getElementById('calAllDay').checked=!!e.allDay;document.getElementById('calRepeat').value=e.recurrences&&e.recurrences.length?'keep':'none';
+ loadCalendarTechnicians_().then(function(){document.querySelectorAll('#calTechOptions input').forEach(function(input){input.checked=(e.assignedUsernames||[]).indexOf(input.value)>=0;input.dispatchEvent(new Event('change'));});});
+ },openCard:function(e){return calOpen_(e.id,true);},newOnDay:function(day){document.getElementById('calNew').click();document.getElementById('calDate').value=day;}
+};
+window.AttendanceBridge={read:function(p){return apiGet(p)},request:function(p){return api(p)},worker:function(){return typeof canonicalWorkerName_==='function'?canonicalWorkerName_():ME.name||ME.username}};
+setInterval(function(){if(!document.hidden&&document.getElementById('screenCalendar')&&!document.getElementById('screenCalendar').classList.contains('hidden'))showCalendar(true);},300000);
+window.addEventListener("load",function(){QuoteJobCalendar.init({
  company:'fs',identity:function(){return ME&&ME.username?JSON.stringify([ME.username,ME.pass,CFG.url]):'';},
  allowed:function(){return ME&&ME.role!=='Worker'&&hasPermission_('calendar.view')&&hasPermission_('calendar.edit');},
  calendar:function(){showCalendar();},read:function(no){return api({action:'quoteJob',company:'Flagship Solar',jobNo:no});},
@@ -6441,8 +6438,23 @@ QuoteJobCalendar.init({
   Object.keys(fields).forEach(function(id){document.getElementById(id).value=fields[id]||'';});
   ['calCustomer','calSite','calJobNo','calType'].forEach(function(id){document.getElementById(id).readOnly=true;});document.getElementById('calForm').classList.remove('hidden');document.getElementById('calForm').scrollIntoView({behavior:'smooth'});
  }
-});
-</script></body>
+});});
+})();
+</script>
+<script src="./xero-customer.js?release=flagship-ops-v151-attendance"></script>
+<script src="./po-inventory.js?release=flagship-ops-v151-attendance"></script>
+<script src="./purchase-orders.js?release=flagship-ops-v151-attendance"></script>
+<script src="./ops-dashboard.js?release=flagship-ops-v151-attendance"></script>
+<script src="./ops-updates-v135.js?release=flagship-ops-v169-google-calendar"></script>
+
+<script src="./attendance-review.js?release=flagship-ops-v151-attendance"></script><nav id="fsBottomNav" class="fs-bottom-nav hidden" aria-label="Primary navigation">
+  <button type="button" data-screen="screenHome" aria-label="Home"><span aria-hidden="true">⌂</span><small>Home</small></button>
+  <button type="button" data-screen="screenCalendar" data-permission="calendar.view" aria-label="Calendar"><span aria-hidden="true">▦</span><small>Calendar</small></button>
+  <button type="button" data-screen="screenProps" data-permission="proposals.view" aria-label="Estimates"><span aria-hidden="true">▤</span><small>Estimate</small></button>
+  <button type="button" data-screen="screenStock" data-permission="stock.view" aria-label="Stock"><span aria-hidden="true">▣</span><small>Stock</small></button>
+  <button type="button" data-screen="screenSettings" aria-label="Settings"><span aria-hidden="true">⚙</span><small>Settings</small></button>
+</nav>
+<script src="./quote-job-calendar.js?release=20261104-step1-query"></script><script src="./app-calendar-tools.js?release=calendar-google-20261109"></script></body>
 </html>
 
 

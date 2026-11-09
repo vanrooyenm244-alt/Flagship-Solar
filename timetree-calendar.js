@@ -8,8 +8,8 @@
     var overrides=new Set(items.filter(function(e){return e.recurringUuid;}).map(function(e){return e.sourceCalendarId+':'+e.recurringUuid+':'+e.date;}));
     items.forEach(function(e){
       if(e.status==='ARCHIVED')return;
-      if(e.source!=='timetree'){if(e.date>=from&&e.date<=to)out.push(Object.assign({},e,{displayDate:e.date}));return;}
-      if(!e.recurrences.length){days(e,e.startAt,e.endAt,from,to,out);return;}
+      if(e.source!=='timetree'&&e.source!=='google'){if(e.date>=from&&e.date<=to)out.push(Object.assign({},e,{displayDate:e.date}));return;}
+      if(!(e.recurrences||[]).length){days(e,e.startAt,e.endAt,from,to,out);return;}
       try{
         if(!root.rrule)throw Error('Recurrence library unavailable');
         var tz=e.allDay?'UTC':e.timeZone||'Africa/Johannesburg',stamp=parts(e.startAt,tz).stamp;
@@ -34,7 +34,7 @@
     var first=new Date(month.getFullYear(),month.getMonth(),1),start=new Date(first);start.setDate(1-first.getDay());var end=new Date(start);end.setDate(end.getDate()+41);
     var from=mode==='day'?selectedDay:mode==='agenda'?key(first):key(start),to=mode==='day'?selectedDay:mode==='agenda'?key(new Date(month.getFullYear(),month.getMonth()+1,0)):key(end);
     var view=root.TimeTreeCalendar.entries(items,from,to),groups={};view.events.forEach(function(e){(groups[e.displayDate]||(groups[e.displayDate]=[])).push(e);});
-    function booking(e){var link=e.source==='timetree'&&/^https:\/\/timetreeapp\.com\/calendars\/[A-Za-z0-9_-]+\/events\/[A-Za-z0-9_-]+$/.test(e.sourceUrl||'')?'<a class="cal-timetree" href="'+esc(e.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Open in TimeTree ↗</a>':'';return '<div class="cal-booking"><button type="button" class="cal-event" '+attr+'="'+esc(e.id)+'"><small>'+esc(e.startTime||'All day')+(e.endTime?' – '+esc(e.endTime):'')+'</small><strong>'+esc(e.customer||'Booking')+'</strong><small>'+esc([e.jobType,e.technician,e.site].filter(Boolean).join(' · '))+'</small></button>'+link+'</div>';}
+    function booking(e){var link=e.source==='timetree'&&/^https:\/\/timetreeapp\.com\/calendars\/[A-Za-z0-9_-]+\/events\/[A-Za-z0-9_-]+$/.test(e.sourceUrl||'')?'<a class="cal-timetree" href="'+esc(e.sourceUrl)+'" target="_blank" rel="noopener noreferrer">Open in TimeTree ↗</a>':'';return '<div class="cal-booking '+(e.company==='Flagship Solar'?'cal-flagship':e.company==='Hi Service'?'cal-hi':'cal-archive')+'"><button type="button" class="cal-event" '+attr+'="'+esc(e.id)+'"><small>'+esc(e.startTime||'All day')+(e.endTime?' – '+esc(e.endTime):'')+'</small><strong>'+esc(e.customer||'Booking')+'</strong><small>'+esc([e.jobType,e.technician,e.site].filter(Boolean).join(' · '))+'</small></button>'+link+'</div>';}
     var html='';
     if(mode==='agenda'||mode==='day'){
       Object.keys(groups).sort().forEach(function(date){var d=new Date(date+'T12:00:00');html+='<div class="cal-agenda-day"><button type="button" class="cal-date" data-cal-day="'+date+'" aria-label="Open '+date+'">'+formatter.format(d)+'<b>'+d.getDate()+'</b></button><div>'+groups[date].map(booking).join('')+'</div></div>';});
@@ -62,5 +62,6 @@ function ttTagVisible_(e,company,user){
   if(company==='Flagship Solar')return matches.some(function(t){return t==='flagship electric'?names.some(function(n){return ['jacobus','frank','ian','sangwani','sangwannyasulu','michael'].indexOf(n)>=0;}):names.indexOf(t)>=0;});
   return matches.some(function(t){return t.split(/[/\-]/).some(function(n){return names.indexOf(n)>=0||(n==='kai'&&names.indexOf('kia')>=0)||(n==='allaistair'&&names.indexOf('allistair')>=0);});});
 }
+var legacyVisible=ttTagVisible_;ttTagVisible_=function(e,company,user){if(e.source==='google')return e.company===company;if(e.company&&e.source!=='timetree'&&e.company!==company)return false;return legacyVisible(e,company,user);};
 root.TimeTreeCalendar.visible=ttTagVisible_;root.TimeTreeCalendar.tagKey=ttTagKey_;
 })(typeof window!=='undefined'?window:globalThis);
