@@ -885,11 +885,19 @@ function tsApprovalSheet_(){
   if(!sh){sh=ss.insertSheet('Timesheet Approvals');sh.appendRow(['ID','Worker','Date','Payload JSON','Submitted By','Submitted At','Status','Reviewed By','Reviewed At','Reason']);}
   return sh;
 }
+function tsEpochMs_(value){
+  if(value instanceof Date)return value.getTime();
+  if(typeof value==='number'&&isFinite(value)){
+    if(value>1000000000000)return value;
+    if(value>10000)return Date.UTC(1899,11,30)+Math.round(value*86400000);
+  }
+  var parsed=new Date(value).getTime();return isFinite(parsed)?parsed:0;
+}
 function tsPendingList_(user){
   if(user.role!=='Admin')throw Error('Admin access required');
   var sh=tsApprovalSheet_(),n=sh.getLastRow()-1,out=[];
   if(n>0)sh.getRange(2,1,n,10).getValues().forEach(function(r){
-    if(r[6]==='Pending')out.push({id:String(r[0]),worker:String(r[1]),date:dateStr_(r[2]),details:JSON.parse(String(r[3])),submittedBy:String(r[4]),submittedAt:String(r[5])});
+    if(r[6]==='Pending')out.push({id:String(r[0]),worker:String(r[1]),date:dateStr_(r[2]),details:JSON.parse(String(r[3])),submittedBy:String(r[4]),submittedAt:String(r[5]),submittedAtMs:tsEpochMs_(r[5])});
   });
   return out;
 }
@@ -920,7 +928,8 @@ function tsStage_(user,rows,alreadyLocked){
 }
 function tsReview_(user,body){
   if(user.role!=='Admin')throw Error('Admin access required');
-  var lock=LockService.getScriptLock();lock.waitLock(20000);
+  var lock=LockService.getScriptLock(),projectionWorker='',response=null;
+  lock.waitLock(20000);
   try{
     var sh=tsApprovalSheet_(),id=String(body.id||''),action=String(body.decision||''),n=sh.getLastRow()-1;
     if(!/^(approve|reject)$/.test(action)||!id)throw Error('Invalid approval request');
@@ -932,14 +941,21 @@ function tsReview_(user,body){
       var data=JSON.parse(String(row[3]));
       var result=writeEntry_(user,data);
       if(result.skipped)throw Error(result.reason||'Invalid hours');
-      rebuildWorkerTabs([data.worker]);
+      projectionWorker=data.worker;
     }
     tsAudit_(user,action,String(row[1]),dateStr_(row[2]),String(body.reason||''),row,{decision:action,reviewer:user.username});
     sh.getRange(at+2,7,1,4).setValues([[action==='approve'?'Approved':'Rejected',user.username,new Date(),String(body.reason||'')]]);
     log_(user.username,'timesheet '+action,String(row[1])+' '+dateStr_(row[2]),'Pending',String(body.reason||''));
-    syncMonthlyOvertimeSafely_();
-     return {ok:true,status:action==='approve'?'Approved':'Rejected'};
+    response={ok:true,status:action==='approve'?'Approved':'Rejected'};
   }finally{lock.releaseLock();}
+
+  // Derived worker and summary tabs can refresh after the approval is committed,
+  // so their rebuild does not block other clock-ins, submissions, or approvals.
+  if(projectionWorker){
+    try{rebuildWorkerTabs([projectionWorker]);}
+    catch(e){console.error('Approved timesheet saved; projection refresh failed: '+String(e&&e.stack||e));}
+  }
+  return response;
 }
 
 /* ================= timesheet writes ================= */
