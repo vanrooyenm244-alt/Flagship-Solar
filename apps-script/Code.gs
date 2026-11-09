@@ -718,6 +718,7 @@ function sortWorkerTab_(sh) {
 }
 
 function rebuildSummary() {
+  // This must stay in the active company timesheet workbook.
   var ss = timesheetSpreadsheet_();
   var src = ss.getSheetByName('Timesheets');
   var sh = ss.getSheetByName('Summary') || ss.insertSheet('Summary');
