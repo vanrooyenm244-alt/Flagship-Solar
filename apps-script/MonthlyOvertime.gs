@@ -66,12 +66,12 @@ function syncMonthlyOvertime_(){
 
   rows.sort(function(a,b){return String(b[2]).localeCompare(String(a[2]))||String(a[0]).localeCompare(String(b[0]));});
   if(rows.length){
+    sh.getRange(6,9,rows.length,3).insertCheckboxes();
     sh.getRange(6,1,rows.length,16).setValues(rows);
     sh.getRange(6,12,rows.length,1).setFormulas(rows.map(function(_,i){
       var r=i+6;
       return ['=IF(P'+r+'="Rejected","Rejected",IF(P'+r+'="Cancelled","Cancelled",IF(P'+r+'<>"Approved","Pending supervisor approval",IF(J'+r+'<>TRUE,"Pending supervisor approval",IF(K'+r+'<>TRUE,"Awaiting Freddie approval","Approved")))))'];
     }));
-    sh.getRange(6,9,rows.length,3).insertCheckboxes();
     sh.getRange(6,3,rows.length,1).setNumberFormat('yyyy-mm-dd');
     sh.getRange(6,15,rows.length,1).setNumberFormat('yyyy-mm-dd hh:mm');
   }
