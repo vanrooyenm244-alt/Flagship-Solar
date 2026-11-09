@@ -6139,16 +6139,41 @@ async function loadTsApprovals_(){
   var response=await fetch(u);if(!response.ok)throw Error('Approval inbox unavailable');
   var data=await response.json();if(!data.ok)throw Error(data.error||'Approval inbox unavailable');
   var entries=data.entries||[];
-  box.innerHTML='<div class="queued"><b>Timesheets awaiting your approval ('+entries.length+')</b> '+
-    '<button type="button" id="tsReloadApprovals">Refresh</button>'+
-    (entries.length?entries.map(function(x,i){
-      var a=x.details||{};
-      return '<div style="padding:10px 0;border-bottom:1px solid #ddd"><b>'+esc(x.worker)+'</b> — '+esc(x.date)+
-        ' · '+esc(a.timeIn||'')+'–'+esc(a.timeOut||'')+' · Lunch '+esc(a.lunch)+' min'+
-        '<div>'+esc(a.job||'')+' '+esc(a.note||'')+' · Submitted by '+esc(x.submittedBy||'')+'</div>'+
-        '<button type="button" data-ts-approve="'+i+'">Approve</button> '+
-        '<button type="button" data-ts-reject="'+i+'">Reject</button></div>';
-    }).join(''):'<div>No submissions waiting.</div>')+'</div>';
+  function ageDays(x){
+    var ms=Number(x.submittedAtMs);
+    if(!(ms>0)){var parsed=new Date(x.submittedAt||'').getTime();if(isFinite(parsed))ms=parsed;}
+    if(!(ms>0)){var fallback=new Date(String(x.date||'')+'T12:00:00').getTime();if(isFinite(fallback))ms=fallback;}
+    return Math.max(0,Math.floor((Date.now()-(ms||Date.now()))/86400000));
+  }
+  function ageLabel(days){return days===0?'today':days===1?'1 day':days+' days';}
+  var groups=Object.create(null);
+  entries.forEach(function(x,i){
+    var name=String(x.worker||'Unknown');
+    if(!groups[name])groups[name]=[];
+    groups[name].push({entry:x,index:i,age:ageDays(x)});
+  });
+  var names=Object.keys(groups).sort(function(a,b){
+    var oldestA=Math.max.apply(null,groups[a].map(function(x){return x.age;}));
+    var oldestB=Math.max.apply(null,groups[b].map(function(x){return x.age;}));
+    return oldestB-oldestA||a.localeCompare(b);
+  });
+  var groupHtml=names.map(function(name,gi){
+    var items=groups[name].sort(function(a,b){return b.age-a.age||String(a.entry.date).localeCompare(String(b.entry.date));});
+    var oldest=items.length?items[0].age:0;
+    return '<details style="padding:8px 0;border-bottom:1px solid #ddd"'+(gi===0?' open':'')+'><summary style="cursor:pointer;padding:8px 0"><b>'+esc(name)+'</b> · Oldest waiting '+esc(ageLabel(oldest))+' · '+items.length+' to approve</summary>'+
+      items.map(function(item){
+        var x=item.entry,a=x.details||{};
+        return '<div style="padding:10px 8px;border-bottom:1px solid #eee"><b>'+esc(x.date)+'</b> · '+esc(a.timeIn||'')+'–'+esc(a.timeOut||'')+' · Lunch '+esc(a.lunch)+' min'+
+          '<div>'+esc(a.job||'')+' '+esc(a.note||'')+' · Submitted by '+esc(x.submittedBy||'')+' · Waiting '+esc(ageLabel(item.age))+'</div>'+
+          '<button type="button" data-ts-approve="'+item.index+'">Approve</button> '+
+          '<button type="button" data-ts-reject="'+item.index+'">Reject</button></div>';
+      }).join('')+'</details>';
+  }).join('');
+  var oldestAll=entries.length?Math.max.apply(null,entries.map(ageDays)):0;
+  box.innerHTML='<div class="queued"><b>Timesheets awaiting your approval ('+entries.length+')</b>'+
+    (entries.length?' · Oldest waiting '+esc(ageLabel(oldestAll)):'')+
+    ' <button type="button" id="tsReloadApprovals">Refresh</button>'+
+    (entries.length?groupHtml:'<div>No submissions waiting.</div>')+'</div>';
   box.querySelector('#tsReloadApprovals').onclick=function(){loadTsApprovals_().catch(tsError_);};
   async function review(x,decision){
     if(!confirm((decision==='approve'?'Approve and write to Google Sheets':'Reject')+' '+x.worker+' on '+x.date+'?'))return;
@@ -6160,9 +6185,23 @@ async function loadTsApprovals_(){
     var result=await response.json();if(!result.ok)throw Error(result.error||'Review not saved');
     await loadTsApprovals_();await fetchTimesheetAll();
   }
+  var reviewBusy=false;
+  async function runReview(x,decision){
+    if(reviewBusy)return;
+    reviewBusy=true;
+    box.querySelectorAll('[data-ts-approve],[data-ts-reject]').forEach(function(btn){btn.disabled=true;});
+    try{await review(x,decision);}
+    catch(e){alert(String(e.message||e));}
+    finally{
+      reviewBusy=false;
+      box.querySelectorAll('[data-ts-approve],[data-ts-reject]').forEach(function(btn){btn.disabled=false;});
+    }
+  }
   entries.forEach(function(x,i){
-    box.querySelector('[data-ts-approve="'+i+'"]').onclick=function(){review(x,'approve').catch(function(e){alert(String(e.message||e));});};
-    box.querySelector('[data-ts-reject="'+i+'"]').onclick=function(){review(x,'reject').catch(function(e){alert(String(e.message||e));});};
+    var approve=box.querySelector('[data-ts-approve="'+i+'"]');
+    var reject=box.querySelector('[data-ts-reject="'+i+'"]');
+    if(approve)approve.onclick=function(){runReview(x,'approve');};
+    if(reject)reject.onclick=function(){runReview(x,'reject');};
   });
 }
 async function renderQueue(){
@@ -6447,7 +6486,7 @@ window.addEventListener("load",function(){QuoteJobCalendar.init({
 <script src="./ops-dashboard.js?release=flagship-ops-v151-attendance"></script>
 <script src="./ops-updates-v135.js?release=flagship-ops-v172-calendar-confirm"></script>
 
-<script src="./attendance-review.js?release=monthly-overtime-company-route-20261109"></script><nav id="fsBottomNav" class="fs-bottom-nav hidden" aria-label="Primary navigation">
+<script src="./attendance-review.js?release=timesheet-approval-speed-age-20261109"></script><nav id="fsBottomNav" class="fs-bottom-nav hidden" aria-label="Primary navigation">
   <button type="button" data-screen="screenHome" aria-label="Home"><span aria-hidden="true">⌂</span><small>Home</small></button>
   <button type="button" data-screen="screenCalendar" data-permission="calendar.view" aria-label="Calendar"><span aria-hidden="true">▦</span><small>Calendar</small></button>
   <button type="button" data-screen="screenProps" data-permission="proposals.view" aria-label="Estimates"><span aria-hidden="true">▤</span><small>Estimate</small></button>
