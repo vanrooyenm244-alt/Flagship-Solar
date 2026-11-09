@@ -922,8 +922,7 @@ function tsStage_(user,rows,alreadyLocked){
       // 'added' confirms receipt into the approval inbox, NOT into Timesheets.
       results.push({index:i,worker:worker,date:ds,status:status==='pending'?'added':status,reason:reason});
     });
-    syncMonthlyOvertimeSafely_();
-     return {ok:true,results:results,pendingApproval:results.filter(function(r){return r.status==='added';}).length};
+return {ok:true,results:results,pendingApproval:results.filter(function(r){return r.status==='added';}).length};
   }finally{if(lock)lock.releaseLock();}
 }
 function tsReview_(user,body){
