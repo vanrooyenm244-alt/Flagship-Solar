@@ -6,11 +6,12 @@ function doGet(e){
   if(p.action==='googleCalendarStatus')return out_(workGoogleStatus_(body));
   if(p.action==='quoteJob'||p.action==='hiQuoteJob')return out_(quoteJobRead_(body));
   if(p.action==='calendar'||p.action==='hiCalendar')return out_(workCalendarRead_(body));
+  if(p.action==='timesheetAll'||p.action==='entries')return withTimesheetContext_(body.company||'Flagship Solar',function(){return attendanceLegacyGet_(e);});
   if(p.action==='attendanceRecords')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsRecords_(Object.assign({},body,p)));});
   if(p.action==='attendanceHistory')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_(tsHistory_(Object.assign({},body,p)));});
   if(p.action==='timesheetPending')return withTimesheetContext_(body.company||'Flagship Solar',function(){return out_({ok:true,entries:tsPendingList_(auth_(body))});});
   if(p.action==='flagshipClockStatus')return out_(flagshipClockStatus_(body));
-  if(p.action==='hiClockStatus')return out_(hiClockStatus_(body));
+  if(p.action==='hiClockStatus')return withTimesheetContext_('Hi Service',function(){return out_(hiClockStatus_(body));});
   if(p.action==='poRecent')return out_(poRecent_(body));
   if(p.action==='hiXeroContacts'){auth_(body);return out_(xeroContacts_(p.q||''));}
   if(p.action==='hiXeroStatus'){auth_(body);var status=xeroStatus_();status.company='Hi Service';status.mode='shared';return out_(status);}
