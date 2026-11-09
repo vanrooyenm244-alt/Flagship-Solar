@@ -937,6 +937,10 @@ function tsReview_(user,body){
     var vals=sh.getRange(2,1,n,10).getValues(),at=vals.findIndex(function(r){return String(r[0])===id;});
     if(at<0)throw Error('Approval not found');
     var row=vals[at];if(row[6]!=='Pending')throw Error('This submission has already been reviewed');
+    if(body.expectedVersion){
+      var current=tsRecords_(body).entries.find(function(r){return r.id===id;});
+      if(!current||current.version!==String(body.expectedVersion))throw Error('This row changed. Refresh before reviewing it.');
+    }
     if(action==='approve'){
       var data=JSON.parse(String(row[3]));
       var result=writeEntry_(user,data);
