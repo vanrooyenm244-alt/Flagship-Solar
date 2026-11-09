@@ -1,14 +1,14 @@
 /* Atomic app shell. Versioned assets keep open pages consistent during updates. */
-const CACHE = 'flagship-ops-v169-google-calendar';
+const CACHE = 'flagship-ops-v170-calendar-contrast';
 const SHELL = [
-  "./app-calendar-tools.js?release=calendar-google-20261109",
+  "./app-calendar-tools.js?release=calendar-google-20261109-contrast",
   "./quote-job-calendar.js?release=20261104-step1-query",
   "./",
   "./index.html",
   "./ops-theme.css?release=20261104-bottom-nav",
   "./ops-theme.js?release=20261029",
   "./ops-dashboard.js?release=flagship-ops-v151-attendance",
-  "./ops-updates-v135.js?release=flagship-ops-v169-google-calendar",
+  "./ops-updates-v135.js?release=flagship-ops-v170-calendar-contrast",
   "./release-notes.json",
   "./calendar-ui.6f647da4d4a8.css",
   "./vendor/rrule.min.js?release=flagship-ops-v151-attendance",

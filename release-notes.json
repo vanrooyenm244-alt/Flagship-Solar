@@ -1,5 +1,5 @@
 {
-  "version": "flagship-ops-v169-google-calendar",
+  "version": "flagship-ops-v170-calendar-contrast",
   "date": "2026-11-09",
   "changes": [
     "Calendar opens with the month view; Google Calendar bookings are stored centrally under mjflagship@gmail.com and read back with updates and cancellation.",
