@@ -307,15 +307,45 @@ function onOpen() {
 
 /* ================= helpers ================= */
 
+var TIMESHEET_BOOK_IDS_ = {
+  'Flagship Solar': '1JGHKEL4DY7hcA9nv95G2ZMDNtLyVmu8IY6jYyTT4_dQ',
+  'Hi Service': '1sbNYYAA2kXA7net9MEeduOGNOtk3hjyBIoJfeVbDovU'
+};
+var TIMESHEET_CONTEXT_ = null;
+function timesheetCompany_(company) {
+  var key=String(company||'').trim().toLowerCase();
+  if(!key || key==='flagship solar' || key==='flagship') return 'Flagship Solar';
+  if(key==='hi service' || key==='hiservice') return 'Hi Service';
+  throw new Error('Unknown timesheet company: '+company);
+}
+function timesheetSpreadsheet_(company) {
+  var key=timesheetCompany_(company || (TIMESHEET_CONTEXT_ && TIMESHEET_CONTEXT_.company));
+  if(TIMESHEET_CONTEXT_ && TIMESHEET_CONTEXT_.company===key) return TIMESHEET_CONTEXT_.spreadsheet;
+  return SpreadsheetApp.openById(TIMESHEET_BOOK_IDS_[key]);
+}
+function withTimesheetContext_(company, callback) {
+  var key=timesheetCompany_(company || (TIMESHEET_CONTEXT_ && TIMESHEET_CONTEXT_.company));
+  var previous=TIMESHEET_CONTEXT_;
+  TIMESHEET_CONTEXT_={company:key,spreadsheet:SpreadsheetApp.openById(TIMESHEET_BOOK_IDS_[key])};
+  try { return callback(TIMESHEET_CONTEXT_.spreadsheet); }
+  finally { TIMESHEET_CONTEXT_=previous; }
+}
+
 function sheet_(name) {
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
+  var ss = name==='Timesheets' ? timesheetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(name);
+  if (!sh && name==='Timesheets') throw new Error('Configured timesheet workbook is missing its Timesheets tab.');
   if (!sh) { setup(); sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name); }
   return sh;
 }
 
 function log_(user, action, detail, was, now) {
-  try { sheet_('Log').appendRow([new Date(), user || '', action, detail || '', was || '', now || '']); }
-  catch (e) {}
+  try {
+    var ss=TIMESHEET_CONTEXT_?TIMESHEET_CONTEXT_.spreadsheet:SpreadsheetApp.getActiveSpreadsheet();
+    var sh=ss.getSheetByName('Log')||ss.insertSheet('Log');
+    if(sh.getLastRow()<1)sh.appendRow(['Timestamp','User','Action','Detail','Was','Now']);
+    sh.appendRow([new Date(), user || '', action, detail || '', was || '', now || '']);
+  } catch (e) {}
 }
 
 /* Build an audit PDF for one supplier-price import. The original supplier
@@ -601,7 +631,7 @@ function reservedWorkerTabs_() {
     typeof STOCK_COUNT_SHEET === 'string' ? STOCK_COUNT_SHEET : 'Stock_Counts']).map(workerTabKey_);
 }
 function workerMasterRows_() {
-  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Timesheets');
+  var sh = timesheetSpreadsheet_().getSheetByName('Timesheets');
   return sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, 14).getValues() : [];
 }
 function workerProjection_(r) {
@@ -613,7 +643,7 @@ function workerRowFingerprint_(row) {
   }));
 }
 function validateWorkerTab_(worker, master) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet(), name = tabName_(worker);
+  var ss = timesheetSpreadsheet_(), name = tabName_(worker);
   var owner = String(worker).trim(), key = workerTabKey_(name);
   if (!owner || !String(worker).replace(/[\[\]\*\/\\\?:]/g, '').trim())
     workerTabError_('empty worker destination.');
@@ -665,7 +695,7 @@ function preflightWorkerTabs_(additional, onlyRequested) {
 
 function workerSheet_(worker) {
   preflightWorkerTabs_([worker], true);
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = timesheetSpreadsheet_();
   var destination = validateWorkerTab_(worker, workerMasterRows_());
   var name = destination.name;
   var sh = destination.sheet;
@@ -850,7 +880,7 @@ function flagshipClockAction_(body){
   }finally{lock.releaseLock();}
 }
 function tsApprovalSheet_(){
-  var ss=SpreadsheetApp.getActiveSpreadsheet(),sh=ss.getSheetByName('Timesheet Approvals');
+  var ss=timesheetSpreadsheet_(),sh=ss.getSheetByName('Timesheet Approvals');
   if(!sh){sh=ss.insertSheet('Timesheet Approvals');sh.appendRow(['ID','Worker','Date','Payload JSON','Submitted By','Submitted At','Status','Reviewed By','Reviewed At','Reason']);}
   return sh;
 }
